@@ -332,6 +332,7 @@ textarea.finput{height:70px;resize:none}
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
       <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
+      <button class="sn-btn" id="snav-journal" onclick="switchTab('journal')"><span class="sn-icon">&#128221;</span> Journal</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
       <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
@@ -361,6 +362,7 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
+      <button class="d-tab" id="dtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
       <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
@@ -383,6 +385,7 @@ textarea.finput{height:70px;resize:none}
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-journal" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   </div>
 
   <!-- MOBILE HEADER -->
@@ -407,6 +410,7 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
+    <button class="m-tab" id="mtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
     <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
@@ -423,6 +427,7 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-journal" class="m-rem mobile-only" style="display:none"></div>
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
@@ -430,6 +435,7 @@ textarea.finput{height:70px;resize:none}
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
+    <button class="bnav-btn" id="mnav-journal" onclick="switchTab('journal')"><span class="bnav-icon">&#128221;</span><span class="bnav-label">Journal</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
     <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
@@ -524,6 +530,64 @@ textarea.finput{height:70px;resize:none}
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#9997; Contract</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#7C3AED;color:#fff" onclick="openReminderModal(currentId)">&#128276; Remind</button>
     <button class="btn-danger" onclick="deleteContact()">Delete</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: VOICE JOURNAL -->
+<div class="modal-bg" id="modal-voice-journal">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>&#127908; Voice Journal Entry</h2>
+  <div style="background:#F5F3FF;border-radius:8px;padding:10px 14px;font-size:12px;color:#5B21B6;margin-bottom:14px">
+    Speak naturally about your day — mention client names and the AI will sort everything automatically. Say <strong>STOP</strong> when done.
+  </div>
+  <div id="vj-status" style="text-align:center;padding:10px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start</div>
+  <div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:10px">Say <strong>STOP</strong> to finish recording</div>
+  <div style="display:flex;justify-content:center;margin-bottom:14px">
+    <button id="vj-mic-btn" onclick="toggleVoiceJournal()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
+  </div>
+  <div id="vj-preview" style="display:none">
+    <label class="flabel">What you said (edit if needed)</label>
+    <textarea class="finput" id="vj-raw" style="height:100px;resize:vertical"></textarea>
+    <button onclick="processVoiceJournal()" style="width:100%;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">&#9889; Process with AI — Sort by Client</button>
+  </div>
+  <div id="vj-result" style="display:none;margin-top:14px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">AI sorted your notes</div>
+    <div id="vj-result-content"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button onclick="applyVoiceJournalResult()" style="flex:1;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; Save to Journal &amp; Contacts</button>
+      <button onclick="document.getElementById('vj-result').style.display='none';document.getElementById('vj-preview').style.display='block'" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Re-record</button>
+    </div>
+  </div>
+  <div class="mact" style="margin-top:8px">
+    <button class="btn-cancel" onclick="stopVoiceJournal();closeModal('modal-voice-journal')">Cancel</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: JOURNAL ENTRY -->
+<div class="modal-bg" id="modal-journal">
+<div class="modal" style="max-height:90vh;overflow-y:auto">
+  <div class="mhandle"></div>
+  <h2 id="jnl-modal-title">New Journal Entry</h2>
+  <div class="fgrid">
+    <div class="ffull">
+      <label class="flabel">Date</label>
+      <input class="finput" id="jnl-date" type="date">
+    </div>
+    <div class="ffull">
+      <label class="flabel">Entry — What happened today? Who did you talk to?</label>
+      <textarea class="finput" id="jnl-body" style="height:200px;resize:vertical" placeholder="Write about your calls, meetings, follow-ups, and anything worth remembering...&#10;&#10;Example:&#10;Called Jireh — they confirmed Summer pickup window is June 15-30. Want exact delivery dates by end of May.&#10;&#10;Spoke with Robert LoBue — Shiranui trees looking good, he asked about adding 500 more. Said I'd check availability.&#10;&#10;New lead from Oscar at Valley AG — looking for 3,000 Tango Carrizo Spring 2027. Sending him a quote this week."></textarea>
+    </div>
+    <div class="ffull">
+      <label class="flabel">Clients mentioned (tap to tag)</label>
+      <div id="jnl-contacts-wrap" style="display:flex;flex-wrap:wrap;gap:2px;padding:6px 0;max-height:140px;overflow-y:auto"></div>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-journal');journalEditId=null">Cancel</button>
+    <button class="btn-xs" onclick="openVoiceJournal()" style="background:#7C3AED;color:#fff;padding:11px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-family:inherit">&#127908; Dictate</button><button class="btn-save" onclick="saveJournalEntry()">Save Entry</button>
   </div>
 </div>
 </div>
@@ -720,7 +784,7 @@ textarea.finput{height:70px;resize:none}
 <div class="modal">
   <div class="mhandle"></div>
   <h2>&#127908; Dictate a task</h2>
-  <div id="dictate-status" style="text-align:center;padding:18px 0;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div>
+  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div><div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div><div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
   <div style="display:flex;justify-content:center;margin-bottom:16px">
     <button id="mic-record-btn" onclick="toggleRecording()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
   </div>
@@ -1119,47 +1183,83 @@ function startRecording(){
     alert('Voice dictation is not supported on this browser. Please use Chrome or Safari.');return;
   }
   recognition=new SpeechRecognition();
-  recognition.continuous=false;
+  recognition.continuous=true;      // stays on until manually stopped
   recognition.interimResults=true;
   recognition.lang='en-US';
+  recognition.maxAlternatives=1;
   isRecording=true;
+  let finalTranscript='';
+  let interimTranscript='';
+
   const btn=document.getElementById('mic-record-btn');
   btn.textContent='⏹';btn.style.background='var(--red)';btn.classList.add('mic-pulse');
-  document.getElementById('dictate-status').textContent='Listening... speak your task clearly';
+  document.getElementById('dictate-status').textContent='Listening... say STOP when done';
+
   recognition.onresult=function(e){
-    let transcript='';
-    for(let i=0;i<e.results.length;i++){transcript+=e.results[i][0].transcript;}
-    document.getElementById('dictate-text').value=transcript;
+    interimTranscript='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal){
+        // Check for stop word
+        if(/stop/i.test(t.trim())){
+          stopRecording();
+          return;
+        }
+        finalTranscript+=t+' ';
+      } else {
+        interimTranscript+=t;
+      }
+    }
+    const full=(finalTranscript+interimTranscript).trim();
+    const textEl=document.getElementById('dictate-text');
+    if(textEl) textEl.value=full;
     document.getElementById('dictate-preview').style.display='block';
     document.getElementById('dictate-save-btn').style.display='block';
-    const hint=getCRMHint(transcript);
+    const hint=getCRMHint(full);
     if(hint){
       document.getElementById('dictate-hint').textContent=hint;
       document.getElementById('dictate-suggestion').style.display='block';
     }else{
       document.getElementById('dictate-suggestion').style.display='none';
     }
-    // Detect staff name in transcript
-    detectAssigneeFromSpeech(transcript);
+    detectAssigneeFromSpeech(full);
+    // Update character counter
+    const ctr=document.getElementById('dictate-char-count');
+    if(ctr) ctr.textContent=full.length+' chars';
   };
+
   recognition.onend=function(){
-    isRecording=false;
-    btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-    document.getElementById('dictate-status').textContent='Done — review and save or tap mic to re-record';
+    // If still recording (browser cut it off after silence), restart automatically
+    if(isRecording){
+      try{ recognition.start(); }catch(e){ /* already started */ }
+    } else {
+      btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
+      document.getElementById('dictate-status').textContent='Done — review and save, or tap mic to record more';
+    }
   };
+
   recognition.onerror=function(e){
+    if(e.error==='no-speech'&&isRecording){
+      // No speech detected but still recording — just restart quietly
+      try{ recognition.start(); }catch(err){}
+      return;
+    }
+    if(e.error==='aborted') return; // we aborted it intentionally
     isRecording=false;
     btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-    document.getElementById('dictate-status').textContent='Could not hear you — try again in a quiet area';
+    document.getElementById('dictate-status').textContent='Microphone error — check permissions and try again';
   };
+
   recognition.start();
 }
 
 function stopRecording(){
-  if(recognition)recognition.stop();
-  isRecording=false;
+  isRecording=false; // set false BEFORE calling stop so onend doesn't restart
+  if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
   const btn=document.getElementById('mic-record-btn');
-  btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
+  if(btn){ btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse'); }
+  const statusEl=document.getElementById('dictate-status');
+  if(statusEl) statusEl.textContent='Done — review and save, or tap mic to record more';
 }
 
 async function saveTask(){
@@ -2655,6 +2755,412 @@ function saveLogMovement(){
 
 
 
+
+// ── DAILY JOURNAL ─────────────────────────────────────────────────────────────
+let journalEntries = JSON.parse(localStorage.getItem('mg_journal') || '[]');
+let journalEditId = null;
+
+function saveJournalLocal(){
+  localStorage.setItem('mg_journal', JSON.stringify(journalEntries));
+}
+
+function renderJournal(){
+  const dv = document.getElementById('dv-journal');
+  const mv = document.getElementById('mv-journal');
+  const html = buildJournalHTML();
+  if(dv) dv.innerHTML = html;
+  if(mv) mv.innerHTML = html;
+}
+
+function buildJournalHTML(){
+  const today = new Date().toISOString().split('T')[0];
+  const todayEntry = journalEntries.find(e => e.date === today);
+
+  // Group entries by month
+  const byMonth = {};
+  journalEntries.forEach(e => {
+    const m = e.date.substring(0,7);
+    if(!byMonth[m]) byMonth[m] = [];
+    byMonth[m].push(e);
+  });
+  const sortedMonths = Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
+
+  // Today's entry box
+  const todayBox =
+    '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:16px 18px;margin-bottom:20px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1B4332;margin-bottom:2px">Today</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1B4332">' +
+            new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) +
+          '</div>' +
+        '</div>' +
+        (todayEntry ?
+          '<button data-jid="'+todayEntry.id+'" onclick="openJournalEdit(this.dataset.jid)" style="font-size:12px;background:#fff;border:1px solid #BBF7D0;border-radius:8px;padding:6px 12px;cursor:pointer;color:#1B4332;font-weight:600;font-family:inherit">Edit</button>' :
+          '') +
+      '</div>' +
+      (todayEntry ?
+        '<div style="font-size:14px;color:#1B4332;line-height:1.7;white-space:pre-wrap">'+esc(todayEntry.body)+'</div>' +
+        (todayEntry.contacts_mentioned && todayEntry.contacts_mentioned.length ?
+          '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
+          todayEntry.contacts_mentioned.map(cid=>{
+            const c=contacts.find(x=>x.id===cid);
+            return c?'<span data-cid="'+c.id+'" onclick="openDetail(this.dataset.cid)" style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:2px 9px;cursor:pointer;font-weight:600">'+esc(c.name)+'</span>':'';
+          }).join('')+
+          '</div>' : '') :
+        '<div style="color:#1B4332;opacity:.6;font-size:13px;margin-bottom:10px">No entry yet today. Write about your calls, meetings, and follow-ups.</div>') +
+      (!todayEntry ? '<button onclick="openJournalModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ Write Entry</button>' : '') +
+
+
+    '</div>';
+
+  // Past entries
+  const pastHTML = sortedMonths.map(m => {
+    const label = new Date(m+'-15').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const entries = byMonth[m].filter(e=>e.date!==today).sort((a,b)=>b.date.localeCompare(a.date));
+    if(!entries.length) return '';
+    return (
+      '<div style="margin-bottom:20px">' +
+        '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bd)">' + label + '</div>' +
+        entries.map(e => {
+          const dayLabel = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+          const preview = e.body.length > 140 ? e.body.substring(0,140)+'...' : e.body;
+          return (
+            '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:13px 15px;margin-bottom:8px">' +
+              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">' +
+                '<div style="flex:1;min-width:0">' +
+                  '<div style="font-size:12px;font-weight:700;color:var(--g900);margin-bottom:5px">' + dayLabel + '</div>' +
+                  '<div style="font-size:13px;color:var(--tx);line-height:1.6;white-space:pre-wrap">' + esc(preview) + '</div>' +
+                  (e.contacts_mentioned && e.contacts_mentioned.length ?
+                    '<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">' +
+                    e.contacts_mentioned.map(cid=>{
+                      const c=contacts.find(x=>x.id===cid);
+                      return c?'<span data-cid="'+c.id+'" onclick="openDetail(this.dataset.cid)" style="font-size:11px;background:#EFF6FF;color:#1D4ED8;border-radius:8px;padding:1px 8px;cursor:pointer;font-weight:600">'+esc(c.name)+'</span>':'';
+                    }).join('')+'</div>' : '') +
+                '</div>' +
+                '<div style="display:flex;gap:4px;flex-shrink:0">' +
+                  '<button data-jid="'+e.id+'" onclick="openJournalEdit(this.dataset.jid)" style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>' +
+                  '<button data-jid="'+e.id+'" onclick="deleteJournalEntry(this.dataset.jid)" style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px">&#x2715;</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('') +
+      '</div>'
+    );
+  }).join('');
+
+  const emptyPast = journalEntries.filter(e=>e.date!==today).length === 0
+    ? '<div style="text-align:center;padding:32px;color:var(--muted)">' +
+        '<div style="font-size:32px;margin-bottom:8px">&#128221;</div>' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:4px">Your journal starts here</div>' +
+        '<div style="font-size:12px">Write today entry and it will appear here tomorrow as history.</div>' +
+      '</div>'
+    : '';
+
+  return (
+    '<div style="width:100%;overflow-y:auto">' +
+      '<div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between">' +
+        '<h2 style="font-size:18px;font-weight:700;color:var(--g900);margin:0">&#128221; Daily Journal</h2>' +
+        '<button onclick="openJournalModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; New Entry</button>' +
+      '</div>' +
+      '<div style="padding:0 20px 32px">' +
+        todayBox +
+        (pastHTML || emptyPast) +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function openJournalModal(date){
+  journalEditId = null;
+  const d = document.getElementById('jnl-date');
+  if(d) d.value = date || new Date().toISOString().split('T')[0];
+  const b = document.getElementById('jnl-body');
+  if(b) b.value = '';
+  refreshJournalContactPills([]);
+  document.getElementById('jnl-modal-title').textContent = 'New Journal Entry';
+  openModal('modal-journal');
+  setTimeout(()=>{ if(b) b.focus(); }, 300);
+}
+
+function openJournalEdit(id){
+  const e = journalEntries.find(x=>x.id===id);
+  if(!e) return;
+  journalEditId = id;
+  const d = document.getElementById('jnl-date');
+  if(d) d.value = e.date;
+  const b = document.getElementById('jnl-body');
+  if(b) b.value = e.body;
+  refreshJournalContactPills(e.contacts_mentioned||[]);
+  document.getElementById('jnl-modal-title').textContent = 'Edit Entry';
+  openModal('modal-journal');
+}
+
+function refreshJournalContactPills(selectedIds){
+  const wrap = document.getElementById('jnl-contacts-wrap');
+  if(!wrap) return;
+  const pills = contacts.filter(c=>!c.name.includes('M&R')).map(c=>{
+    const sel = selectedIds.includes(c.id);
+    return '<span data-cid="'+c.id+'" onclick="toggleJournalContact(this)" '+
+      'style="display:inline-block;font-size:12px;padding:4px 10px;border-radius:12px;cursor:pointer;margin:3px;font-weight:600;'+
+      (sel ?
+        'background:#1B4332;color:#fff;border:1px solid #1B4332' :
+        'background:var(--bg);color:var(--tx3);border:1px solid var(--bd)')+
+      '">'+esc(c.name)+'</span>';
+  }).join('');
+  wrap.innerHTML = pills;
+}
+
+function toggleJournalContact(el){
+  const isSel = el.style.background.includes('1B4332') || el.style.background === 'rgb(27, 67, 50)';
+  if(isSel){
+    el.style.background='var(--bg)'; el.style.color='var(--tx3)'; el.style.borderColor='var(--bd)';
+  } else {
+    el.style.background='#1B4332'; el.style.color='#fff'; el.style.borderColor='#1B4332';
+  }
+}
+
+function getSelectedJournalContacts(){
+  const wrap = document.getElementById('jnl-contacts-wrap');
+  if(!wrap) return [];
+  return Array.from(wrap.querySelectorAll('span')).filter(el=>{
+    const bg = el.style.background;
+    return bg.includes('1B4332') || bg === 'rgb(27, 67, 50)';
+  }).map(el=>el.dataset.cid);
+}
+
+function saveJournalEntry(){
+  const date = (document.getElementById('jnl-date')||{}).value||new Date().toISOString().split('T')[0];
+  const body = ((document.getElementById('jnl-body')||{}).value||'').trim();
+  if(!body){ alert('Please write something before saving.'); return; }
+  const contacts_mentioned = getSelectedJournalContacts();
+
+  if(journalEditId){
+    const i = journalEntries.findIndex(e=>e.id===journalEditId);
+    if(i>-1) journalEntries[i] = {...journalEntries[i], date, body, contacts_mentioned, updated_at:now()};
+  } else {
+    // If entry exists for this date, update it
+    const existing = journalEntries.findIndex(e=>e.date===date);
+    if(existing>-1){
+      if(!confirm('An entry already exists for '+date+'. Replace it?')) return;
+      journalEntries[existing] = {...journalEntries[existing], date, body, contacts_mentioned, updated_at:now()};
+    } else {
+      journalEntries.unshift({id:uid(), date, body, contacts_mentioned, created_at:now()});
+    }
+  }
+
+  // Also log to contact timeline for each mentioned contact
+  contacts_mentioned.forEach(cid=>{
+    const c = contacts.find(x=>x.id===cid);
+    if(c){
+      if(!c.contact_log) c.contact_log=[];
+      const alreadyLogged = c.contact_log.some(l=>l.journal_date===date);
+      if(!alreadyLogged){
+        c.contact_log.unshift({
+          text:'Journal: '+body.substring(0,100)+(body.length>100?'...':''),
+          ts: date+'T12:00:00.000Z',
+          by:'Rafael',
+          journal_date: date
+        });
+      }
+    }
+  });
+
+  saveJournalLocal();
+  saveLocal();
+  closeModal('modal-journal');
+  journalEditId = null;
+  renderJournal();
+  if(contacts_mentioned.length) renderTimeline();
+  toast('Journal entry saved \u2713');
+}
+
+function deleteJournalEntry(id){
+  if(!confirm('Delete this journal entry?')) return;
+  journalEntries = journalEntries.filter(e=>e.id!==id);
+  saveJournalLocal();
+  renderJournal();
+  toast('Entry deleted');
+}
+
+
+// ── VOICE JOURNAL ─────────────────────────────────────────────────────────────
+let vjRecognition=null, vjIsRecording=false, vjFinalTranscript='';
+
+function openVoiceJournal(){
+  closeModal('modal-journal');
+  vjFinalTranscript='';
+  document.getElementById('vj-status').textContent='Tap the mic to start';
+  document.getElementById('vj-preview').style.display='none';
+  document.getElementById('vj-result').style.display='none';
+  const raw=document.getElementById('vj-raw'); if(raw) raw.value='';
+  const btn=document.getElementById('vj-mic-btn');
+  if(btn){btn.textContent='\u1f3a4';btn.style.background='var(--g900)';}
+  openModal('modal-voice-journal');
+}
+
+function toggleVoiceJournal(){
+  if(vjIsRecording) stopVoiceJournal();
+  else startVoiceJournal();
+}
+
+function startVoiceJournal(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert('Voice not supported — use Chrome or Safari.'); return; }
+  vjRecognition=new SR();
+  vjRecognition.continuous=true;
+  vjRecognition.interimResults=true;
+  vjRecognition.lang='en-US';
+  vjIsRecording=true;
+  vjFinalTranscript='';
+  const btn=document.getElementById('vj-mic-btn');
+  if(btn){btn.textContent='\u23f9';btn.style.background='var(--red)';btn.classList.add('mic-pulse');}
+  document.getElementById('vj-status').textContent='Listening... say STOP when done';
+
+  vjRecognition.onresult=function(e){
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal){
+        if(/\bstop\b/i.test(t.trim())){ stopVoiceJournal(); return; }
+        vjFinalTranscript+=t+' ';
+      } else { interim+=t; }
+    }
+    const full=(vjFinalTranscript+interim).trim();
+    document.getElementById('vj-status').textContent='Heard '+full.split(' ').length+' words...';
+    const raw=document.getElementById('vj-raw'); if(raw) raw.value=full;
+  };
+
+  vjRecognition.onend=function(){
+    if(vjIsRecording){ try{vjRecognition.start();}catch(e){} }
+  };
+  vjRecognition.onerror=function(e){
+    if(e.error==='no-speech'&&vjIsRecording){ try{vjRecognition.start();}catch(err){} return; }
+    if(e.error==='aborted') return;
+    vjIsRecording=false;
+  };
+  vjRecognition.start();
+}
+
+function stopVoiceJournal(){
+  vjIsRecording=false;
+  if(vjRecognition){ try{vjRecognition.stop();}catch(e){} vjRecognition=null; }
+  const btn=document.getElementById('vj-mic-btn');
+  if(btn){btn.textContent='\u1f3a4';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');}
+  document.getElementById('vj-status').textContent='Done — review your words below';
+  const text=vjFinalTranscript.trim();
+  if(text){
+    const raw=document.getElementById('vj-raw'); if(raw) raw.value=text;
+    document.getElementById('vj-preview').style.display='block';
+  }
+}
+
+let _vjParsedResult=null;
+
+async function processVoiceJournal(){
+  const raw=(document.getElementById('vj-raw')||{}).value||'';
+  if(!raw.trim()){ alert('Nothing to process.'); return; }
+  const clientList=contacts.filter(c=>!c.name.includes('M&R')).map(c=>c.name).join(', ');
+  const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const todayISO=new Date().toISOString().split('T')[0];
+  document.getElementById('vj-result').style.display='block';
+  document.getElementById('vj-result-content').innerHTML=
+    '<div style="text-align:center;padding:20px;color:var(--muted)">&#9889; AI is sorting your notes...</div>';
+  try{
+    const prompt='Parse this voice journal from nursery owner Rafael Macias. Known clients: '+clientList+
+      '. Voice entry: '+JSON.stringify(raw)+
+      '. Extract client mentions and discussions. Respond ONLY with JSON no markdown: '+
+      '{"journal_summary":"string","date":"'+todayISO+'","client_notes":[{"client_name":"string","note":"string","action":"string"}]}';
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:'You are a nursery CRM assistant. Respond ONLY with valid JSON. No markdown fences, no explanation.',
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await resp.json();
+    const textBlock=(data.content||[]).find(b=>b.type==='text');
+    if(!textBlock) throw new Error('No response from AI');
+    let parsed;
+    try{ parsed=JSON.parse(textBlock.text.replace(/```json|```/g,'').trim()); }
+    catch(e){ throw new Error('Could not parse AI response'); }
+    _vjParsedResult=parsed;
+    let html='';
+    html+='<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;margin-bottom:10px">';
+    html+='<div style="font-size:11px;font-weight:700;color:#1B4332;text-transform:uppercase;margin-bottom:4px">&#128221; Journal Summary</div>';
+    html+='<div style="font-size:13px;color:var(--tx);line-height:1.6">'+esc(parsed.journal_summary||raw)+'</div>';
+    html+='</div>';
+    if(parsed.client_notes&&parsed.client_notes.length){
+      parsed.client_notes.forEach(function(cn){
+        const match=contacts.find(function(c){
+          return c.name.toLowerCase().includes(cn.client_name.toLowerCase())||
+            cn.client_name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]);
+        });
+        html+='<div style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px">';
+        html+='<div style="font-size:12px;font-weight:700;color:'+(match?'#0369A1':'var(--muted)')+';margin-bottom:4px">'+
+          (match?'&#128101; ':'&#9888; ')+esc(cn.client_name)+
+          (match?'':' <span style="font-size:10px">(not in CRM)</span>')+
+        '</div>';
+        html+='<div style="font-size:13px;color:var(--tx);line-height:1.5'+(cn.action?';margin-bottom:5px':'')+'">'+esc(cn.note||'')+'</div>';
+        if(cn.action) html+='<div style="font-size:11px;color:#D97706;font-weight:600">&#128204; Action: '+esc(cn.action)+'</div>';
+        html+='</div>';
+      });
+    }
+    document.getElementById('vj-result-content').innerHTML=html;
+  }catch(err){
+    document.getElementById('vj-result-content').innerHTML=
+      '<div style="color:var(--red);font-size:13px;padding:12px">Could not process: '+esc(err.message)+'</div>';
+  }
+}
+
+
+async function applyVoiceJournalResult(){
+  if(!_vjParsedResult) return;
+  const today=_vjParsedResult.date||new Date().toISOString().split('T')[0];
+  const body=_vjParsedResult.journal_summary||((document.getElementById('vj-raw')||{}).value||'');
+  const mentioned_ids=[];
+
+  // Match client notes to CRM contacts and log each one
+  if(_vjParsedResult.client_notes){
+    _vjParsedResult.client_notes.forEach(cn=>{
+      const match=contacts.find(c=>
+        c.name.toLowerCase().includes(cn.client_name.toLowerCase())||
+        cn.client_name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0])
+      );
+      if(match){
+        mentioned_ids.push(match.id);
+        if(!match.contact_log) match.contact_log=[];
+        match.contact_log.unshift({
+          text:cn.note+(cn.action?' — Action: '+cn.action:''),
+          ts:today+'T12:00:00.000Z',
+          by:'Rafael',
+          journal_date:today
+        });
+      }
+    });
+  }
+
+  // Save journal entry
+  const existing=journalEntries.findIndex(e=>e.date===today);
+  const entry={id:uid(),date:today,body,contacts_mentioned:mentioned_ids,created_at:now()};
+  if(existing>-1) journalEntries[existing]={...journalEntries[existing],...entry};
+  else journalEntries.unshift(entry);
+
+  saveJournalLocal();
+  saveLocal();
+  stopVoiceJournal();
+  closeModal('modal-voice-journal');
+  _vjParsedResult=null;
+  switchTab('journal');
+  renderJournal();
+  renderTimeline();
+  toast('Journal saved & '+mentioned_ids.length+' contacts updated \u2713');
+}
+
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
 function renderMetrics(){
@@ -3428,7 +3934,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',pipeline:'Pipeline',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','pipeline','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
+  ['contacts','pipeline','reminders','tasks','admin','timeline','inventory','journal'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -3441,6 +3947,7 @@ function switchTab(tab){
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=tab==='inventory'?'flex':'none';
+  const dvJnl=document.getElementById('dv-journal');if(dvJnl)dvJnl.style.display=tab==='journal'?'flex':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-pipeline').style.display=tab==='pipeline'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
@@ -3448,10 +3955,12 @@ function switchTab(tab){
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
+  const mvJnl=document.getElementById('mv-journal');if(mvJnl)mvJnl.style.display=tab==='journal'?'block':'none';
   if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
+  if(tab==='journal')renderJournal();
   renderAll();
 }
 
