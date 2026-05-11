@@ -528,6 +528,111 @@ textarea.finput{height:70px;resize:none}
 </div>
 </div>
 
+<!-- MODAL: INV ROW -->
+<div class="modal-bg" id="modal-inv-row">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="inv-row-modal-title">Update Growing Count</h2>
+  <div class="fgrid">
+    <div><label class="flabel">Variety *</label>
+      <select class="finput" id="inv-variety">
+        <option>Tango</option><option>Olinda</option><option>Shiranui</option>
+        <option>Parent Washington</option><option>Autumn Gold</option>
+        <option>Powell</option><option>Gillette</option><option>Late Lane</option>
+        <option>Australian Finger Lime</option><option>Fukumoto</option>
+      </select></div>
+    <div><label class="flabel">Rootstock *</label>
+      <select class="finput" id="inv-rootstock">
+        <option>Carrizo</option><option>C35</option><option>Rich 16-6</option>
+        <option>Rubidoux</option><option>Trifoliata</option>
+      </select></div>
+    <div><label class="flabel">Total Trees Growing *</label>
+      <input class="finput" id="inv-total" type="number" min="0" placeholder="e.g. 25000"></div>
+    <div><label class="flabel">Bud / Graft Date</label>
+      <input class="finput" id="inv-bud-date" type="date"></div>
+    <div><label class="flabel">Months to Ready</label>
+      <select class="finput" id="inv-months">
+        <option value="6">6 months</option><option value="7">7 months</option>
+        <option value="8">8 months</option><option value="9" selected>9 months</option>
+        <option value="10">10 months</option><option value="11">11 months</option>
+        <option value="12">12 months</option>
+      </select></div>
+    <div><label class="flabel">Notes</label>
+      <input class="finput" id="inv-notes" placeholder="e.g. House 2 North section"></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" onclick="saveInvRow()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: INV LOT -->
+<div class="modal-bg" id="modal-inv-lot">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 style="color:#5B21B6">&#128218; Create New Lot</h2>
+  <div style="background:#EDE9FE;border-radius:6px;padding:8px 12px;font-size:12px;color:#5B21B6;margin-bottom:12px">Lots are created at transplant — when seedlings move to grow-out rows.</div>
+  <div class="fgrid">
+    <div><label class="flabel">Lot Number</label>
+      <input class="finput" id="lot-num" placeholder="e.g. MG-LOT-2026-001"></div>
+    <div><label class="flabel">Location (House / Row)</label>
+      <input class="finput" id="lot-location" placeholder="e.g. N3 Row 2"></div>
+    <div><label class="flabel">Variety *</label>
+      <select class="finput" id="lot-variety">
+        <option>Tango</option><option>Olinda</option><option>Shiranui</option>
+        <option>Parent Washington</option><option>Autumn Gold</option>
+        <option>Powell</option><option>Gillette</option><option>Late Lane</option>
+        <option>Australian Finger Lime</option><option>Fukumoto</option>
+      </select></div>
+    <div><label class="flabel">Rootstock</label>
+      <select class="finput" id="lot-rootstock">
+        <option>Carrizo</option><option>C35</option><option>Rich 16-6</option>
+        <option>Rubidoux</option><option>Trifoliata</option>
+      </select></div>
+    <div><label class="flabel">Trees at Transplant *</label>
+      <input class="finput" id="lot-qty" type="number" min="1" placeholder="e.g. 2500"></div>
+    <div><label class="flabel">Bud Date</label>
+      <input class="finput" id="lot-bud-date" type="date"></div>
+    <div><label class="flabel">Months to Ready</label>
+      <select class="finput" id="lot-months">
+        <option value="6">6 months</option><option value="7">7 months</option>
+        <option value="8">8 months</option><option value="9" selected>9 months</option>
+        <option value="10">10 months</option><option value="11">11 months</option>
+        <option value="12">12 months</option>
+      </select></div>
+    <div class="ffull"><label class="flabel">Assign to Buyer (optional)</label>
+      <select class="finput" id="lot-contact"><option value="">Unassigned</option></select></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" style="background:#7C3AED" onclick="saveLot()">Create Lot</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: INV LOG -->
+<div class="modal-bg" id="modal-inv-log">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="inv-log-title">Log Movement</h2>
+  <div class="fgrid">
+    <div class="ffull"><label class="flabel">Date</label>
+      <input class="finput" id="log-date" type="date"></div>
+    <div><label class="flabel">Trees In (transplanted / received)</label>
+      <input class="finput" id="log-in" type="number" min="0" placeholder="0"></div>
+    <div><label class="flabel">Trees Out (shipped / removed)</label>
+      <input class="finput" id="log-out" type="number" min="0" placeholder="0"></div>
+    <div class="ffull"><label class="flabel">Note</label>
+      <input class="finput" id="log-note" placeholder="e.g. Shipped to Jireh March 15, Culled 50 undersized"></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" onclick="saveLogMovement()">Save Log</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL: ADD REMINDER -->
 <div class="modal-bg" id="modal-reminder">
 <div class="modal">
@@ -2095,420 +2200,460 @@ function buildTimelineHTML(){
 }
 
 
+
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
-// Storage: inventory rows saved to localStorage as mg_inventory
 let inventoryRows = JSON.parse(localStorage.getItem('mg_inventory') || '[]');
 let inventoryLots = JSON.parse(localStorage.getItem('mg_inv_lots') || '[]');
-let invView = 'summary'; // 'summary' | 'lots' | 'add_lot' | 'add_row'
 let editingInvId = null;
+let invModalMode = null; // 'row' | 'lot' | null
 
 function saveInventory(){
   localStorage.setItem('mg_inventory', JSON.stringify(inventoryRows));
   localStorage.setItem('mg_inv_lots', JSON.stringify(inventoryLots));
 }
 
-// ── Calculate promised trees from CRM contacts ────────────────────────────────
+// ── Promised = pulled live from CRM contacts ──────────────────────────────────
 function getPromised(){
   const promised = {};
   contacts.forEach(c => {
     if((c.notes||'').includes('INTERNAL')) return;
     const varieties = c.varieties || [];
-    const totalTrees = parseInt(c.trees) || 0;
+    const totalTrees = parseInt(c.trees)||0;
+    if(!totalTrees) return;
     if(varieties.length){
-      const hasQty = varieties.some(v => parseInt(v.qty||0) > 0);
-      varieties.forEach(v => {
-        const var_ = (v.variety||'').trim();
-        const rs = (v.rootstock||'').trim() || '—';
-        let qty = parseInt(v.qty||0);
-        if(!hasQty) qty = Math.floor(totalTrees / varieties.length);
-        if(var_ && qty){
-          const key = var_ + '||' + rs;
-          promised[key] = (promised[key]||0) + qty;
-        }
-      });
-    } else {
-      const var_ = (c.variety||'Unknown').trim();
-      if(var_ && totalTrees){
-        const key = var_ + '||—';
-        promised[key] = (promised[key]||0) + totalTrees;
+      const hasQty = varieties.some(v=>parseInt(v.qty||0)>0);
+      if(hasQty){
+        // Use explicit qty per variety
+        varieties.forEach(v=>{
+          const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
+          const qty=parseInt(v.qty||0);
+          if(vr&&qty){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+qty; }
+        });
+      } else if(varieties.length===1){
+        // Single variety — assign all trees to it
+        const v=varieties[0];
+        const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
+        if(vr){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+totalTrees; }
+      } else {
+        // Multiple varieties, no qty — split evenly, remainder to first
+        const each=Math.floor(totalTrees/varieties.length);
+        const rem=totalTrees%varieties.length;
+        varieties.forEach((v,idx)=>{
+          const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
+          const qty=each+(idx===0?rem:0);
+          if(vr&&qty){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+qty; }
+        });
       }
+    } else {
+      // No varieties array — use variety string field
+      const vr=(c.variety||'Unknown').trim();
+      if(vr){ const k=vr+'||—'; promised[k]=(promised[k]||0)+totalTrees; }
     }
   });
   return promised;
 }
 
-function renderInventory(){
-  const dv = document.getElementById('dv-inventory');
-  const mv = document.getElementById('mv-inventory');
-  const html = buildInventoryHTML();
-  if(dv) dv.innerHTML = html;
-  if(mv) mv.innerHTML = html;
-}
-
-function buildInventoryHTML(){
-  const promised = getPromised();
-
-  // Build combined variety list: from inventory rows + from promised (CRM)
-  const allKeys = new Set();
-  inventoryRows.forEach(r => allKeys.add(r.variety + '||' + (r.rootstock||'—')));
-  Object.keys(promised).forEach(k => allKeys.add(k));
-
-  // Summary table
-  let totalGrowing = 0, totalPromised = 0, totalAvail = 0;
-  const rows = Array.from(allKeys).map(key => {
-    const [var_, rs] = key.split('||');
-    const invRow = inventoryRows.find(r => r.variety === var_ && (r.rootstock||'—') === rs);
-    const growing = invRow ? (parseInt(invRow.total)||0) : 0;
-    const prom = promised[key] || 0;
-    const avail = growing - prom;
-    totalGrowing += growing; totalPromised += prom; totalAvail += avail;
-    return { var_, rs, growing, prom, avail, invRow };
-  }).sort((a,b) => b.growing - a.growing || b.prom - a.prom);
-
-  // Metric cards
-  const metrics =
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">' +
-      mkCard('Growing', totalGrowing.toLocaleString(), '#1B4332') +
-      mkCard('Promised', totalPromised.toLocaleString(), '#0369A1') +
-      mkCard('Available', totalAvail >= 0 ? totalAvail.toLocaleString() : '⚠ '+Math.abs(totalAvail).toLocaleString()+' over', totalAvail < 0 ? '#991B1B' : '#7C3AED') +
-    '</div>';
-
-  function mkCard(label, val, col){
-    return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center">' +
-      '<div style="font-size:22px;font-weight:800;color:'+col+'">'+val+'</div>' +
-      '<div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">'+label+'</div>' +
-    '</div>';
-  }
-
-  // Variety rows table
-  const tableRows = rows.map(r => {
-    const availColor = r.avail < 0 ? '#991B1B' : r.avail === 0 ? '#6B7280' : '#1B4332';
-    const availBg = r.avail < 0 ? '#FEF2F2' : r.avail === 0 ? '#F9FAFB' : '#F0FDF4';
-    const budDate = r.invRow && r.invRow.bud_date ? r.invRow.bud_date : null;
-    const readyDate = budDate ? calcReadyDate(budDate, r.invRow.months||9) : null;
-    const readyStr = readyDate ? new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
-    const isReady = readyDate && readyDate <= new Date().toISOString().split('T')[0];
-
-    return '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" data-ikey="'+r.var_+'||'+r.rs+'" onclick="openInvDetail(this.dataset.ikey)">' +
-      '<td style="padding:10px 12px">' +
-        '<div style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.var_)+'</div>' +
-        '<div style="font-size:11px;color:var(--muted)">'+esc(r.rs)+'</div>' +
-      '</td>' +
-      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)">'+(r.growing?r.growing.toLocaleString():'<span style="color:var(--muted)">—</span>')+'</td>' +
-      '<td style="padding:10px 12px;text-align:right;font-size:13px;color:#0369A1;font-weight:600">'+r.prom.toLocaleString()+'</td>' +
-      '<td style="padding:10px 12px;text-align:right">' +
-        '<span style="font-size:13px;font-weight:700;color:'+availColor+';background:'+availBg+';border-radius:6px;padding:3px 8px">'+(r.avail>=0?r.avail.toLocaleString():'▲'+Math.abs(r.avail).toLocaleString())+'</span>' +
-      '</td>' +
-      '<td style="padding:10px 12px;text-align:center">' +
-        (readyStr !== '—' ? '<span style="font-size:11px;background:'+(isReady?'#D1FAE5':'#EFF6FF')+';color:'+(isReady?'#065F46':'#1E40AF')+';border-radius:6px;padding:2px 8px;font-weight:600">'+(isReady?'✓ Ready':readyStr)+'</span>' : '<span style="font-size:11px;color:var(--muted)">—</span>') +
-      '</td>' +
-      '<td style="padding:10px 12px;text-align:center">' +
-        '<button data-key="'+esc(r.var_)+'||'+esc(r.rs)+'" onclick="event.stopPropagation();openEditInvRow(this.dataset.key)" style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>' +
-      '</td>' +
-    '</tr>';
-  }).join('');
-
-  const table =
-    '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:20px">' +
-      '<table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="background:#F0FDF4">' +
-          '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Variety / Rootstock</th>' +
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Growing</th>' +
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0369A1">Promised</th>' +
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7C3AED">Available</th>' +
-          '<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Ready</th>' +
-          '<th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--muted)"></th>' +
-        '</tr></thead>' +
-        '<tbody>' + (tableRows || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);font-size:13px">No inventory entered yet. Add a row to start tracking.</td></tr>') + '</tbody>' +
-      '</table>' +
-    '</div>';
-
-  // Lots section
-  const lotsHtml = buildLotsHTML();
-
-  // Add row form
-  const addForm = buildInvAddForm();
-
-  return (
-    '<div style="width:100%;overflow-y:auto">' +
-      '<div style="padding:16px 20px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-        '<h2 style="font-size:18px;font-weight:700;color:var(--g900)">&#127807; Nursery Inventory</h2>' +
-        '<div style="display:flex;gap:6px">' +
-          '<button onclick="openAddInvRow()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">+ Update Inventory</button>' +
-          '<button onclick="openAddLot()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">+ New Lot</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="inv-add-form" style="display:none;padding:0 20px;margin-bottom:16px">' + addForm + '</div>' +
-      '<div style="padding:0 20px 24px">' +
-        metrics + table + lotsHtml +
-      '</div>' +
-    '</div>'
-  );
-}
-
 function calcReadyDate(budDate, months){
-  const d = new Date(budDate + 'T12:00:00');
-  d.setMonth(d.getMonth() + parseInt(months||9));
+  if(!budDate) return null;
+  const d=new Date(budDate+'T12:00:00');
+  d.setMonth(d.getMonth()+parseInt(months||9));
   return d.toISOString().split('T')[0];
 }
 
-function buildLotsHTML(){
-  if(!inventoryLots.length) return (
-    '<div style="border:1px dashed var(--bd);border-radius:10px;padding:24px;text-align:center;color:var(--muted)">' +
-      '<div style="font-size:20px;margin-bottom:8px">&#128218;</div>' +
-      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">No lots yet</div>' +
-      '<div style="font-size:12px">Lots are created at transplant. Tap + New Lot when trees move from seedling to grow-out.</div>' +
+// ── RENDER — builds static skeleton once, then updates data zones ─────────────
+function renderInventory(){
+  const dv=document.getElementById('dv-inventory');
+  const mv=document.getElementById('mv-inventory');
+  const shell = buildInvShell();
+  if(dv){ dv.innerHTML=shell; }
+  if(mv){ mv.innerHTML=shell; }
+  refreshInvMetrics();
+  refreshInvTable();
+  refreshInvLots();
+}
+
+function buildInvShell(){
+  return (
+    '<div style="width:100%;overflow-y:auto;padding:0">'+
+      '<div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
+        '<h2 style="font-size:18px;font-weight:700;color:var(--g900);margin:0">&#127807; Nursery Inventory</h2>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button onclick="openInvRowModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; Update Growing Count</button>'+
+          '<button onclick="openInvLotModal()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; New Lot</button>'+
+        '</div>'+
+      '</div>'+
+      '<div style="padding:0 20px 24px">'+
+        '<div id="inv-metrics" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px"></div>'+
+        '<div id="inv-table-wrap" style="margin-bottom:20px"></div>'+
+        '<div id="inv-lots-wrap"></div>'+
+      '</div>'+
     '</div>'
   );
+}
 
-  const lotCards = inventoryLots.map(lot => {
-    const totalOut = (lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+(m.qty||0),0);
-    const remaining = (lot.qty||0) - totalOut;
-    const buyerName = lot.contact_id ? (contacts.find(c=>c.id===lot.contact_id)||{}).name||'Unassigned' : 'Unassigned';
-    const isUnassigned = !lot.contact_id;
-    const readyDate = lot.bud_date ? calcReadyDate(lot.bud_date, lot.months||9) : null;
-    const readyStr = readyDate ? new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
-    const isReady = readyDate && readyDate <= new Date().toISOString().split('T')[0];
+function buildInvRowForm(){
+  const vars=['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
+  const roots=['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
+  return (
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+      '<div><label class="flabel">Variety *</label>'+
+        '<select class="finput" id="inv-variety" style="margin:0">'+vars.map(v=>'<option>'+v+'</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Rootstock *</label>'+
+        '<select class="finput" id="inv-rootstock" style="margin:0">'+roots.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Total Trees Growing *</label><input class="finput" id="inv-total" type="number" min="0" placeholder="25000" style="margin:0"></div>'+
+      '<div><label class="flabel">Bud / Graft Date</label><input class="finput" id="inv-bud-date" type="date" style="margin:0"></div>'+
+      '<div><label class="flabel">Months to Ready</label>'+
+        '<select class="finput" id="inv-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Notes</label><input class="finput" id="inv-notes" placeholder="House 2 North section" style="margin:0"></div>'+
+    '</div>'
+  );
+}
 
-    return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:8px">' +
-      '<div style="display:flex;align-items:flex-start;gap:10px">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">' +
-            '<span style="font-size:14px;font-weight:700;color:var(--g900)">'+esc(lot.lot_num)+'</span>' +
-            '<span style="font-size:11px;background:'+(isUnassigned?'#F3F4F6':'#EFF6FF')+';color:'+(isUnassigned?'#6B7280':'#1D4ED8')+';border-radius:8px;padding:1px 8px;font-weight:600">'+(isUnassigned?'Unassigned':buyerName)+'</span>' +
-            (isReady?'<span style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:1px 8px;font-weight:600">✓ Ready</span>':'') +
-          '</div>' +
-          '<div style="display:flex;gap:16px;font-size:12px;color:var(--muted);flex-wrap:wrap">' +
-            '<span>&#127807; '+esc(lot.variety)+(lot.rootstock?' · '+esc(lot.rootstock):'')+'</span>' +
-            '<span>&#127968; '+esc(lot.location)+'</span>' +
-            '<span style="font-weight:600;color:var(--tx)">'+remaining.toLocaleString()+' / '+(lot.qty||0).toLocaleString()+' trees remaining</span>' +
-            (readyStr!=='—'?'<span>Ready: '+readyStr+'</span>':'') +
-          '</div>' +
-        '</div>' +
-        '<div style="display:flex;gap:5px;flex-shrink:0">' +
-          '<button data-lid="'+lot.id+'" onclick="logLotMovement(this.dataset.lid)" style="font-size:11px;background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;font-family:inherit">+ Log</button>' +
-          '<button data-lid="'+lot.id+'" onclick="assignLotToBuyer(this.dataset.lid)" style="font-size:11px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;font-family:inherit">Assign</button>' +
-        '</div>' +
-      '</div>' +
-      (lot.movements && lot.movements.length ?
-        '<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px">' +
-          lot.movements.slice().reverse().slice(0,3).map(m =>
-            '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0">' +
-              '<span>'+(m.type==='out'?'&#8595;':'&#8593;')+' '+m.qty.toLocaleString()+' trees — '+esc(m.note||m.type)+'</span>' +
-              '<span>'+new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</span>' +
-            '</div>'
-          ).join('') +
-        '</div>'
-      : '') +
+function buildInvLotForm(){
+  const vars=['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
+  const roots=['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
+  const autoNum='MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
+  const contactOpts=contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  return (
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+      '<div><label class="flabel">Lot Number</label><input class="finput" id="lot-num" value="'+autoNum+'" style="margin:0"></div>'+
+      '<div><label class="flabel">Location (House / Row)</label><input class="finput" id="lot-location" placeholder="e.g. N3 Row 2" style="margin:0"></div>'+
+      '<div><label class="flabel">Variety *</label>'+
+        '<select class="finput" id="lot-variety" style="margin:0">'+vars.map(v=>'<option>'+v+'</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Rootstock</label>'+
+        '<select class="finput" id="lot-rootstock" style="margin:0">'+roots.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Trees at Transplant *</label><input class="finput" id="lot-qty" type="number" min="1" placeholder="2500" style="margin:0"></div>'+
+      '<div><label class="flabel">Bud Date</label><input class="finput" id="lot-bud-date" type="date" style="margin:0"></div>'+
+      '<div><label class="flabel">Months to Ready</label>'+
+        '<select class="finput" id="lot-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>'+
+      '<div><label class="flabel">Assign to Buyer (optional)</label>'+
+        '<select class="finput" id="lot-contact" style="margin:0"><option value="">Unassigned</option>'+contactOpts+'</select></div>'+
+    '</div>'
+  );
+}
+
+// ── Refresh just data zones without rebuilding shell ──────────────────────────
+function refreshInvMetrics(){
+  const el=document.getElementById('inv-metrics'); if(!el) return;
+  const promised=getPromised();
+  const allKeys=new Set();
+  inventoryRows.forEach(r=>allKeys.add(r.variety+'||'+(r.rootstock||'—')));
+  Object.keys(promised).forEach(k=>allKeys.add(k));
+  let totalG=0,totalP=0;
+  allKeys.forEach(k=>{
+    const [vr,rs]=k.split('||');
+    const ir=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
+    totalG+=ir?parseInt(ir.total||0):0;
+    totalP+=promised[k]||0;
+  });
+  const totalA=totalG-totalP;
+  el.innerHTML=
+    mkMetCard('Growing',totalG.toLocaleString(),'#1B4332')+
+    mkMetCard('Promised',totalP.toLocaleString(),'#0369A1')+
+    mkMetCard(totalA<0?'OVER-PROMISED':'Available',
+      totalA<0?'▲'+Math.abs(totalA).toLocaleString():totalA.toLocaleString(),
+      totalA<0?'#991B1B':'#7C3AED');
+}
+function mkMetCard(label,val,col){
+  return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center">'+
+    '<div style="font-size:24px;font-weight:800;color:'+col+'">'+val+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">'+label+'</div>'+
+  '</div>';
+}
+
+function refreshInvTable(){
+  const el=document.getElementById('inv-table-wrap'); if(!el) return;
+  const promised=getPromised();
+  const allKeys=new Set();
+  inventoryRows.forEach(r=>allKeys.add(r.variety+'||'+(r.rootstock||'—')));
+  Object.keys(promised).forEach(k=>allKeys.add(k));
+  const rows=Array.from(allKeys).map(k=>{
+    const [vr,rs]=k.split('||');
+    const ir=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
+    const growing=ir?parseInt(ir.total||0):0;
+    const prom=promised[k]||0;
+    const avail=growing-prom;
+    const readyDate=ir&&ir.bud_date?calcReadyDate(ir.bud_date,ir.months||9):null;
+    const readyStr=readyDate?new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—';
+    const isReady=readyDate&&readyDate<=new Date().toISOString().split('T')[0];
+    const availCol=avail<0?'#991B1B':avail===0?'#6B7280':'#1B4332';
+    const availBg=avail<0?'#FEF2F2':avail===0?'#F9FAFB':'#F0FDF4';
+    return {vr,rs,growing,prom,avail,ir,readyStr,isReady,availCol,availBg};
+  }).sort((a,b)=>b.growing-a.growing||b.prom-a.prom);
+
+  if(!rows.length){
+    el.innerHTML='<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:32px;text-align:center;color:var(--muted)">'+
+      '<div style="font-size:32px;margin-bottom:8px">&#127807;</div>'+
+      '<div style="font-size:14px;font-weight:600;margin-bottom:4px">No inventory data yet</div>'+
+      '<div style="font-size:12px">Tap + Update Growing Count to add how many trees you have growing. Promised column will auto-fill from CRM contacts.</div>'+
     '</div>';
+    return;
+  }
+
+  // Filter out rows with zero growing AND zero promised (nothing to show)
+  const visibleRows = rows.filter(r => r.growing > 0 || r.prom > 0);
+  if(!visibleRows.length) return;
+
+  const trs=visibleRows.map(r=>(
+    '<tr style="border-bottom:1px solid var(--bd)">'+
+      '<td style="padding:10px 12px">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.vr)+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+esc(r.rs)+'</div>'+
+      '</td>'+
+      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)">'+
+        (r.growing?r.growing.toLocaleString():'<span style="color:var(--muted);font-size:11px">Not entered</span>')+
+      '</td>'+
+      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:#0369A1">'+r.prom.toLocaleString()+'</td>'+
+      '<td style="padding:10px 12px;text-align:right">'+
+        (r.growing===0?
+          '<span style="font-size:12px;color:var(--muted)">Enter count</span>':
+          '<span style="font-size:13px;font-weight:700;color:'+r.availCol+';background:'+r.availBg+';border-radius:6px;padding:3px 8px">'+
+            (r.avail>=0?r.avail.toLocaleString():'▲'+Math.abs(r.avail).toLocaleString())+
+          '</span>')+
+      '</td>'+
+      '<td style="padding:10px 12px;text-align:center">'+
+        (r.readyStr!=='—'?
+          '<span style="font-size:11px;background:'+(r.isReady?'#D1FAE5':'#EFF6FF')+';color:'+(r.isReady?'#065F46':'#1E40AF')+';border-radius:6px;padding:2px 8px;font-weight:600">'+
+            (r.isReady?'&#10003; Ready':r.readyStr)+
+          '</span>':
+          '<span style="font-size:11px;color:var(--muted)">—</span>')+
+      '</td>'+
+      '<td style="padding:10px 12px;text-align:center">'+
+        '<button data-vr="'+esc(r.vr)+'" data-rs="'+esc(r.rs)+'" onclick="openEditInvRow(this.dataset.vr,this.dataset.rs)" '+
+          'style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>'+
+      '</td>'+
+    '</tr>'
+  )).join('');
+
+  el.innerHTML=
+    '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;overflow:hidden">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+        '<thead><tr style="background:#F0FDF4">'+
+          '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Variety / Rootstock</th>'+
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Growing</th>'+
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#0369A1;letter-spacing:.05em">Promised</th>'+
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#7C3AED;letter-spacing:.05em">Available</th>'+
+          '<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Ready</th>'+
+          '<th style="padding:10px 12px"></th>'+
+        '</tr></thead>'+
+        '<tbody>'+trs+'</tbody>'+
+      '</table>'+
+    '</div>';
+}
+
+function refreshInvLots(){
+  const el=document.getElementById('inv-lots-wrap'); if(!el) return;
+  if(!inventoryLots.length){
+    el.innerHTML=
+      '<div style="border:1px dashed var(--bd);border-radius:10px;padding:24px;text-align:center;color:var(--muted)">'+
+        '<div style="font-size:20px;margin-bottom:8px">&#128218;</div>'+
+        '<div style="font-size:13px;font-weight:600;margin-bottom:4px">No lots yet</div>'+
+        '<div style="font-size:12px">Lots are created at transplant. Tap + New Lot when seedlings move to grow-out rows.</div>'+
+      '</div>';
+    return;
+  }
+
+  const cards=inventoryLots.map(lot=>{
+    const totalOut=(lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+(m.qty||0),0);
+    const remaining=(lot.qty||0)-totalOut;
+    const buyer=lot.contact_id?(contacts.find(c=>c.id===lot.contact_id)||{}).name||'Unassigned':'Unassigned';
+    const unassigned=!lot.contact_id;
+    const readyDate=lot.bud_date?calcReadyDate(lot.bud_date,lot.months||9):null;
+    const readyStr=readyDate?new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—';
+    const isReady=readyDate&&readyDate<=new Date().toISOString().split('T')[0];
+    const recentMovements=(lot.movements||[]).slice().reverse().slice(0,3);
+
+    return (
+      '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:8px">'+
+        '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+          '<div style="flex:1;min-width:200px">'+
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">'+
+              '<span style="font-size:14px;font-weight:700;color:var(--g900)">'+esc(lot.lot_num)+'</span>'+
+              '<span style="font-size:11px;background:'+(unassigned?'#F3F4F6':'#EFF6FF')+';color:'+(unassigned?'#6B7280':'#1D4ED8')+';border-radius:8px;padding:1px 8px;font-weight:600">'+esc(buyer)+'</span>'+
+              (isReady?'<span style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:1px 8px;font-weight:600">&#10003; Ready</span>':'')+
+            '</div>'+
+            '<div style="display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap">'+
+              '<span>'+esc(lot.variety)+(lot.rootstock?' &middot; '+esc(lot.rootstock):'')+'</span>'+
+              (lot.location?'<span>&#127968; '+esc(lot.location)+'</span>':'')+
+              '<span style="font-weight:600;color:var(--tx)">'+remaining.toLocaleString()+' / '+(lot.qty||0).toLocaleString()+' trees remaining</span>'+
+              (readyStr!=='—'?'<span>Ready: '+readyStr+'</span>':'')+
+            '</div>'+
+          '</div>'+
+          '<div style="display:flex;gap:5px;flex-shrink:0">'+
+            '<button data-lid="'+lot.id+'" onclick="openLogModal(this.dataset.lid)" '+
+              'style="font-size:12px;background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600;font-family:inherit">&#43; Log</button>'+
+            '<button data-lid="'+lot.id+'" onclick="openAssignLot(this.dataset.lid)" '+
+              'style="font-size:12px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600;font-family:inherit">Assign</button>'+
+          '</div>'+
+        '</div>'+
+        (recentMovements.length?
+          '<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px">'+
+            recentMovements.map(m=>
+              '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0">'+
+                '<span>'+(m.type==='out'?'&#8595;':'&#8593;')+' '+m.qty.toLocaleString()+' trees — '+esc(m.note||m.type)+'</span>'+
+                '<span>'+new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</span>'+
+              '</div>'
+            ).join('')+
+          '</div>':'')+
+      '</div>'
+    );
   }).join('');
 
-  return (
-    '<div style="margin-top:8px">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:10px">&#128218; Active Lots ('+inventoryLots.length+')</div>' +
-      '<div id="inv-add-lot-form" style="display:none;margin-bottom:12px"></div>' +
-      lotCards +
-    '</div>'
-  );
+  el.innerHTML=
+    '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:10px">&#128218; Active Lots ('+inventoryLots.length+')</div>'+
+    cards;
 }
 
-function buildInvAddForm(){
-  const varieties = ['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
-  const rootstocks = ['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
-  return (
-    '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:16px">' +
-      '<div style="font-size:14px;font-weight:700;color:#1B4332;margin-bottom:12px">Update Inventory Count</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-        '<div><label class="flabel">Variety *</label>' +
-          '<select class="finput" id="inv-variety" style="margin:0">' +
-            varieties.map(v=>'<option>'+v+'</option>').join('') +
-            '<option value="other">Other...</option>' +
-          '</select></div>' +
-        '<div><label class="flabel">Rootstock *</label>' +
-          '<select class="finput" id="inv-rootstock" style="margin:0">' +
-            rootstocks.map(r=>'<option>'+r+'</option>').join('') +
-          '</select></div>' +
-        '<div><label class="flabel">Total Trees Growing *</label><input class="finput" id="inv-total" type="number" min="0" placeholder="e.g. 25000" style="margin:0"></div>' +
-        '<div><label class="flabel">Bud / Graft Date</label><input class="finput" id="inv-bud-date" type="date" style="margin:0"></div>' +
-        '<div><label class="flabel">Months to Ready</label>' +
-          '<select class="finput" id="inv-months" style="margin:0">' +
-            [6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('') +
-          '</select></div>' +
-        '<div><label class="flabel">Notes</label><input class="finput" id="inv-notes" placeholder="e.g. House 2 South section" style="margin:0"></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:6px">' +
-        '<button onclick="saveInvRow()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Save</button>' +
-        '<button onclick="closeInvForm()" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Cancel</button>' +
-      '</div>' +
-    '</div>'
-  );
+// ── Modal open/close ──────────────────────────────────────────────────────────
+function openInvRowModal(){
+  editingInvId=null;
+  document.getElementById('inv-row-modal-title').textContent='Update Growing Count';
+  const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value='Tango';
+  const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value='Carrizo';
+  const tEl=document.getElementById('inv-total'); if(tEl) tEl.value='';
+  const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value='';
+  const mEl=document.getElementById('inv-months'); if(mEl) mEl.value='9';
+  const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value='';
+  openModal('modal-inv-row');
 }
 
-function openAddInvRow(){
-  const f = document.getElementById('inv-add-form');
-  if(f){ f.style.display = f.style.display==='none'?'block':'none'; }
-  editingInvId = null;
-}
-
-function closeInvForm(){
-  const f = document.getElementById('inv-add-form');
-  if(f) f.style.display='none';
-  editingInvId = null;
-}
-
-function openEditInvRow(key){
-  const [var_, rs] = key.split('||');
-  const row = inventoryRows.find(r=>r.variety===var_ && (r.rootstock||'—')===rs);
+function openEditInvRow(vr,rs){
+  const row=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
+  editingInvId=row?row.id:null;
   if(!row) return;
-  editingInvId = row.id;
-  const f = document.getElementById('inv-add-form');
-  if(f) f.style.display='block';
-  setTimeout(()=>{
-    const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value=row.variety||'';
-    const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value=row.rootstock||'';
-    const tEl=document.getElementById('inv-total'); if(tEl) tEl.value=row.total||'';
-    const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value=row.bud_date||'';
-    const mEl=document.getElementById('inv-months'); if(mEl) mEl.value=row.months||9;
-    const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value=row.notes||'';
-  }, 50);
+  document.getElementById('inv-row-modal-title').textContent='Edit — '+vr+' / '+rs;
+  const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value=row.variety||'';
+  const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value=row.rootstock||'';
+  const tEl=document.getElementById('inv-total'); if(tEl) tEl.value=row.total||'';
+  const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value=row.bud_date||'';
+  const mEl=document.getElementById('inv-months'); if(mEl) mEl.value=row.months||9;
+  const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value=row.notes||'';
+  openModal('modal-inv-row');
 }
 
-function saveInvRow(){
-  const variety = (document.getElementById('inv-variety')||{}).value||'';
-  const rootstock = (document.getElementById('inv-rootstock')||{}).value||'';
-  const total = parseInt((document.getElementById('inv-total')||{}).value||0);
-  const bud_date = (document.getElementById('inv-bud-date')||{}).value||'';
-  const months = parseInt((document.getElementById('inv-months')||{}).value||9);
-  const notes = (document.getElementById('inv-notes')||{}).value||'';
-  if(!variety || !total){ alert('Variety and tree count are required.'); return; }
-
-  if(editingInvId){
-    const i = inventoryRows.findIndex(r=>r.id===editingInvId);
-    if(i>-1) inventoryRows[i] = {...inventoryRows[i], variety, rootstock, total, bud_date, months, notes, updated_at:now()};
-  } else {
-    // Check if entry already exists for this variety+rootstock
-    const existing = inventoryRows.findIndex(r=>r.variety===variety && (r.rootstock||'')===rootstock);
-    if(existing > -1){
-      inventoryRows[existing] = {...inventoryRows[existing], total, bud_date, months, notes, updated_at:now()};
-    } else {
-      inventoryRows.unshift({id:uid(), variety, rootstock, total, bud_date, months, notes, created_at:now()});
-    }
+function openInvLotModal(){
+  // Auto-generate lot number
+  const autoNum='MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
+  const numEl=document.getElementById('lot-num'); if(numEl) numEl.value=autoNum;
+  const locEl=document.getElementById('lot-location'); if(locEl) locEl.value='';
+  const qEl=document.getElementById('lot-qty'); if(qEl) qEl.value='';
+  const bdEl=document.getElementById('lot-bud-date'); if(bdEl) bdEl.value='';
+  const mEl=document.getElementById('lot-months'); if(mEl) mEl.value='9';
+  // Populate buyer dropdown fresh from contacts
+  const sel=document.getElementById('lot-contact');
+  if(sel){
+    sel.innerHTML='<option value="">Unassigned</option>'+
+      contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
   }
-  saveInventory();
-  closeInvForm();
-  renderInventory();
-  toast('Inventory updated ✓');
+  openModal('modal-inv-lot');
 }
 
-function openAddLot(){
-  const varieties = ['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
-  const rootstocks = ['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
-  const contactOpts = contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
-  const lotNum = 'MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
-
-  const html =
-    '<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:16px">' +
-      '<div style="font-size:14px;font-weight:700;color:#5B21B6;margin-bottom:12px">&#128218; Create New Lot</div>' +
-      '<div style="background:#EDE9FE;border-radius:6px;padding:8px 12px;font-size:12px;color:#5B21B6;margin-bottom:10px">&#128161; Lots are created at transplant — when seedlings move to grow-out rows. Not before.</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-        '<div><label class="flabel">Lot Number</label><input class="finput" id="lot-num" value="'+lotNum+'" style="margin:0"></div>' +
-        '<div><label class="flabel">Location (House / Row)</label><input class="finput" id="lot-location" placeholder="e.g. N3 Row 2, House 2 S4" style="margin:0"></div>' +
-        '<div><label class="flabel">Variety *</label>' +
-          '<select class="finput" id="lot-variety" style="margin:0">'+varieties.map(v=>'<option>'+v+'</option>').join('')+'</select></div>' +
-        '<div><label class="flabel">Rootstock *</label>' +
-          '<select class="finput" id="lot-rootstock" style="margin:0">'+rootstocks.map(r=>'<option>'+r+'</option>').join('')+'</select></div>' +
-        '<div><label class="flabel">Qty at Transplant *</label><input class="finput" id="lot-qty" type="number" min="1" placeholder="e.g. 2500" style="margin:0"></div>' +
-        '<div><label class="flabel">Bud Date</label><input class="finput" id="lot-bud-date" type="date" style="margin:0"></div>' +
-        '<div><label class="flabel">Months to Ready</label>' +
-          '<select class="finput" id="lot-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>' +
-        '<div><label class="flabel">Assign to Buyer (optional)</label>' +
-          '<select class="finput" id="lot-contact" style="margin:0"><option value="">Unassigned</option>'+contactOpts+'</select></div>' +
-      '</div>' +
-      '<div style="display:flex;gap:6px">' +
-        '<button onclick="saveLot()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Create Lot</button>' +
-        '<button onclick="closeAddLot()" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Cancel</button>' +
-      '</div>' +
-    '</div>';
-
-  const lotFormEl = document.getElementById('inv-add-lot-form');
-  if(lotFormEl){ lotFormEl.innerHTML=html; lotFormEl.style.display='block'; }
-  else {
-    // Fallback: re-render with form visible
-    window._showLotForm = true;
-    renderInventory();
-    window._showLotForm = false;
-  }
-}
-
-function closeAddLot(){
-  const el = document.getElementById('inv-add-lot-form');
-  if(el){ el.style.display='none'; el.innerHTML=''; }
-}
-
-function saveLot(){
-  const lot_num = (document.getElementById('lot-num')||{}).value||'';
-  const location = (document.getElementById('lot-location')||{}).value||'';
-  const variety = (document.getElementById('lot-variety')||{}).value||'';
-  const rootstock = (document.getElementById('lot-rootstock')||{}).value||'';
-  const qty = parseInt((document.getElementById('lot-qty')||{}).value||0);
-  const bud_date = (document.getElementById('lot-bud-date')||{}).value||'';
-  const months = parseInt((document.getElementById('lot-months')||{}).value||9);
-  const contact_id = (document.getElementById('lot-contact')||{}).value||null;
-  if(!variety || !qty){ alert('Variety and quantity are required.'); return; }
-  const lot = {
-    id: uid(), lot_num: lot_num||('MG-LOT-'+Date.now()),
-    location, variety, rootstock, qty, bud_date, months,
-    contact_id: contact_id||null, movements:[], created_at:now()
-  };
-  inventoryLots.unshift(lot);
-  saveInventory();
-  closeAddLot();
-  // Also update the matching inventory row if exists
-  const invRow = inventoryRows.find(r=>r.variety===variety&&(r.rootstock||'')===rootstock);
-  if(invRow){ invRow.bud_date = invRow.bud_date||bud_date; invRow.months = invRow.months||months; saveInventory(); }
-  renderInventory();
-  // Link lot_num to contact if assigned
-  if(contact_id){
-    const c = contacts.find(x=>x.id===contact_id);
-    if(c){ c.lot_num = c.lot_num ? c.lot_num+', '+lot.lot_num : lot.lot_num; saveLocal(); }
-  }
-  toast('Lot '+lot.lot_num+' created ✓');
-}
-
-function logLotMovement(lotId){
-  const lot = inventoryLots.find(l=>l.id===lotId);
+let _currentLogLotId=null;
+function openLogModal(lotId){
+  _currentLogLotId=lotId;
+  const lot=inventoryLots.find(l=>l.id===lotId);
   if(!lot) return;
-  const totalOut=(lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+m.qty,0);
-  const qty = prompt('How many trees? Negative to remove, positive to add. Current: '+(lot.qty-totalOut).toLocaleString()+' remaining');
-  if(!qty || isNaN(qty)) return;
-  const note = prompt('What happened? e.g. Shipped to client, Transplanted, Culled') || '';
-  const qtyNum = parseInt(qty);
-  const type = qtyNum < 0 ? 'out' : 'in';
-  if(!lot.movements) lot.movements = [];
-  lot.movements.push({ id:uid(), qty:Math.abs(qtyNum), type, note, date:new Date().toISOString().split('T')[0], ts:now() });
-  saveInventory();
-  renderInventory();
-  toast('Movement logged ✓');
+  const title=document.getElementById('inv-log-title');
+  if(title) title.textContent='Log Movement — '+lot.lot_num;
+  const d=document.getElementById('log-date');
+  if(d) d.value=new Date().toISOString().split('T')[0];
+  const iEl=document.getElementById('log-in'); if(iEl) iEl.value='';
+  const oEl=document.getElementById('log-out'); if(oEl) oEl.value='';
+  const nEl=document.getElementById('log-note'); if(nEl) nEl.value='';
+  openModal('modal-inv-log');
 }
 
-function assignLotToBuyer(lotId){
-  const lot = inventoryLots.find(l=>l.id===lotId);
+function openAssignLot(lotId){
+  const lot=inventoryLots.find(l=>l.id===lotId);
   if(!lot) return;
-  const opts = contacts.filter(c=>!c.name.includes('M&R')).map((c,i)=>(i+1)+'. '+c.name).join('\n');
-  const choice = prompt('Assign lot '+lot.lot_num+' to which buyer? Enter number: '+opts);
-  if(!choice) return;
-  const idx = parseInt(choice)-1;
-  const c = contacts.filter(x=>!x.name.includes('M&R'))[idx];
-  if(!c) return;
-  lot.contact_id = c.id;
+  const buyers=contacts.filter(c=>!c.name.includes('M&R'));
+  const opts=buyers.map((c,i)=>(i+1)+'. '+c.name).join('\n');
+  const choice=prompt('Assign lot '+lot.lot_num+' to which buyer?\n\n'+opts+'\n\nEnter number:');
+  if(!choice||isNaN(choice)) return;
+  const c=buyers[parseInt(choice)-1];
+  if(!c){ alert('Invalid selection.'); return; }
+  lot.contact_id=c.id;
   saveInventory();
-  c.lot_num = c.lot_num ? c.lot_num+', '+lot.lot_num : lot.lot_num;
+  if(!c.lot_num) c.lot_num=lot.lot_num;
+  else if(!c.lot_num.includes(lot.lot_num)) c.lot_num+=', '+lot.lot_num;
   saveLocal();
-  renderInventory();
+  refreshInvLots();
   toast('Lot assigned to '+c.name+' ✓');
 }
 
-function openInvDetail(key){} // placeholder for future drill-down
+function closeInvModal(){
+  ['modal-inv-row','modal-inv-lot','modal-inv-log'].forEach(id=>closeModal(id));
+  editingInvId=null; _currentLogLotId=null;
+}
+
+// ── Save functions ────────────────────────────────────────────────────────────
+function saveInvRow(){
+  const variety=(document.getElementById('inv-variety')||{}).value||'';
+  const rootstock=(document.getElementById('inv-rootstock')||{}).value||'';
+  const total=parseInt((document.getElementById('inv-total')||{}).value||0);
+  const bud_date=(document.getElementById('inv-bud-date')||{}).value||'';
+  const months=parseInt((document.getElementById('inv-months')||{}).value||9);
+  const notes=(document.getElementById('inv-notes')||{}).value||'';
+  if(!variety||!total){ alert('Variety and tree count are required.'); return; }
+  if(editingInvId){
+    const i=inventoryRows.findIndex(r=>r.id===editingInvId);
+    if(i>-1) inventoryRows[i]={...inventoryRows[i],variety,rootstock,total,bud_date,months,notes,updated_at:now()};
+  } else {
+    const existing=inventoryRows.findIndex(r=>r.variety===variety&&(r.rootstock||'')===rootstock);
+    if(existing>-1) inventoryRows[existing]={...inventoryRows[existing],total,bud_date,months,notes,updated_at:now()};
+    else inventoryRows.unshift({id:uid(),variety,rootstock,total,bud_date,months,notes,created_at:now()});
+  }
+  saveInventory();
+  closeInvModal();
+  refreshInvMetrics();
+  refreshInvTable();
+  toast('Inventory updated ✓');
+}
+
+function saveLot(){
+  const lot_num=(document.getElementById('lot-num')||{}).value||'';
+  const location=(document.getElementById('lot-location')||{}).value||'';
+  const variety=(document.getElementById('lot-variety')||{}).value||'';
+  const rootstock=(document.getElementById('lot-rootstock')||{}).value||'';
+  const qty=parseInt((document.getElementById('lot-qty')||{}).value||0);
+  const bud_date=(document.getElementById('lot-bud-date')||{}).value||'';
+  const months=parseInt((document.getElementById('lot-months')||{}).value||9);
+  const contact_id=(document.getElementById('lot-contact')||{}).value||null;
+  if(!variety||!qty){ alert('Variety and quantity are required.'); return; }
+  const lot={
+    id:uid(),lot_num:lot_num||('MG-LOT-'+Date.now()),
+    location,variety,rootstock,qty,bud_date,months,
+    contact_id:contact_id||null,movements:[],created_at:now()
+  };
+  inventoryLots.unshift(lot);
+  saveInventory();
+  if(contact_id){
+    const c=contacts.find(x=>x.id===contact_id);
+    if(c){ c.lot_num=c.lot_num?c.lot_num+', '+lot.lot_num:lot.lot_num; saveLocal(); }
+  }
+  closeInvModal();
+  refreshInvMetrics();
+  refreshInvLots();
+  toast('Lot '+lot.lot_num+' created ✓');
+}
+
+function saveLogMovement(){
+  const lot=inventoryLots.find(l=>l.id===_currentLogLotId); if(!lot) return;
+  const date=(document.getElementById('log-date')||{}).value||new Date().toISOString().split('T')[0];
+  const inQty=parseInt((document.getElementById('log-in')||{}).value||0);
+  const outQty=parseInt((document.getElementById('log-out')||{}).value||0);
+  const note=(document.getElementById('log-note')||{}).value||'';
+  if(!inQty&&!outQty){ alert('Enter trees in or out.'); return; }
+  if(!lot.movements) lot.movements=[];
+  if(inQty>0) lot.movements.push({id:uid(),qty:inQty,type:'in',note,date,ts:now()});
+  if(outQty>0) lot.movements.push({id:uid(),qty:outQty,type:'out',note,date,ts:now()});
+  saveInventory();
+  closeInvModal();
+  refreshInvLots();
+  toast('Movement logged ✓');
+}
+
+
 
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
