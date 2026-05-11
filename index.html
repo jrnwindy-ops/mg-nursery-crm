@@ -509,7 +509,44 @@ textarea.finput{height:70px;resize:none}
     <button class="btn-xs" style="padding:11px 13px;font-size:13px" onclick="editFromDetail()">Edit</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#0369A1;color:#fff" onclick="generateQuote(currentId)">&#128196; Quote</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#9997; Contract</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#7C3AED;color:#fff" onclick="openReminderModal(currentId)">&#128276; Remind</button>
     <button class="btn-danger" onclick="deleteContact()">Delete</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: ADD REMINDER -->
+<div class="modal-bg" id="modal-reminder">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="rem-modal-title">Add Reminder</h2>
+  <div class="fgrid">
+    <div class="ffull">
+      <label class="flabel">What do you need to do? *</label>
+      <textarea class="finput" id="rem-note" style="height:80px" placeholder="e.g. Call Jireh to confirm Summer delivery dates&#10;e.g. Send contract to LoBue Ranches&#10;e.g. CDFA report due"></textarea>
+    </div>
+    <div>
+      <label class="flabel">Date *</label>
+      <input class="finput" id="rem-date" type="date">
+    </div>
+    <div>
+      <label class="flabel">Priority</label>
+      <select class="finput" id="rem-priority">
+        <option value="normal">Normal</option>
+        <option value="high">High — Urgent</option>
+        <option value="low">Low — FYI</option>
+      </select>
+    </div>
+    <div class="ffull">
+      <label class="flabel">Linked Contact (optional)</label>
+      <select class="finput" id="rem-contact">
+        <option value="">— No contact linked —</option>
+      </select>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-reminder')">Cancel</button>
+    <button class="btn-save" onclick="saveReminder()">Save Reminder</button>
   </div>
 </div>
 </div>
@@ -1911,28 +1948,178 @@ function renderPipeline(){
   if(dp)dp.innerHTML=html;if(mp)mp.innerHTML=html;
 }
 
+// ── REMINDERS ────────────────────────────────────────────────────────────
+let reminders = JSON.parse(localStorage.getItem('mg_reminders')||'[]');
+function saveReminders(){ localStorage.setItem('mg_reminders', JSON.stringify(reminders)); }
+
+function openReminderModal(contactId) {
+  // Populate contact dropdown
+  const sel = document.getElementById('rem-contact');
+  if(sel){
+    sel.innerHTML = '<option value="">— No contact linked —</option>' +
+      contacts.slice().sort((a,b)=>a.name.localeCompare(b.name))
+        .map(c=>'<option value="'+c.id+'"'+(contactId===c.id?' selected':'')+'>'+esc(c.name)+'</option>').join('');
+  }
+  // Set default date to tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tEl = document.getElementById('rem-date');
+  if(tEl) tEl.value = tomorrow.toISOString().split('T')[0];
+  const noteEl = document.getElementById('rem-note');
+  if(noteEl) noteEl.value = '';
+  const priEl = document.getElementById('rem-priority');
+  if(priEl) priEl.value = 'normal';
+  document.getElementById('rem-modal-title').textContent = 'Add Reminder';
+  openModal('modal-reminder');
+  setTimeout(()=>{ if(noteEl) noteEl.focus(); }, 300);
+}
+
+function saveReminder(){
+  const note = (document.getElementById('rem-note')||{}).value||'';
+  const date = (document.getElementById('rem-date')||{}).value||'';
+  const priority = (document.getElementById('rem-priority')||{}).value||'normal';
+  const contactId = (document.getElementById('rem-contact')||{}).value||null;
+  if(!note.trim()){ alert('Please enter what you need to do.'); return; }
+  if(!date){ alert('Please pick a date.'); return; }
+  reminders.unshift({
+    id: uid(), note: note.trim(), date, priority,
+    contactId: contactId||null, done: false, created_at: now()
+  });
+  saveReminders();
+  closeModal('modal-reminder');
+  renderReminders();
+  toast('Reminder saved ✓');
+}
+
+function completeReminder(rid){
+  // Could be a standalone reminder or a contact follow-up
+  if(rid.startsWith('fu-')){
+    const cid = rid.replace('fu-','');
+    const c = contacts.find(x=>x.id===cid);
+    if(c){ c.followup_done=true; saveLocal(); }
+  } else {
+    const r = reminders.find(x=>x.id===rid);
+    if(r){ r.done=true; saveReminders(); }
+  }
+  renderReminders();
+  renderAll();
+  toast('Marked as done ✓');
+}
+
+function deleteReminder(rid){
+  if(rid.startsWith('fu-')){
+    const cid = rid.replace('fu-','');
+    const c = contacts.find(x=>x.id===cid);
+    if(c && confirm('Clear follow-up date for '+c.name+'?')){ c.followup=''; saveLocal(); renderAll(); }
+  } else {
+    reminders = reminders.filter(x=>x.id!==rid);
+    saveReminders();
+  }
+  renderReminders();
+}
+
 function renderReminders(){
-  const list=contacts.filter(c=>c.followup).map(c=>({...c,days:daysUntil(c.followup)})).sort((a,b)=>a.days-b.days);
-  const mkR=(c,cls)=>{
-    let dc,wh;
-    if(c.days<0){dc='overdue';wh='Overdue by '+Math.abs(c.days)+' day'+(Math.abs(c.days)!==1?'s':'');}
-    else if(c.days===0){dc='today';wh='Due today';}
-    else{dc='upcoming';wh='In '+c.days+' day'+(c.days!==1?'s':'');}
-    return '<div class="'+cls+'" onclick="openDetail(\''+c.id+'\')">'+
-      '<div class="rdot '+dc+'"></div>'+
-      '<div>'+
-        '<div class="r-name">'+esc(c.name)+'</div>'+
-        '<div class="r-detail">'+esc(c.company||'')+(c.variety?' · '+esc(c.variety):'')+(c.trees?' · '+Number(c.trees).toLocaleString()+' trees':'')+'</div>'+
-        '<div class="r-detail">'+c.status+'</div>'+
-        '<div class="r-when '+dc+'">'+wh+'</div>'+
+  const today = new Date().toISOString().split('T')[0];
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+
+  // Combine standalone reminders + contact follow-ups
+  const allReminders = [];
+
+  // Standalone reminders
+  (reminders||[]).forEach(r => {
+    const daysUntilDue = Math.ceil((new Date(r.date) - todayDate) / 86400000);
+    allReminders.push({
+      id: r.id,
+      type: 'reminder',
+      note: r.note,
+      date: r.date,
+      priority: r.priority||'normal',
+      contactId: r.contactId||null,
+      contactName: r.contactId ? (contacts.find(c=>c.id===r.contactId)||{}).name||'' : '',
+      days: daysUntilDue,
+      done: r.done||false,
+    });
+  });
+
+  // Contact follow-ups (only if they have a reason/note)
+  contacts.filter(c=>c.followup&&!c.followup_done).forEach(c => {
+    const daysUntilDue = Math.ceil((new Date(c.followup) - todayDate) / 86400000);
+    // Only show follow-ups within next 14 days or overdue
+    if(daysUntilDue <= 14) {
+      allReminders.push({
+        id: 'fu-'+c.id,
+        type: 'followup',
+        note: c.followup_note || ('Follow up with ' + c.name + (c.status?' — '+c.status:'')),
+        date: c.followup,
+        priority: daysUntilDue < 0 ? 'high' : 'normal',
+        contactId: c.id,
+        contactName: c.name,
+        days: daysUntilDue,
+        done: false,
+      });
+    }
+  });
+
+  // Sort: overdue first, then by date, done at bottom
+  const active = allReminders.filter(r=>!r.done).sort((a,b)=>a.days-b.days);
+  const done = allReminders.filter(r=>r.done).slice(0,5);
+
+  function mkCard(r, cls) {
+    let status, statusCls;
+    if(r.done){ status='Done'; statusCls='upcoming'; }
+    else if(r.days<0){ status='Overdue '+Math.abs(r.days)+'d'; statusCls='overdue'; }
+    else if(r.days===0){ status='Due today'; statusCls='today'; }
+    else if(r.days===1){ status='Tomorrow'; statusCls='upcoming'; }
+    else { status='In '+r.days+' days'; statusCls='upcoming'; }
+
+    const priorityBadge = r.priority==='high'
+      ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:6px">URGENT</span>'
+      : r.priority==='low' ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;margin-left:6px">FYI</span>' : '';
+
+    const typeIcon = r.type==='followup' ? '&#128222;' : '&#128276;';
+
+    return '<div class="'+cls+'" style="border-left:3px solid '+(statusCls==='overdue'?'#EF4444':statusCls==='today'?'#D97706':'#D1FAE5')+'">'+
+      '<div style="display:flex;align-items:flex-start;gap:10px">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
+            '<span style="font-size:14px">'+typeIcon+'</span>'+
+            '<span style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.note)+'</span>'+
+            priorityBadge+
+          '</div>'+
+          (r.contactName?'<div style="font-size:12px;color:var(--tx3);margin-bottom:3px">&#128101; '+esc(r.contactName)+'</div>':'')+
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
+            '<span class="r-when '+statusCls+'" style="font-size:11px">'+status+'</span>'+
+            '<span style="font-size:11px;color:var(--muted)">'+new Date(r.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
+          (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">&#10003; Done</button>':'') +
+          (r.contactId?'<button data-cid="'+r.contactId+'" onclick="openDetail(this.dataset.cid)" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">View contact</button>':'')+
+          '<button data-rid="'+r.id+'" onclick="deleteReminder(this.dataset.rid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px">&#x2715;</button>'+
+        '</div>'+
       '</div>'+
     '</div>';
-  };
-  const empty='<div class="empty"><div class="empty-icon">🔔</div><p>No follow-up reminders set.</p></div>';
-  const dr=document.getElementById('dv-reminders'),mr=document.getElementById('mv-reminders');
-  if(dr)dr.innerHTML=list.length?list.map(c=>mkR(c,'rrow')).join(''):empty;
-  if(mr)mr.innerHTML=list.length?list.map(c=>mkR(c,'rcard')).join(''):empty;
+  }
+
+  const addBtn = '<button onclick="openReminderModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-bottom:16px">&#43; Add Reminder</button>';
+
+  const overdueBanner = active.filter(r=>r.days<0).length > 0
+    ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+active.filter(r=>r.days<0).length+' overdue reminder'+(active.filter(r=>r.days<0).length>1?'s':'')+' need your attention</div>'
+    : '';
+
+  const emptyState = active.length===0
+    ? '<div class="empty"><div class="empty-icon">&#128276;</div><p>No upcoming reminders.</p><p style="font-size:12px;color:var(--muted);margin-top:4px">Add a reminder or set follow-up dates on contacts.</p></div>'
+    : '';
+
+  const doneSection = done.length > 0
+    ? '<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">&#10003; Completed ('+done.length+')</div>'+done.map(r=>mkCard(r,'rrow')).join('')+'</div>'
+    : '';
+
+  const html = addBtn + overdueBanner + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
+  const dr=document.getElementById('dv-reminders'), mr=document.getElementById('mv-reminders');
+  if(dr)dr.innerHTML=html;
+  if(mr)mr.innerHTML=html;
 }
+
 
 function openDetail(id){
   const c=contacts.find(x=>x.id===id);if(!c)return;
