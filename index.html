@@ -434,11 +434,20 @@ textarea.finput{height:70px;resize:none}
     <div><label class="flabel">Email</label><input class="finput" id="f-email" type="email" placeholder="email@example.com"></div>
     <div><label class="flabel">Stage</label><select class="finput" id="f-status"><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select></div>
     <div class="ffull" style="grid-column:1/-1">
-      <label class="flabel">Varieties &amp; Rootstocks</label>
-      <div id="f-varieties-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-      <button type="button" onclick="addVarietyRow()" style="background:#2D6A4F;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">&#43; Add Variety / Agregar Variedad</button>
+      <label class="flabel">Varieties, Rootstocks &amp; Quantities</label>
+      <div style="display:flex;gap:6px;margin-bottom:4px;padding:0 2px">
+        <div style="flex:2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Variety</div>
+        <div style="flex:1.2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Rootstock</div>
+        <div style="flex:0.6;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:center">Qty</div>
+        <div style="width:38px"></div>
+      </div>
+      <div id="f-varieties-list" style="display:flex;flex-direction:column;gap:0px;margin-bottom:8px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <button type="button" onclick="addVarietyRow()" style="background:#2D6A4F;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">&#43; Add Variety / Agregar Variedad</button>
+        <span id="f-variety-total" style="font-size:13px;font-weight:700;color:var(--g800)"></span>
+      </div>
     </div>
-    <div><label class="flabel">Trees requested</label><input class="finput" id="f-trees" type="number" min="1" placeholder="500"></div>
+    <div><label class="flabel">Total Trees <span style="font-weight:400;color:var(--tx3)">(auto-calculated from varieties, or enter manually)</span></label><input class="finput" id="f-trees" type="number" min="1" placeholder="500"></div>
     <div><label class="flabel">Price per tree ($)</label><input class="finput" id="f-price" type="number" step="0.01" min="0" placeholder="13.50"></div>
     <div><label class="flabel">Pickup / delivery date</label><input class="finput" id="f-date" type="date"></div>
     <div><label class="flabel">Follow-up date</label><input class="finput" id="f-followup" type="date"></div>
@@ -2215,22 +2224,47 @@ function clearForm(){
   // Reset varieties — start with one empty row
   const vList=document.getElementById('f-varieties-list');
   if(vList){vList.innerHTML='';addVarietyRow();}
+  const totEl=document.getElementById('f-variety-total');if(totEl)totEl.textContent='';
   // Reset contact log
   renderContactLog([]);
   const logInp=document.getElementById('f-new-log-entry');if(logInp)logInp.value='';
 }
 function openAdd(){editingId=null;document.getElementById('form-title').textContent='Add customer';clearForm();openModal('modal-form');}
-function addVarietyRow(variety='',rootstock=''){
-  const list=document.getElementById('f-varieties-list');
-  if(!list)return;
-  const row=document.createElement('div');
-  row.className='variety-row';
-  row.style.cssText='display:flex;gap:6px;align-items:center';
-  row.innerHTML=
-    '<input class="finput vr-variety" placeholder="Variety e.g. Tango Mandarin" value="'+variety+'" style="flex:1.5;margin:0">'+
-    '<input class="finput vr-rootstock" placeholder="Rootstock e.g. Carrizo" value="'+rootstock+'" style="flex:1;margin:0">'+
-    '<button type="button" onclick="this.parentElement.remove()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
+function addVarietyRow(variety='', rootstock='', qty=''){
+  const list = document.getElementById('f-varieties-list');
+  if(!list) return;
+  const row = document.createElement('div');
+  row.className = 'variety-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
+  row.innerHTML =
+    '<input class="finput vr-variety" placeholder="Variety e.g. Tango Mandarin" value="'+variety+'" style="flex:2;margin:0">'+
+    '<input class="finput vr-rootstock" placeholder="Rootstock e.g. Carrizo" value="'+rootstock+'" style="flex:1.2;margin:0">'+
+    '<input class="finput vr-qty" type="number" min="1" placeholder="Qty" value="'+qty+'" style="flex:0.6;margin:0;text-align:center" oninput="recalcVarietyTotal()">'+
+    '<button type="button" onclick="this.parentElement.remove();recalcVarietyTotal()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
   list.appendChild(row);
+  recalcVarietyTotal();
+}
+
+function recalcVarietyTotal(){
+  const rows = document.querySelectorAll('.vr-qty');
+  let total = 0;
+  rows.forEach(r => { const v = parseInt(r.value)||0; total += v; });
+  const treesEl = document.getElementById('f-trees');
+  if(treesEl){
+    if(total > 0){
+      treesEl.value = total;
+      treesEl.style.background = 'var(--g50)';
+      treesEl.readOnly = true;
+      treesEl.title = 'Auto-calculated from variety quantities';
+    } else {
+      treesEl.readOnly = false;
+      treesEl.style.background = '';
+      treesEl.title = '';
+    }
+  }
+  // Update total display
+  const totEl = document.getElementById('f-variety-total');
+  if(totEl) totEl.textContent = total > 0 ? total.toLocaleString() + ' trees total' : '';
 }
 function renderContactLog(log){
   const el=document.getElementById('f-contact-log');
@@ -2279,7 +2313,7 @@ function openEdit(id){
   if(vList){
     vList.innerHTML='';
     const varieties=c.varieties||(c.variety?[{variety:c.variety,rootstock:''}]:[]);
-    if(varieties.length){varieties.forEach(v=>addVarietyRow(v.variety||v,v.rootstock||''));}
+    if(varieties.length){varieties.forEach(v=>addVarietyRow(v.variety||v,v.rootstock||'',v.qty||''));}
     else{addVarietyRow();}
   }
   // Populate contact log
@@ -2290,12 +2324,13 @@ function openEdit(id){
 function editFromDetail(){openEdit(currentId);}
 
 async function getVarietiesFromForm(){
-  const rows=document.querySelectorAll('.variety-row');
-  const list=[];
-  rows.forEach(r=>{
-    const v=(r.querySelector('.vr-variety')||{}).value||'';
-    const rs=(r.querySelector('.vr-rootstock')||{}).value||'';
-    if(v.trim())list.push({variety:v.trim(),rootstock:rs.trim()});
+  const rows = document.querySelectorAll('.variety-row');
+  const list = [];
+  rows.forEach(r => {
+    const v = (r.querySelector('.vr-variety')||{}).value||'';
+    const rs = (r.querySelector('.vr-rootstock')||{}).value||'';
+    const qty = parseInt((r.querySelector('.vr-qty')||{}).value)||0;
+    if(v.trim()) list.push({variety:v.trim(), rootstock:rs.trim(), qty});
   });
   return list;
 }
