@@ -10,7 +10,7 @@
 <title>M&G Nursery CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<!-- supabase loads after login -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --g900:#1B4332;--g800:#2D6A4F;--g600:#40916C;--g400:#52B788;
@@ -323,12 +323,17 @@ textarea.finput{height:70px;resize:none}
   <div class="sidebar desktop-only">
     <div class="sb-top">
       <img class="sb-logo" src="data:image/png;base64,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" alt="Logo">
-      <div class="sb-brand"><h1>M&amp;G Nursery</h1><p id="sb-sub">Loading...</p></div>
+      <div class="sb-brand"><h1>M&amp;G Nursery</h1><p id="sb-sub">CRM &amp; Pipeline</p></div>
     </div>
     <nav class="sb-nav">
       <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
       <button class="sn-btn" id="snav-pipeline" onclick="switchTab('pipeline')"><span class="sn-icon">&#128202;</span> Pipeline</button>
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
+      <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
+      <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
+        <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
+        <button class="sn-btn" onclick="generateCRMWeeklyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128202;</span> Weekly Report</button>
+      </div>
       <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
     </nav>
     <div class="sb-foot"><button onclick="doLogout()">Sign out</button></div>
@@ -339,7 +344,7 @@ textarea.finput{height:70px;resize:none}
     <div class="d-hdr">
       <h2 id="d-tab-title">Contacts</h2>
       <div class="d-hdr-r">
-        <span class="sync-badge" id="sync-badge">&#128190; Local</span>
+        <span class="sync-badge" id="sync-badge" onclick="retryCloud()" title="Click to retry cloud connection" style="cursor:pointer">&#128190; Local</span>
         <button class="fab-d" id="mic-btn-d" onclick="openDictate()" style="background:var(--g800);margin-right:6px">&#127908; Dictate task</button>
         <button class="fab-d" onclick="openAdd()">+ Add customer</button>
       </div>
@@ -351,6 +356,7 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
       <button class="d-tab" id="dtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+      <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
       <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
     <div id="dv-contacts" class="d-body">
@@ -376,7 +382,7 @@ textarea.finput{height:70px;resize:none}
     <div class="m-hdr-in">
       <div class="m-logo-row">
         <img class="m-logo-img" src="data:image/png;base64,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" alt="Logo">
-        <div class="m-brand"><h1>M&amp;G Nursery</h1><p id="m-sub">Loading...</p></div>
+        <div class="m-brand"><h1>M&amp;G Nursery</h1><p id="m-sub">CRM &amp; Pipeline</p></div>
       </div>
       <div style="display:flex;gap:7px;align-items:center">
         <button class="m-logout" id="mic-btn-m" onclick="openDictate()" style="background:var(--g800);border-color:var(--g600)">&#127908;</button>
@@ -391,6 +397,7 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
     <button class="m-tab" id="mtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+    <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
     <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
   <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
@@ -403,11 +410,13 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-pipeline" class="m-pipe mobile-only" style="display:none"></div>
   <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
     <button class="bnav-btn" id="mnav-pipeline" onclick="switchTab('pipeline')"><span class="bnav-icon">&#128202;</span><span class="bnav-label">Pipeline</span></button>
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
+    <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
     <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
 </div>
@@ -423,7 +432,11 @@ textarea.finput{height:70px;resize:none}
     <div><label class="flabel">Phone</label><input class="finput" id="f-phone" type="tel" placeholder="559-555-0100"></div>
     <div><label class="flabel">Email</label><input class="finput" id="f-email" type="email" placeholder="email@example.com"></div>
     <div><label class="flabel">Stage</label><select class="finput" id="f-status"><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select></div>
-    <div><label class="flabel">Citrus variety</label><input class="finput" id="f-variety" placeholder="e.g. Navel, Clementine"></div>
+    <div class="ffull" style="grid-column:1/-1">
+      <label class="flabel">Varieties &amp; Rootstocks</label>
+      <div id="f-varieties-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+      <button type="button" onclick="addVarietyRow()" style="background:#2D6A4F;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">&#43; Add Variety / Agregar Variedad</button>
+    </div>
     <div><label class="flabel">Trees requested</label><input class="finput" id="f-trees" type="number" min="1" placeholder="500"></div>
     <div><label class="flabel">Price per tree ($)</label><input class="finput" id="f-price" type="number" step="0.01" min="0" placeholder="13.50"></div>
     <div><label class="flabel">Pickup / delivery date</label><input class="finput" id="f-date" type="date"></div>
@@ -442,7 +455,21 @@ textarea.finput{height:70px;resize:none}
         <option>Other</option>
       </select>
     </div>
-    <div class="ffull"><label class="flabel">Notes</label><textarea class="finput" id="f-notes" placeholder="Acreage, variety preferences, instructions..."></textarea></div>
+    <div class="ffull" style="grid-column:1/-1">
+      <label class="flabel">General Notes</label>
+      <textarea class="finput" id="f-notes" placeholder="Acreage, grower background, special instructions..." style="height:70px"></textarea>
+    </div>
+    <div class="ffull" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label class="flabel" style="margin:0">Contact Log / Historial de Contacto</label>
+        <span style="font-size:11px;color:var(--muted)">Saved automatically with contact</span>
+      </div>
+      <div id="f-contact-log" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;background:var(--bg)"></div>
+      <div style="display:flex;gap:6px">
+        <textarea id="f-new-log-entry" placeholder="Log a conversation, follow-up, or update..." style="flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;resize:none;height:60px;outline:none"></textarea>
+        <button type="button" onclick="addLogEntry()" style="background:#2D6A4F;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;align-self:flex-end">Add Note</button>
+      </div>
+    </div>
   </div>
   <div class="mact">
     <button class="btn-cancel" onclick="closeModal('modal-form')">Cancel</button>
@@ -465,9 +492,10 @@ textarea.finput{height:70px;resize:none}
   <div id="det-info-pane"></div>
   <div id="det-activity-pane" style="display:none"></div>
   <div id="det-order-pane" style="display:none"></div>
-  <div class="mact">
+  <div class="mact" style="flex-wrap:wrap;gap:6px">
     <button class="btn-cancel" onclick="closeModal('modal-detail')" style="flex:0.8">Close</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px" onclick="editFromDetail()">Edit</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#128196; Contract</button>
     <button class="btn-danger" onclick="deleteContact()">Delete</button>
   </div>
 </div>
@@ -570,7 +598,7 @@ const CFG={
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sZm92bnhqenlmaXJjdnBnc3J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODI2MzMsImV4cCI6MjA5MzE1ODYzM30.fu5Hh-HSdVJhD_OkUBlEvPs8q1AW2c1iznsFcWZUc9Q',
   table:'contacts',actTable:'activities',orderTable:'orders',CAPACITY:415000
 };
-let contacts=[],activities=[],orders=[],currentId=null,editingId=null,currentTab='contacts',currentDetTab='info';
+let contacts=[{"id": "c1001", "name": "Cyrstal Cove Farms (Gary)", "company": "Cyrstal Cove Farms (Gary)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Parent Washington", "rootstock": "Carrizo"}, {"variety": "Fukumoto", "rootstock": "Carrizo"}, {"variety": "Autumn Gold", "rootstock": "Carrizo"}], "variety": "Fukumoto, Tango, Parent Washington, Autumn Gold", "trees": 215, "price": 16.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1002 | Shipment: Spring | Trees: 215 | Deposit: $1,398", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1002 | Shipment: Spring | Trees: 215 | Deposit: $1,398", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1002", "name": "MilMar Ranches, C/O Dennis Veeh (John Kalender)", "company": "MilMar Ranches, C/O Dennis Veeh (John Kalender)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 1980, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1003 | Shipment: Spring | Trees: 1,980 | Deposit: $9,900", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1003 | Shipment: Spring | Trees: 1,980 | Deposit: $9,900", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1003", "name": "Vito Deleonardis", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 5425, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1008 | Shipment: Spring | Trees: 5,425 | Deposit: $27,125", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1008 | Shipment: Spring | Trees: 5,425 | Deposit: $27,125", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1004", "name": "John Yohannes", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 3830, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1009 | Shipment: Spring | Trees: 3,830 | Deposit: $19,150", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1009 | Shipment: Spring | Trees: 3,830 | Deposit: $19,150", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1005", "name": "Quality Grown Produce (Freddi Flores)", "company": "Quality Grown Produce (Freddi Flores)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 4120, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1011 | Shipment: Spring | Trees: 4,120 | Deposit: $20,600", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1011 | Shipment: Spring | Trees: 4,120 | Deposit: $20,600", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1006", "name": "M&R Farm Management", "company": "M&R Farm Management", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Fukumoto", "rootstock": "Carrizo"}, {"variety": "Powell", "rootstock": "Carrizo"}, {"variety": "Gillette", "rootstock": "Carrizo"}, {"variety": "Palestine Sweet Lime", "rootstock": "Carrizo"}], "variety": "Fukumoto, Palestine Sweet Lime, Powell, Tango, Gillette", "trees": 8600, "price": 12.5, "date": "2026-09-15", "followup": "2026-08-01", "notes": "Contract(s): N/A | Shipment: Fall | Trees: 8,600 | INTERNAL \u2014 M&R own ranch planting", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Fall | Trees: 8,600 | INTERNAL \u2014 M&R own ranch planting", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1007", "name": "Jireh Nurseries", "company": "Jireh Nurseries", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Tango", "rootstock": "C35"}, {"variety": "Tango", "rootstock": "C35"}, {"variety": "Tango", "rootstock": "Rich 16-6"}, {"variety": "Tango", "rootstock": "Rich 16-6"}, {"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 34310, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): 26003, 26001, 26002, 26005, 26004 | Shipment: Summer | Trees: 34,310 | Deposit: $171,550", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 26003, 26001, 26002, 26005, 26004 | Shipment: Summer | Trees: 34,310 | Deposit: $171,550", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1008", "name": "Sandhu Bros Grower (Rupi)", "company": "Sandhu Bros Grower (Rupi)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 8168, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1017 | Shipment: Spring | Trees: 8,168 | Deposit: $40,840", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1017 | Shipment: Spring | Trees: 8,168 | Deposit: $40,840", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1009", "name": "Jaime Avila", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 2800, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): 1023 | Shipment: Summer | Trees: 2,800 | Deposit: $20,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1023 | Shipment: Summer | Trees: 2,800 | Deposit: $20,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1010", "name": "John Kalender", "company": null, "phone": null, "email": null, "status": "Lead", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 2000, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): N/A | Shipment: Summer | Trees: 2,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Summer | Trees: 2,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1011", "name": "Wells Farms (Charlie Dip)", "company": "Wells Farms (Charlie Dip)", "phone": null, "email": null, "status": "Deposit received", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 6510, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 6,510 | Deposit: $10,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 6,510 | Deposit: $10,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1012", "name": "Rigo Cedeno", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 1340, "price": 12.0, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1024 | Shipment: Spring | Trees: 1,340 | Deposit: $6,700", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1024 | Shipment: Spring | Trees: 1,340 | Deposit: $6,700", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1013", "name": "Rupi Sandhu", "company": null, "phone": null, "email": null, "status": "Deposit received", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 2800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 2,800 | Deposit: $14,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 2,800 | Deposit: $14,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1014", "name": "Tad Edwards", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 8500, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1028 | Shipment: Spring | Trees: 8,500 | Deposit: $42,500", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1028 | Shipment: Spring | Trees: 8,500 | Deposit: $42,500", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1015", "name": "LoBue Ranches, LLC (Robert LoBue)", "company": "LoBue Ranches, LLC (Robert LoBue)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Shiranui", "rootstock": "Rich 16-6"}], "variety": "Shiranui", "trees": 8500, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1010 | Shipment: Spring | Trees: 8,500 | Deposit: $40,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1010 | Shipment: Spring | Trees: 8,500 | Deposit: $40,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1016", "name": "R&N Citrus (Maribel)", "company": "R&N Citrus (Maribel)", "phone": null, "email": null, "status": "Lead", "varieties": [{"variety": "Parent Washington", "rootstock": "Carrizo"}], "variety": "Parent Washington", "trees": 140, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 140", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 140", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1017", "name": "Goehring Custom Farming (Mr. George)", "company": "Goehring Custom Farming (Mr. George)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Parent Washington", "rootstock": "Rich 16-6"}], "variety": "Parent Washington", "trees": 3924, "price": 12.5, "date": "2026-09-15", "followup": "2026-08-01", "notes": "Contract(s): 1021 | Shipment: Fall | Trees: 3,924 | Deposit: $19,620", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1021 | Shipment: Fall | Trees: 3,924 | Deposit: $19,620", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1018", "name": "Larson Ranch (Ken Larson)", "company": "Larson Ranch (Ken Larson)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Parent Washington", "rootstock": "Rubidoux"}], "variety": "Parent Washington", "trees": 1000, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1018 | Shipment: Spring | Trees: 1,000 | Deposit: $5,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1018 | Shipment: Spring | Trees: 1,000 | Deposit: $5,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1019", "name": "Kevin Howard", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Autumn Gold", "rootstock": "Rich 16-6"}], "variety": "Autumn Gold", "trees": 3025, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1012 | Shipment: Spring | Trees: 3,025 | Deposit: $15,125", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1012 | Shipment: Spring | Trees: 3,025 | Deposit: $15,125", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1020", "name": "Luis Avalos", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Powell", "rootstock": "Carrizo"}, {"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Powell, Olinda", "trees": 3800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1015 | Shipment: Spring | Trees: 3,800 | Deposit: $19,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1015 | Shipment: Spring | Trees: 3,800 | Deposit: $19,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1021", "name": "Johnny Jameson", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Late Lane", "rootstock": "Carrizo"}, {"variety": "Gillette", "rootstock": "Carrizo"}], "variety": "Late Lane, Gillette", "trees": 1872, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1005 | Shipment: Spring | Trees: 1,872 | Deposit: $9,360", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1005 | Shipment: Spring | Trees: 1,872 | Deposit: $9,360", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1022", "name": "Sanchez Farms", "company": "Sanchez Farms", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Olinda", "trees": 810, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1007 | Shipment: Spring | Trees: 810 | Deposit: $4,050", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1007 | Shipment: Spring | Trees: 810 | Deposit: $4,050", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1023", "name": "Rick Croker", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Olinda", "trees": 800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1016 | Shipment: Spring | Trees: 800 | Deposit: $4,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1016 | Shipment: Spring | Trees: 800 | Deposit: $4,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1024", "name": "Merryman Ranch (Glen Weerheim)", "company": "Merryman Ranch (Glen Weerheim)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 3200, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1006 | Shipment: Spring | Trees: 3,200 | Deposit: $16,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1006 | Shipment: Spring | Trees: 3,200 | Deposit: $16,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1025", "name": "Antonio Villapando", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 2300, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1014 | Shipment: Spring | Trees: 2,300 | Deposit: $11,500", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1014 | Shipment: Spring | Trees: 2,300 | Deposit: $11,500", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1026", "name": "Hillview Groves", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 3680, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1020 | Shipment: Spring | Trees: 3,680 | Deposit: $18,400", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1020 | Shipment: Spring | Trees: 3,680 | Deposit: $18,400", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1027", "name": "G&M Farms (Greg Willems)", "company": "G&M Farms (Greg Willems)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Australian Finger Lime", "rootstock": "Carrizo"}], "variety": "Australian Finger Lime", "trees": 375, "price": 16.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1001 | Shipment: Spring | Trees: 375 | Deposit: $2,438", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1001 | Shipment: Spring | Trees: 375 | Deposit: $2,438", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}],activities=[],orders=[],currentId=null,editingId=null,currentTab='contacts',currentDetTab='info';
 let sb=null,cloudOk=false;
 const STAGES=['Lead','Quoted','Deposit received','In production','Ready'];
 const BCLS={'Lead':'b-Lead','Quoted':'b-Quoted','Deposit received':'b-Deposit','In production':'b-Production','Ready':'b-Ready'};
@@ -580,22 +608,34 @@ const today=new Date();today.setHours(0,0,0,0);
 
 function initSB(){
   return new Promise(function(resolve){
-    if(window.supabase&&window.supabase.createClient){
-      try{sb=window.supabase.createClient(CFG.url,CFG.key);cloudOk=true;}catch(e){cloudOk=false;}
-      resolve();return;
+    var attempts=0;
+    function tryInit(){
+      attempts++;
+      try{
+        if(window.supabase&&window.supabase.createClient){
+          sb=window.supabase.createClient(CFG.url,CFG.key);
+          cloudOk=true;
+          console.log('Supabase ready after '+attempts+' attempt(s)');
+          resolve();
+        }else if(attempts<20){
+          // Retry every 250ms for up to 5 seconds
+          setTimeout(tryInit,250);
+        }else{
+          console.warn('Supabase never loaded after '+attempts+' attempts');
+          cloudOk=false;
+          resolve();
+        }
+      }catch(e){
+        console.warn('Supabase init error:',e);
+        cloudOk=false;
+        resolve();
+      }
     }
-    var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
-    s.onload=function(){
-      try{sb=window.supabase.createClient(CFG.url,CFG.key);cloudOk=true;}catch(e){cloudOk=false;}
-      resolve();
-    };
-    s.onerror=function(){cloudOk=false;resolve();};
-    document.head.appendChild(s);
+    tryInit();
   });
 }
 
-document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('pw-input').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
 function doLogin(){
   var val=document.getElementById('pw-input').value.trim();
   document.getElementById('login-err').textContent='';
@@ -610,46 +650,85 @@ function doLogin(){
 }
 function doLogout(){try{sessionStorage.removeItem('mg_auth');}catch(e){}document.getElementById('screen-login').classList.remove('hidden');document.getElementById('screen-main').classList.remove('visible');document.getElementById('pw-input').value='';}
 function showMain(){
-  document.getElementById('screen-login').classList.add('hidden');
-  document.getElementById('screen-main').classList.add('visible');
-  initSB().then(function(){loadAll();});
+  var login=document.getElementById('screen-login');
+  var main=document.getElementById('screen-main');
+  if(login){login.style.display='none';login.classList.add('hidden');}
+  if(main){main.style.display='flex';main.classList.add('visible');}
+  contacts=seed();
+  activities=[];orders=[];tasks=[];
+  renderAll();
+  initSB().then(function(){
+    console.log('Supabase cloudOk='+cloudOk);
+    loadAll();
+  });
 }
 
 const LK='mg_v3',LKA='mg_act_v3',LKO='mg_ord_v3';
 function saveLocal(){localStorage.setItem(LK,JSON.stringify(contacts));localStorage.setItem(LKA,JSON.stringify(activities));localStorage.setItem(LKO,JSON.stringify(orders));}
 function loadLocalAll(){
-  try{contacts=JSON.parse(localStorage.getItem(LK)||'null')||seed();}catch(e){contacts=seed();}
+  try{const stored=JSON.parse(localStorage.getItem(LK)||'null');if(stored&&stored.length>0){contacts=stored;}else{/* keep pre-loaded contacts */}}catch(e){/* keep pre-loaded contacts */}
   try{activities=JSON.parse(localStorage.getItem(LKA)||'[]');}catch(e){activities=[];}
   try{orders=JSON.parse(localStorage.getItem(LKO)||'[]');}catch(e){orders=[];}
 }
 function uid(){return crypto.randomUUID();}
 function now(){return new Date().toISOString();}
 function off(d){const t=new Date();t.setDate(t.getDate()+d);return t.toISOString().split('T')[0];}
-function seed(){return[
-  {id:uid(),name:'Sandra Vega',company:'Valley Citrus LLC',phone:'559-555-0182',email:'svega@valleycitrus.com',status:'Quoted',variety:'Clementine',trees:4700,price:13.50,date:'2025-09-01',followup:off(-2),notes:'Large order. Confirm deposit before production. 160 acres planned 2027.',created_at:now()},
-  {id:uid(),name:'Carlos Reyes',company:'Reyes Ranch',phone:'559-555-0110',email:'carlos@reyesranch.com',status:'In production',variety:'Navel Orange',trees:1200,price:13.50,date:'2025-08-15',followup:off(20),notes:'80 acres planned. Coordinate delivery with planting crew.',created_at:now()},
-  {id:uid(),name:'Patricia Gutierrez',company:'Sunny Grove Farms',phone:'559-555-0177',email:'pg@sunnygrove.com',status:'Deposit received',variety:'Lemon',trees:850,price:12.00,date:'2025-07-30',followup:off(32),notes:'Deposit $5,100 received. Waiting on rootstock.',created_at:now()},
-  {id:uid(),name:'Mike Torres',company:'Torres Ag',phone:'559-555-0143',email:'',status:'Lead',variety:'Mandarin',trees:300,price:0,date:'',followup:off(5),notes:'Referred by grower network. Interested in fall planting.',created_at:now()},
-  {id:uid(),name:'David Kim',company:'',phone:'559-555-0199',email:'dkim@gmail.com',status:'Ready',variety:'Blood Orange',trees:120,price:14.00,date:'2025-05-10',followup:off(0),notes:'Trees staged in bay 3. Client confirmed pickup.',created_at:now()},
-];}
+function seed(){return contacts;} // seed returns pre-loaded contacts
 
 async function loadAll(){
-  const ml=document.getElementById('m-list');
-  if(ml)ml.innerHTML='<div class="loading"><div class="spinner"></div> Loading...</div>';
-  if(cloudOk){
-    try{
-      const[cr,ar,or]=await Promise.all([
-        sb.from(CFG.table).select('*').order('created_at',{ascending:false}),
-        sb.from(CFG.actTable).select('*').order('created_at',{ascending:false}),
-        sb.from(CFG.orderTable).select('*').order('created_at',{ascending:false}),
-      ]);
-      contacts=cr.data||[];activities=ar.data||[];orders=or.data||[];
-      if(contacts.length===0){contacts=seed();await sb.from(CFG.table).insert(contacts);}
-      await loadTasks();
-      setSyncBadge(true);subscribeRT();
-    }catch(e){console.warn('Cloud fail',e);loadLocalAll();cloudOk=false;setSyncBadge(false);}
-  }else{loadLocalAll();setSyncBadge(false);}
+  console.log('loadAll started, cloudOk='+cloudOk);
+  if(!cloudOk){
+    console.log('Not cloud, using local/seed');
+    try{const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored&&stored.length>0)contacts=stored;}catch(e){}
+    setSyncBadge(false);
+    renderAll();
+    return;
+  }
+  try{
+    console.log('Trying contacts table...');
+    const cr=await sb.from(CFG.table).select('*').order('created_at',{ascending:false});
+    console.log('Contacts result:', cr.error?'ERROR:'+cr.error.message:'OK, rows='+( cr.data||[]).length);
+    if(cr.error)throw cr.error;
+    contacts=cr.data||[];
+    if(contacts.length===0){
+      console.log('No contacts in DB, inserting seed data...');
+      contacts=seed();
+      try{
+        for(var i=0;i<contacts.length;i++){
+          await sb.from(CFG.table).insert(contacts[i]);
+        }
+        console.log('Seed data inserted successfully');
+      }catch(e){
+        console.warn('Seed insert failed:',e);
+      }
+    }
+  }catch(e){
+    console.warn('Contacts load failed:',e);
+      try{const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored2&&stored2.length>0)contacts=stored2;}catch(e2){}
+  }
+
+  try{
+    const ar=await sb.from(CFG.actTable).select('*').order('created_at',{ascending:false});
+    activities=ar.data||[];
+    console.log('Activities loaded:', activities.length);
+  }catch(e){console.warn('Activities:',e);activities=[];}
+
+  try{
+    const or=await sb.from(CFG.orderTable).select('*').order('created_at',{ascending:false});
+    orders=or.data||[];
+    console.log('Orders loaded:', orders.length);
+  }catch(e){console.warn('Orders:',e);orders=[];}
+
+  try{
+    const tr=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
+    tasks=tr.data||[];
+    console.log('Tasks loaded:', tasks.length);
+  }catch(e){console.warn('Tasks:',e);tasks=[];}
+
+  setSyncBadge(true);
+  subscribeRT();
   renderAll();
+  console.log('loadAll complete. contacts='+contacts.length);
 }
 
 function setSyncBadge(ok){
@@ -684,6 +763,8 @@ function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.toLocaleDateStr
 function fuTag(d){const days=daysUntil(d);if(days===null)return'<span class="fu" style="color:var(--tx4)">No follow-up</span>';if(days<0)return'<span class="fu fu-due">Overdue '+Math.abs(days)+'d</span>';if(days===0)return'<span class="fu fu-soon">Due today</span>';if(days<=5)return'<span class="fu fu-soon">In '+days+'d</span>';return'<span class="fu fu-ok">In '+days+'d</span>';}
 function fuTxt(d){const days=daysUntil(d);if(days===null)return'—';if(days<0)return'Overdue '+Math.abs(days)+'d';if(days===0)return'Today';return'In '+days+'d';}
 
+function goToTasks(){switchTab("tasks");}
+function closeDigest(id){const el=document.getElementById(id);if(el)el.innerHTML='';}
 function renderDigest(){
   const due=contacts.filter(c=>c.followup&&daysUntil(c.followup)<=0)
     .map(c=>({...c,days:daysUntil(c.followup)}))
@@ -696,7 +777,7 @@ function renderDigest(){
   const items=due.map(c=>{
     const cls=c.days<0?'overdue':'today';
     const when=c.days<0?'Overdue '+Math.abs(c.days)+'d':'Due today';
-    return '<div class="digest-item" onclick=\"openDetail('"+c.id+"')\">'+
+    return '<div class="digest-item" data-id="'+c.id+'" onclick="openDetail(this.dataset.id)">'+
       '<div class="digest-dot '+cls+'"></div>'+
       '<span class="digest-item-name">'+esc(c.name)+'</span>'+
       '<span class="digest-item-when '+cls+'">'+when+'</span>'+
@@ -705,7 +786,7 @@ function renderDigest(){
   const html=(cls,id)=>'<div class="'+cls+'" id="'+id+'_inner">'+
     '<div class="digest-hd">'+
       '<span class="digest-title">&#9888; '+due.length+' follow-up'+(due.length!==1?'s':'')+' need attention</span>'+
-      '<button class="digest-close" onclick="document.getElementById(''+id+'').innerHTML=''">&#x2715;</button>'+
+      '<button class="digest-close" data-did="'+id+'" onclick="closeDigest(this.dataset.did)">&#x2715;</button>'+
     '</div>'+items+'</div>';
   const dm=document.getElementById('d-digest');
   const mm=document.getElementById('m-digest');
@@ -760,15 +841,17 @@ function fmtTs2(ts){
 }
 
 async function loadTasks(){
-  if(cloudOk){
-    try{
-      const{data}=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
+  try{
+    if(cloudOk){
+      const{data,error}=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
+      if(error)throw error;
       tasks=data||[];
-    }catch(e){
-      try{tasks=JSON.parse(localStorage.getItem(LKT)||'[]');}catch(e2){tasks=[];}
+    }else{
+      tasks=JSON.parse(localStorage.getItem(LKT)||'[]');
     }
-  }else{
-    try{tasks=JSON.parse(localStorage.getItem(LKT)||'[]');}catch(e){tasks=[];}
+  }catch(e){
+    console.warn('Tasks load failed',e);
+    try{tasks=JSON.parse(localStorage.getItem(LKT)||'[]');}catch(e2){tasks=[];}
   }
 }
 
@@ -912,18 +995,18 @@ function renderTaskBanner(){
     if(db)db.innerHTML='';if(mb)mb.innerHTML='';return;
   }
   const items=pending.slice(0,3).map(t=>
-    '<div class="digest-item" onclick="openTaskDetail(''+t.id+'')" style="cursor:pointer">'+
+    '<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
     '<div class="digest-dot" style="background:var(--blue)"></div>'+
     '<span class="digest-item-name">'+esc(t.text.length>60?t.text.substring(0,60)+'...':t.text)+'</span>'+
     '<span class="digest-item-when" style="color:var(--blue)">'+fmtTs2(t.created_at)+'</span>'+
     '</div>'
   ).join('');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="switchTab('tasks')">View all '+pending.length+' tasks →</div>':'';
+  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks →</div>':'';
   const mkBanner=(cls,closeId)=>
     '<div class="'+cls+'">'+
     '<div class="task-banner-hd">'+
     '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
-    '<button class="digest-close" onclick="document.getElementById(''+closeId+'').innerHTML=''">&#x2715;</button>'+
+    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
     '</div>'+items+more+'</div>';
   const db=document.getElementById('d-task-banner');
   const mb=document.getElementById('m-task-banner');
@@ -932,28 +1015,584 @@ function renderTaskBanner(){
 }
 
 function renderTasks(){
-  const pending=tasks.filter(t=>t.status==='pending');
-  const done=tasks.filter(t=>t.status==='done').slice(0,10);
-  const mkCard=(t)=>
-    '<div class="task-card'+(t.status==='done'?' done':'')+'" onclick="openTaskDetail(''+t.id+'')">'+
-    '<div class="task-card-top">'+
-    '<div class="task-status-dot '+(t.status==='done'?'done':'pending')+'"></div>'+
-    '<div>'+
-    '<div class="task-text'+(t.status==='done'?' done':'')+'">'+esc(t.text)+'</div>'+
-    '<div class="task-meta">'+esc(t.created_by)+' · '+fmtTs2(t.created_at)+
-    (t.status==='done'?' · ✓ Done':'')+'</div>'+
-    (t.hint&&t.status!=='done'?'<div class="task-hint">&#128161; '+esc(t.hint)+'</div>':'')+
-    '</div></div></div>';
+  const filter=currentTaskFilter||'all';
+  const filtered=filter==='all'?tasks:filter==='done'?tasks.filter(t=>t.status==='done'):tasks.filter(t=>t.status!=='done'&&t.assignee===filter);
+  const pending=tasks.filter(t=>t.status!=='done');
+  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks \u2192</div>':'';
+  const mkBanner=(cls,closeId)=>
+    '<div class="'+cls+'">' +
+    '<div class="task-banner-hd">' +
+    '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
+    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
+    '</div>'+
+    filtered.slice(0,3).map(t=>'<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
+      '<div class="task-card-to">'+
+      '<span class="tc-name">'+esc(t.title||t.task||'')+'</span>'+
+      '<span class="tc-assign">'+esc(t.assignee||'')+'</span>'+
+      '</div></div>').join('')+
+    more+'</div>';
+  const db=document.getElementById('d-task-banner');
+  const mb=document.getElementById('m-task-banner');
+  if(db)db.innerHTML=pending.length>0?mkBanner('task-banner-d','d-task-banner'):'';
+  if(mb)mb.innerHTML=pending.length>0?mkBanner('task-banner','m-task-banner'):'';
 
-  const html=
-    (pending.length?'<div class="task-section-hd">Pending ('+pending.length+')</div>'+pending.map(mkCard).join(''):'<div class="empty"><div class="empty-icon">&#10003;</div><p>No pending tasks.<br>Tap &#127908; to dictate a new task.</p></div>')+
-    (done.length?'<div class="task-section-hd" style="margin-top:14px">Completed</div>'+done.map(mkCard).join(''):'');
+  const html=filtered.length===0
+    ?'<div style="text-align:center;padding:40px 20px;color:var(--muted)">No tasks yet. Add one below.</div>'
+    :filtered.map(t=>{
+      return '<div class="task-card'+(t.status==='done'?' done':'')+'" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)">'+
+        '<div class="task-card-top">'+
+        '<div class="task-status-dot '+(t.status==='done'?'done':t.priority==='high'?'high':'normal')+'"></div>'+
+        '<div class="task-card-main">'+
+          '<div class="task-title">'+esc(t.title||t.task||'')+'</div>'+
+          '<div class="task-meta">'+(t.assignee?esc(t.assignee)+' · ':'')+
+          (t.due?new Date(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · ':'')+
+          (t.contact_id?(contacts.find(c=>c.id===t.contact_id)||{}).name||'':'')+'</div>'+
+        '</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
 
   const dv=document.getElementById('dv-tasks');
   const mv=document.getElementById('mv-tasks');
-  if(dv)dv.innerHTML='<div style="padding:14px 0">'+html+'</div>';
+  if(dv)dv.innerHTML='<div style="padding:16px;overflow-y:auto;width:100%">'+html+'</div>';
   if(mv)mv.innerHTML=html;
 }
+
+let adminTasks=JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
+function saveAdminTasks(){localStorage.setItem('mg_admin_tasks',JSON.stringify(adminTasks));}
+
+function renderAdmin(){
+  const html = buildAdminHTML();
+  const dv=document.getElementById('dv-admin');
+  const mv=document.getElementById('mv-admin');
+  if(dv)dv.innerHTML=html;
+  if(mv)mv.innerHTML=html;
+}
+
+function buildAdminHTML(){
+  const pending=adminTasks.filter(t=>!t.done);
+  const done=adminTasks.filter(t=>t.done);
+  const byStaff={};
+  const ADMIN_STAFF=['Isidro','Admin Juan','Admin Julie'];
+  ADMIN_STAFF.forEach(s=>{byStaff[s]=pending.filter(t=>t.assignee===s);});
+
+  const staffCols=ADMIN_STAFF.map(s=>{
+    const tasks=byStaff[s]||[];
+    const taskRows=tasks.length>0
+      ?tasks.map((t,i)=>{
+        const realIdx=adminTasks.indexOf(t);
+        return'<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:var(--sh)">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+            '<div style="flex:1">' +
+              '<div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.4">'+t.task+'</div>' +
+              (t.due?'<div style="font-size:11px;color:var(--muted);margin-top:3px">Due: '+new Date(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div>':'') +
+              '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(t.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:4px;flex-shrink:0">' +
+              '<button onclick="completeAdminTask('+realIdx+')" style="background:#F0FDF4;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600">✓</button>' +
+              '<button onclick="deleteAdminTask('+realIdx+')" style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✕</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('')
+      :'<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">No tasks assigned</div>';
+
+    return'<div style="flex:1;min-width:220px;background:var(--bg);border-radius:12px;padding:16px;border:1px solid var(--bd)">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--g200)">&#128119; '+s+'<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tasks.length+' task'+(tasks.length!==1?'s':'')+'</span></div>' +
+      taskRows +
+      '<div style="margin-top:10px">' +
+        '<textarea id="new-admin-task-'+s.replace(/\s/g,'_')+'" placeholder="Add task for '+s+'..." style="width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:none;height:52px;outline:none;box-sizing:border-box;background:var(--surf)"></textarea>' +
+        '<div style="display:flex;gap:5px;margin-top:5px">' +
+          '<input id="due-admin-task-'+s.replace(/\s/g,'_')+'" type="date" style="flex:1;border:1px solid var(--bd);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;outline:none">' +
+          '<button onclick="addAdminTask(\''+s+'\')" style="background:var(--g900);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Add</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  const completedSection=done.length>0
+    ?'<div style="margin-top:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">✅ Recently Completed ('+done.length+')</div>'+
+      done.slice(0,10).map((t,i)=>{
+        const realIdx=adminTasks.indexOf(t);
+        return'<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;margin-bottom:5px;border:1px solid var(--bd)">'+
+          '<span style="color:var(--green);font-size:14px">✓</span>'+
+          '<span style="font-size:12px;color:var(--muted);flex:1;text-decoration:line-through">'+t.task+'</span>'+
+          '<span style="font-size:11px;color:var(--muted)">'+t.assignee+'</span>'+
+          '<button onclick="deleteAdminTask('+realIdx+')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">✕</button>'+
+        '</div>';
+      }).join('')+
+      '</div>'
+    :'';
+
+  return'<div style="padding:20px;width:100%;overflow-y:auto">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+      '<h2 style="font-size:18px;font-weight:700;color:var(--g900)">&#128119; Staff Task Board</h2>' +
+      '<div style="font-size:12px;color:var(--muted)">'+pending.length+' active task'+(pending.length!==1?'s':'')+'</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">'+staffCols+'</div>' +
+    completedSection +
+  '</div>';
+}
+
+function addAdminTask(assignee){
+  const key=assignee.replace(/\s/g,'_');
+  const inp=document.getElementById('new-admin-task-'+key);
+  const due=document.getElementById('due-admin-task-'+key);
+  if(!inp||!inp.value.trim())return;
+  adminTasks.unshift({id:uid(),task:inp.value.trim(),assignee,due:due?due.value:'',done:false,created_at:now()});
+  inp.value='';if(due)due.value='';
+  saveAdminTasks();renderAdmin();
+}
+
+function completeAdminTask(idx){
+  if(adminTasks[idx])adminTasks[idx].done=true;
+  saveAdminTasks();renderAdmin();
+}
+
+function deleteAdminTask(idx){
+  adminTasks.splice(idx,1);
+  saveAdminTasks();renderAdmin();
+}
+
+// ── CRM REPORTS ──────────────────────────────────────────────────────────
+function openCRMReport(html, filename) {
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) { const a=document.createElement('a');a.href=url;a.download=filename;a.click(); }
+}
+
+function buildCRMReportHTML(title, period, stats, sections) {
+  const generated = new Date().toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  const statsHtml = stats.map(s =>
+    '<div style="flex:1;min-width:130px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center">' +
+    '<div style="font-size:28px;font-weight:800;color:#1B4332;line-height:1">' + s.value + '</div>' +
+    '<div style="font-size:11px;color:#4B9A4B;font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.05em">' + s.label + '</div>' +
+    '</div>'
+  ).join('');
+
+  const sectionsHtml = sections.map(sec => {
+    const headerRow = '<tr>' + sec.headers.map(h =>
+      '<th style="background:#1B4332;color:#fff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.03em">' + h + '</th>'
+    ).join('') + '</tr>';
+    const dataRows = sec.rows.length > 0
+      ? sec.rows.map((row, ri) =>
+          '<tr style="background:' + (ri%2===0?'#fff':'#F9FAFB') + '">' +
+          row.map(cell => '<td style="padding:9px 12px;font-size:13px;color:#374151;border-bottom:1px solid #F3F4F6">' + (cell||'—') + '</td>').join('') +
+          '</tr>').join('')
+      : '<tr><td colspan="' + sec.headers.length + '" style="padding:16px;text-align:center;color:#9CA3AF;font-size:13px">No records for this period</td></tr>';
+    return '<div style="margin-bottom:28px">' +
+      '<h2 style="font-size:16px;font-weight:700;color:#1B4332;margin:0 0 10px;border-bottom:2px solid #D8F3DC;padding-bottom:8px">' + sec.icon + ' ' + sec.title + '</h2>' +
+      '<table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">' +
+      headerRow + dataRows + '</table></div>';
+  }).join('');
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>' +
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#F9FAFB;color:#111827}@media print{body{background:white}.no-print{display:none}@page{margin:1.5cm}}</style></head><body>' +
+    '<div class="no-print" style="background:#1B4332;padding:12px 24px;display:flex;align-items:center;justify-content:space-between">' +
+      '<span style="color:#fff;font-size:14px;font-weight:600">' + title + '</span>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button onclick="window.print()" style="background:#52B788;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button>' +
+        '<button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer">✕ Close</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="max-width:960px;margin:0 auto;padding:32px 24px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #1B4332">' +
+      '<div>' +
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#52B788;margin-bottom:6px">M&G Nursery · Powered by AgCommand</div>' +
+        '<h1 style="font-size:26px;font-weight:800;color:#1B4332;margin-bottom:4px">' + title + '</h1>' +
+        '<div style="font-size:15px;color:#6B7280">' + period + '</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div style="font-size:11px;color:#9CA3AF">Generated</div>' +
+        '<div style="font-size:13px;font-weight:600;color:#374151">' + generated + '</div>' +
+        '<div style="font-size:11px;color:#9CA3AF;margin-top:4px">Martinez Accounting Inc.</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:28px">' + statsHtml + '</div>' +
+    sectionsHtml +
+    '<div style="border-top:1px solid #E5E7EB;padding-top:16px;margin-top:8px;display:flex;justify-content:space-between">' +
+      '<div style="font-size:11px;color:#9CA3AF">M&G Nursery · Martinez Accounting Inc. CFO Services</div>' +
+      '<div style="font-size:11px;color:#9CA3AF">Powered by AgCommand</div>' +
+    '</div></div></body></html>';
+}
+
+function generateCRMDailyReport() {
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const todayISO = today.toISOString().split('T')[0];
+
+  // Follow-ups due today or overdue
+  const overdue = contacts.filter(c => c.followup && c.followup < todayISO && c.status !== 'Ready');
+  const dueToday = contacts.filter(c => c.followup === todayISO);
+  const urgent = [...new Set([...overdue,...dueToday])];
+
+  // Pipeline by stage
+  const stages = ['Lead','Quoted','Deposit received','In production','Ready'];
+  const stageCounts = {};
+  stages.forEach(s => stageCounts[s] = contacts.filter(c=>c.status===s).length);
+
+  // Spring shipments — due soon
+  const springOrders = contacts.filter(c => c.date && c.date <= '2026-06-30' && c.status !== 'Ready');
+
+  // Total pipeline value
+  const totalValue = contacts.reduce((s,c) => s + ((c.trees||0)*(c.price||0)), 0);
+  const depositValue = contacts.filter(c=>c.status==='Deposit received'||c.status==='In production')
+    .reduce((s,c) => s + ((c.trees||0)*(c.price||0)), 0);
+  const totalTrees = contacts.reduce((s,c) => s + (c.trees||0), 0);
+
+  // Recent contact log activity (last 24h)
+  const since24h = new Date(Date.now() - 24*60*60*1000).toISOString();
+  const recentActivity = [];
+  contacts.forEach(c => {
+    (c.contact_log||[]).forEach(entry => {
+      if (entry.ts > since24h) recentActivity.push({contact: c.name, ...entry});
+    });
+  });
+
+  const html = buildCRMReportHTML(
+    'Daily Sales & Operations Report',
+    'M&G Nursery — ' + todayStr,
+    [
+      {label:'Total Contacts', value: contacts.length},
+      {label:'Pipeline Value', value: '$' + Math.round(totalValue/1000) + 'K'},
+      {label:'Committed Value', value: '$' + Math.round(depositValue/1000) + 'K'},
+      {label:'Total Trees', value: totalTrees.toLocaleString()},
+      {label:'Follow-ups Due', value: urgent.length},
+      {label:'Spring Shipments', value: springOrders.length},
+    ],
+    [
+      urgent.length > 0 ? {
+        title: 'Follow-ups Required Today', icon: '⚠️',
+        headers: ['Client','Trees','Stage','Follow-up Date','Notes'],
+        rows: urgent.map(c => [c.name, (c.trees||0).toLocaleString(), c.status, c.followup,
+          (c.notes||'').substring(0,60)])
+      } : null,
+      {
+        title: 'Pipeline Summary by Stage', icon: '📊',
+        headers: ['Stage','Count','Trees','Value'],
+        rows: stages.map(s => {
+          const sc = contacts.filter(c=>c.status===s);
+          const trees = sc.reduce((t,c)=>t+(c.trees||0),0);
+          const val = sc.reduce((t,c)=>t+((c.trees||0)*(c.price||0)),0);
+          return [s, sc.length, trees.toLocaleString(), val>0?'$'+val.toLocaleString():'—'];
+        })
+      },
+      {
+        title: 'Spring Shipment Schedule', icon: '🌱',
+        headers: ['Client','Variety','Trees','Price','Delivery Date','Stage'],
+        rows: contacts.filter(c=>c.date&&c.date<='2026-06-30')
+          .sort((a,b)=>a.date.localeCompare(b.date))
+          .map(c => [c.name, c.variety||'', (c.trees||0).toLocaleString(),
+            c.price?'$'+c.price:'—', c.date, c.status])
+      },
+      recentActivity.length > 0 ? {
+        title: 'Contact Activity (Last 24 Hours)', icon: '📋',
+        headers: ['Client','Note','By','Time'],
+        rows: recentActivity.map(a => [
+          a.contact, (a.text||'').substring(0,80), a.by||'',
+          new Date(a.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+        ])
+      } : null,
+      {
+        title: 'Full Contact Register', icon: '📒',
+        headers: ['Client','Variety','Trees','Price/Tree','Stage','Follow-up'],
+        rows: contacts.filter(c=>!c.name.includes('M&R'))
+          .sort((a,b)=>(b.trees||0)-(a.trees||0))
+          .map(c => [c.name, c.variety||'', (c.trees||0).toLocaleString(),
+            c.price?'$'+c.price:'—', c.status, c.followup||''])
+      }
+    ].filter(Boolean)
+  );
+  openCRMReport(html, 'MG_Nursery_Daily_' + todayISO + '.html');
+}
+
+function generateCRMWeeklyReport() {
+  const today = new Date();
+  const day = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (day===0?6:day-1));
+  monday.setHours(0,0,0,0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+  const period = monday.toLocaleDateString('en-US',{month:'long',day:'numeric'}) +
+    ' – ' + sunday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const mondayISO = monday.toISOString().split('T')[0];
+  const sundayISO = sunday.toISOString().split('T')[0];
+  const todayISO = today.toISOString().split('T')[0];
+
+  // Contacts touched this week (contact log entries)
+  const weekActivity = [];
+  contacts.forEach(c => {
+    (c.contact_log||[]).forEach(entry => {
+      if (entry.ts >= monday.toISOString()) weekActivity.push({contact:c.name, status:c.status, trees:c.trees, ...entry});
+    });
+  });
+
+  // Follow-ups this week
+  const weekFollowups = contacts.filter(c => c.followup >= mondayISO && c.followup <= sundayISO);
+  const overdueFollowups = contacts.filter(c => c.followup && c.followup < todayISO && c.status !== 'Ready');
+
+  // Upcoming deliveries next 30 days
+  const next30 = new Date(today); next30.setDate(today.getDate()+30);
+  const upcoming = contacts.filter(c => c.date && c.date >= todayISO && c.date <= next30.toISOString().split('T')[0]);
+
+  const totalValue = contacts.reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const committedVal = contacts.filter(c=>['Deposit received','In production','Ready'].includes(c.status))
+    .reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const springTrees = contacts.filter(c=>c.date&&c.date<='2026-06-30').reduce((s,c)=>s+(c.trees||0),0);
+
+  // Variety breakdown
+  const byVariety = {};
+  contacts.forEach(c => {
+    const v = c.variety || 'Unknown';
+    if (!byVariety[v]) byVariety[v] = {trees:0, clients:0, value:0};
+    byVariety[v].trees += (c.trees||0);
+    byVariety[v].clients++;
+    byVariety[v].value += (c.trees||0)*(c.price||0);
+  });
+
+  const html = buildCRMReportHTML(
+    'Weekly Sales Report',
+    'M&G Nursery — Week of ' + period,
+    [
+      {label:'Total Contacts', value: contacts.length},
+      {label:'Total Pipeline', value: '$'+Math.round(totalValue/1000)+'K'},
+      {label:'Committed', value: '$'+Math.round(committedVal/1000)+'K'},
+      {label:'Spring Trees', value: springTrees.toLocaleString()},
+      {label:'Overdue Follow-ups', value: overdueFollowups.length},
+      {label:'Upcoming Deliveries', value: upcoming.length},
+    ],
+    [
+      overdueFollowups.length > 0 ? {
+        title: 'Overdue Follow-ups — Action Required', icon: '🔴',
+        headers: ['Client','Trees','Stage','Overdue Since','Last Note'],
+        rows: overdueFollowups.sort((a,b)=>a.followup.localeCompare(b.followup)).map(c => {
+          const lastNote = (c.contact_log||[])[0];
+          return [c.name, (c.trees||0).toLocaleString(), c.status, c.followup,
+            lastNote ? lastNote.text.substring(0,50)+'...' : 'No notes'];
+        })
+      } : null,
+      weekActivity.length > 0 ? {
+        title: 'Contact Activity This Week', icon: '📋',
+        headers: ['Date','Client','Stage','Trees','Note','By'],
+        rows: weekActivity.sort((a,b)=>b.ts.localeCompare(a.ts)).map(a => [
+          new Date(a.ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),
+          a.contact, a.status, (a.trees||0).toLocaleString(),
+          (a.text||'').substring(0,60), a.by||'Isidro'
+        ])
+      } : null,
+      {
+        title: 'Pipeline Overview', icon: '📊',
+        headers: ['Stage','Clients','Trees','Pipeline Value','% of Total'],
+        rows: ['Lead','Quoted','Deposit received','In production','Ready'].map(s => {
+          const sc = contacts.filter(c=>c.status===s);
+          const trees = sc.reduce((t,c)=>t+(c.trees||0),0);
+          const val = sc.reduce((t,c)=>t+((c.trees||0)*(c.price||0)),0);
+          const pct = totalValue>0?Math.round(val/totalValue*100):0;
+          return [s, sc.length, trees.toLocaleString(), val>0?'$'+val.toLocaleString():'—', pct+'%'];
+        })
+      },
+      {
+        title: 'Variety Breakdown', icon: '🍊',
+        headers: ['Variety','Clients','Total Trees','Pipeline Value'],
+        rows: Object.entries(byVariety).sort((a,b)=>b[1].trees-a[1].trees).map(([v,d]) =>
+          [v, d.clients, d.trees.toLocaleString(), d.value>0?'$'+d.value.toLocaleString():'—'])
+      },
+      upcoming.length > 0 ? {
+        title: 'Upcoming Deliveries (Next 30 Days)', icon: '🚛',
+        headers: ['Client','Variety','Trees','Delivery Date','Stage'],
+        rows: upcoming.sort((a,b)=>a.date.localeCompare(b.date)).map(c =>
+          [c.name, c.variety||'', (c.trees||0).toLocaleString(), c.date, c.status])
+      } : null,
+      {
+        title: 'Full Client Register', icon: '📒',
+        headers: ['Client','Variety','Trees','$/Tree','Stage','Delivery','Follow-up','Contract'],
+        rows: contacts.filter(c=>!c.name.includes('M&R'))
+          .sort((a,b)=>(b.trees||0)-(a.trees||0))
+          .map(c => {
+            const contractMatch = (c.notes||'').match(/Contract\(s\): ([^|]+)/);
+            const contract = contractMatch ? contractMatch[1].trim() : '—';
+            return [c.name, c.variety||'', (c.trees||0).toLocaleString(),
+              c.price?'$'+c.price:'—', c.status, c.date||'—', c.followup||'—', contract];
+          })
+      }
+    ].filter(Boolean)
+  );
+  openCRMReport(html, 'MG_Nursery_Weekly_' + mondayISO + '.html');
+}
+
+// ── CONTRACT GENERATOR ────────────────────────────────────────────────────
+function generateContract(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const rawContract = c.notes ? c.notes.split('Contract(s): ')[1] : null;
+  const contractNum = rawContract ? rawContract.split('|')[0].split(',')[0].trim()
+    : 'MG-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0');
+
+  const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
+  const varietyRows = varieties.map(v =>
+    '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td></tr>'
+  ).join('');
+
+  const trees = c.trees || 0;
+  const price = c.price || 12.50;
+  const total = trees * price;
+  const deposit = Math.round(total * 0.40 * 100)/100;
+  const balance = Math.round((total - deposit)*100)/100;
+  const deliveryDate = c.date
+    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+    : 'To be determined';
+  const buyerBlock = esc(c.name) + (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
+    (c.phone ? '<br>'+esc(c.phone) : '') + (c.email ? '<br>'+esc(c.email) : '');
+  const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
+
+  const css = [
+    '* { box-sizing: border-box; margin: 0; padding: 0; }',
+    'body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; }',
+    '.page { max-width: 760px; margin: 0 auto; padding: 48px; }',
+    '@media print { .no-print { display: none !important; } @page { margin: 2cm; } }',
+    '.hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; }',
+    '.co-name { font-size: 22px; font-weight: 700; color: #1B4332; }',
+    '.co-sub { font-size: 12px; color: #555; margin-top: 3px; }',
+    '.cn { text-align: right; font-size: 12px; color: #555; }',
+    '.cn-num { font-size: 15px; font-weight: 700; color: #1B4332; }',
+    'h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; }',
+    '.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }',
+    '.fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }',
+    '.fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; }',
+    'table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }',
+    'thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; }',
+    '.tr-tot td { background: #F0FDF4; font-weight: 700; }',
+    '.tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; }',
+    '.tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; }',
+    '.tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; }',
+    '.tb ol { padding-left: 18px; }',
+    '.sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; }',
+    '.sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; }',
+    '.pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; }',
+    '.pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; }',
+    '.dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }',
+  ].join(' ');
+
+  const parts = [
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+    '<title>Nursery Purchase Agreement — ' + esc(c.name) + '</title>',
+    '<style>' + css + '</style></head><body>',
+    '<div class="no-print pbar">',
+      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
+      '<div>',
+        '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
+        '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
+        '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715;</button>',
+      '</div>',
+    '</div>',
+    '<div class="page">',
+    // HEADER
+    '<div class="hdr">',
+      '<div><div class="co-name">M&amp;G Nursery</div>',
+      '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
+      '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
+      '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div></div>',
+      '<div class="cn"><div class="cn-num">CONTRACT #' + contractNum + '</div>',
+      '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
+      '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div></div>',
+    '</div>',
+    // PARTIES
+    '<h2>Parties</h2>',
+    '<div class="two">',
+      '<div><div class="fl">Seller</div>',
+      '<div class="fv"><strong>M&amp;G Nursery</strong><br>Raffi Minassian<br>39390 Rd 116, Cutler CA 93615</div></div>',
+      '<div><div class="fl">Buyer</div>',
+      '<div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
+    '</div>',
+    // ORDER
+    '<h2>Order Details</h2>',
+    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
+    '<div class="two">',
+      '<div><div class="fl">Total Trees Ordered</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
+      '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+    '</div>',
+    // PRICING
+    '<h2>Pricing &amp; Payment</h2>',
+    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td>',
+      '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td>',
+      '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td>',
+      '<td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+    '</tbody></table>',
+    // TERMS
+    '<h2>Terms &amp; Conditions</h2>',
+    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
+      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order and initiate production.</li>',
+      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery or pickup</strong>. Trees will not be released until full payment is received.</li>',
+      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
+      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
+      '<li>Delivery date is estimated and subject to crop conditions, regulatory requirements, and weather. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
+      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
+      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
+      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
+      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> from contracted quantity due to natural production variation. Price per tree remains as stated.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
+      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
+      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
+      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
+      '<li>M&amp;G Nursery may cancel in the event of crop failure, disease, regulatory action, or force majeure — all deposits refunded in full.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
+      '<li>M&amp;G Nursery warrants all trees are grown from certified budwood and free from known diseases at time of sale per CDFA regulations.</li>',
+      '<li>No warranty is made as to performance after delivery. Buyer assumes all risk related to planting conditions and post-delivery care.</li>',
+      '<li>Quality claims must be made within <strong>48 hours of delivery</strong> before trees leave delivery vehicle or staging area.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>5. General</h3><ol>',
+      '<li>This agreement constitutes the entire understanding between parties. No verbal representations alter its terms.</li>',
+      '<li>Governed by the laws of the State of California. Disputes resolved in Tulare County, California.</li>',
+    '</ol></div>',
+    // SIGNATURES
+    '<h2>Signatures</h2>',
+    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms and conditions of this Nursery Purchase Agreement.</p>',
+    '<div class="sg">',
+      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div>',
+      '<div style="font-size:11px;color:#6B7280">Raffi Minassian, Owner · M&amp;G Nursery</div>',
+      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+      '<div><div class="fl">Buyer</div><div class="sl"></div>',
+      '<div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
+      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+    '</div>',
+    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
+      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
+    '</div>',
+    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:24px;padding-top:14px;border-top:1px solid #E5E7EB">',
+      'M&amp;G Nursery · 39390 Rd 116, Cutler CA 93615 · Contract #' + contractNum + ' · Generated ' + dateStr + ' via AgCommand',
+    '</div>',
+    '</div>',
+    '<script>document.getElementById("dlbtn").onclick=function(){',
+      'var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});',
+      'var a=document.createElement("a");a.href=URL.createObjectURL(b);',
+      'a.download="' + dlName + '";a.click();',
+    '};<\/script>',
+    '</body></html>'
+  ];
+
+  const html = parts.join('');
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) {
+    const a = document.createElement('a');
+    a.href = url; a.download = dlName; a.click();
+  }
+}
+
 
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
@@ -1176,22 +1815,22 @@ function renderDetOrder(c){
 }
 
 const MSG_TEMPLATES={
-  'Quote follow-up':{
-    sms:'Hi {name}, this is {firm} following up on the quote we sent for {trees} {variety} trees. Any questions? We'd love to get your order confirmed.',
-    email:{subject:'Following up on your tree quote — {firm}',body:'Hi {name},\n\nI wanted to follow up on the quote we sent for {trees} {variety} trees. Please let me know if you have any questions or if you'd like to move forward — we can confirm your order and get production scheduled right away.\n\nBest,\nM&G Nursery'}
+  "Quote follow-up":{
+    sms:"Hi {name}, this is {firm} following up on the quote we sent for {trees} {variety} trees. Any questions? We would love to get your order confirmed.",
+    email:{subject:"Following up on your tree quote - {firm}",body:"Hi {name},\n\nI wanted to follow up on the quote we sent for {trees} {variety} trees. Please let me know if you have any questions or if you would like to move forward. We can confirm your order and get production scheduled.\n\nBest,\nM&G Nursery"}
   },
-  'Order confirmation':{
-    sms:'Hi {name}, your order of {trees} {variety} trees is confirmed with M&G Nursery. Lot assigned. We'll be in touch with your pickup date soon.',
-    email:{subject:'Order confirmed — {trees} {variety} trees',body:'Hi {name},\n\nGreat news — your order of {trees} {variety} trees has been confirmed. Your lot has been assigned and your trees are in production. We will reach out as your pickup date approaches.\n\nThank you for your business.\n\nM&G Nursery'}
+  "Order confirmation":{
+    sms:"Hi {name}, your order of {trees} {variety} trees is confirmed with M&G Nursery. Lot assigned. We will be in touch with your pickup date soon.",
+    email:{subject:"Order confirmed - {trees} {variety} trees",body:"Hi {name},\n\nGreat news - your order of {trees} {variety} trees has been confirmed. Your lot has been assigned and your trees are in production. We will reach out as your pickup date approaches.\n\nThank you for your business.\n\nM&G Nursery"}
   },
-  'Pickup reminder':{
-    sms:'Hi {name}, your {trees} {variety} trees are ready for pickup at M&G Nursery. Please call us to confirm your pickup time. Thank you!',
-    email:{subject:'Your trees are ready for pickup — M&G Nursery',body:'Hi {name},\n\nGreat news — your {trees} {variety} trees are ready for pickup. Please give us a call or reply to this email to confirm your pickup date and time.\n\nWe look forward to seeing you soon.\n\nM&G Nursery'}
+  "Pickup reminder":{
+    sms:"Hi {name}, your {trees} {variety} trees are ready for pickup at M&G Nursery. Please call us to confirm your pickup time. Thank you!",
+    email:{subject:"Your trees are ready for pickup - M&G Nursery",body:"Hi {name},\n\nGreat news - your {trees} {variety} trees are ready for pickup. Please give us a call or reply to this email to confirm your pickup date and time.\n\nWe look forward to seeing you soon.\n\nM&G Nursery"}
   },
-  'General outreach':{
-    sms:'Hi {name}, this is M&G Nursery reaching out. We grow premium citrus trees and would love to discuss your upcoming planting needs. Give us a call anytime.',
-    email:{subject:'Premium citrus trees — M&G Nursery',body:'Hi {name},\n\nMy name is Isidro with M&G Nursery. We specialize in premium citrus trees and work closely with growers throughout the region. I'd love to learn more about your operation and see if we can be a resource for your upcoming planting needs.\n\nFeel free to call or reply anytime.\n\nIsidro\nM&G Nursery'}
-  },
+  "General outreach":{
+    sms:"Hi {name}, this is M&G Nursery reaching out. We grow premium citrus trees and would love to discuss your upcoming planting needs. Give us a call anytime.",
+    email:{subject:"Premium citrus trees - M&G Nursery",body:"Hi {name},\n\nMy name is Isidro with M&G Nursery. We specialize in premium citrus trees and work closely with growers throughout the region. I would love to learn more about your operation and see if we can be a resource for your upcoming planting needs.\n\nFeel free to call or reply anytime.\n\nIsidro\nM&G Nursery"}
+  }
 };
 
 function fillTemplate(tmpl, c){
@@ -1350,23 +1989,123 @@ function printOrder(){
   w.document.close();
 }
 
-function clearForm(){['name','company','phone','email','variety','notes'].forEach(f=>document.getElementById('f-'+f).value='');document.getElementById('f-source').value='';['trees','price'].forEach(f=>document.getElementById('f-'+f).value='');document.getElementById('f-status').value='Lead';document.getElementById('f-date').value='';document.getElementById('f-followup').value='';}
+function clearForm(){
+  ['name','company','phone','email','notes'].forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value='';});
+  document.getElementById('f-source').value='';
+  ['trees','price'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('f-status').value='Lead';
+  document.getElementById('f-date').value='';
+  document.getElementById('f-followup').value='';
+  // Reset varieties — start with one empty row
+  const vList=document.getElementById('f-varieties-list');
+  if(vList){vList.innerHTML='';addVarietyRow();}
+  // Reset contact log
+  renderContactLog([]);
+  const logInp=document.getElementById('f-new-log-entry');if(logInp)logInp.value='';
+}
 function openAdd(){editingId=null;document.getElementById('form-title').textContent='Add customer';clearForm();openModal('modal-form');}
+function addVarietyRow(variety='',rootstock=''){
+  const list=document.getElementById('f-varieties-list');
+  if(!list)return;
+  const row=document.createElement('div');
+  row.className='variety-row';
+  row.style.cssText='display:flex;gap:6px;align-items:center';
+  row.innerHTML=
+    '<input class="finput vr-variety" placeholder="Variety e.g. Tango Mandarin" value="'+variety+'" style="flex:1.5;margin:0">'+
+    '<input class="finput vr-rootstock" placeholder="Rootstock e.g. Carrizo" value="'+rootstock+'" style="flex:1;margin:0">'+
+    '<button type="button" onclick="this.parentElement.remove()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
+  list.appendChild(row);
+}
+function renderContactLog(log){
+  const el=document.getElementById('f-contact-log');
+  if(!el)return;
+  if(!log||!log.length){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:6px 2px">No contact history yet. Add your first note above.</div>';return;}
+  el.innerHTML=log.map(e=>{
+    const d=new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const t=new Date(e.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:3px">' +
+        '<span style="font-size:11px;font-weight:700;color:var(--green)">'+(e.by||'Isidro')+'</span>' +
+        '<span style="font-size:11px;color:var(--muted)">'+d+' · '+t+'</span>' +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--text);line-height:1.5">'+e.text+'</div>' +
+    '</div>';
+  }).join('');
+}
+function addLogEntry(){
+  const inp=document.getElementById('f-new-log-entry');
+  if(!inp||!inp.value.trim())return;
+  const entry={text:inp.value.trim(),ts:now(),by:'Isidro'};
+  // Add to display immediately
+  const logEl=document.getElementById('f-contact-log');
+  if(logEl){
+    const existing=logEl.innerHTML.includes('No contact history')?'':logEl.innerHTML;
+    const d=new Date(entry.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const t=new Date(entry.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    logEl.innerHTML='<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:11px;font-weight:700;color:var(--green)">'+entry.by+'</span><span style="font-size:11px;color:var(--muted)">'+d+' · '+t+'</span></div><div style="font-size:13px;color:var(--text);line-height:1.5">'+entry.text+'</div></div>'+existing;
+  }
+  inp.value='';
+}
 function openEdit(id){
   const c=contacts.find(x=>x.id===id);if(!c)return;editingId=id;
   document.getElementById('form-title').textContent='Edit customer';
-  ['name','company','phone','email','variety','notes'].forEach(f=>document.getElementById('f-'+f).value=c[f]||'');
+  ['name','company','phone','email','notes'].forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value=c[f]||'';});
   document.getElementById('f-status').value=c.status||'Lead';
-  document.getElementById('f-trees').value=c.trees||'';document.getElementById('f-price').value=c.price||'';
-  document.getElementById('f-date').value=c.date||'';document.getElementById('f-followup').value=c.followup||'';
+  document.getElementById('f-trees').value=c.trees||'';
+  document.getElementById('f-price').value=c.price||'';
+  document.getElementById('f-date').value=c.date||'';
+  document.getElementById('f-followup').value=c.followup||'';
   document.getElementById('f-source').value=c.source||'';
+  // Populate varieties
+  const vList=document.getElementById('f-varieties-list');
+  if(vList){
+    vList.innerHTML='';
+    const varieties=c.varieties||(c.variety?[{variety:c.variety,rootstock:''}]:[]);
+    if(varieties.length){varieties.forEach(v=>addVarietyRow(v.variety||v,v.rootstock||''));}
+    else{addVarietyRow();}
+  }
+  // Populate contact log
+  renderContactLog(c.contact_log||[]);
+  const logInp=document.getElementById('f-new-log-entry');if(logInp)logInp.value='';
   closeModal('modal-detail');openModal('modal-form');
 }
 function editFromDetail(){openEdit(currentId);}
 
+async function getVarietiesFromForm(){
+  const rows=document.querySelectorAll('.variety-row');
+  const list=[];
+  rows.forEach(r=>{
+    const v=(r.querySelector('.vr-variety')||{}).value||'';
+    const rs=(r.querySelector('.vr-rootstock')||{}).value||'';
+    if(v.trim())list.push({variety:v.trim(),rootstock:rs.trim()});
+  });
+  return list;
+}
 async function saveContact(){
   const name=document.getElementById('f-name').value.trim();if(!name){alert('Customer name is required.');return;}
-  const data={name,company:document.getElementById('f-company').value.trim()||null,phone:document.getElementById('f-phone').value.trim()||null,email:document.getElementById('f-email').value.trim()||null,status:document.getElementById('f-status').value,variety:document.getElementById('f-variety').value.trim()||null,trees:parseInt(document.getElementById('f-trees').value)||null,price:parseFloat(document.getElementById('f-price').value)||null,date:document.getElementById('f-date').value||null,followup:document.getElementById('f-followup').value||null,notes:document.getElementById('f-notes').value.trim()||null,source:document.getElementById('f-source').value||null};
+  const varieties=getVarietiesFromForm();
+  const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
+  // Collect existing log entries
+  let contactLog=[];
+  if(editingId){const c=contacts.find(x=>x.id===editingId);if(c)contactLog=c.contact_log||[];}
+  if(newLogEntry.trim()){
+    contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Isidro'},...contactLog];
+  }
+  const data={name,
+    company:document.getElementById('f-company').value.trim()||null,
+    phone:document.getElementById('f-phone').value.trim()||null,
+    email:document.getElementById('f-email').value.trim()||null,
+    status:document.getElementById('f-status').value,
+    varieties:varieties.length?varieties:null,
+    variety:varieties.length?varieties.map(v=>v.variety).join(', '):null,
+    trees:parseInt(document.getElementById('f-trees').value)||null,
+    price:parseFloat(document.getElementById('f-price').value)||null,
+    date:document.getElementById('f-date').value||null,
+    followup:document.getElementById('f-followup').value||null,
+    notes:document.getElementById('f-notes').value.trim()||null,
+    source:document.getElementById('f-source').value||null,
+    contact_log:contactLog
+  };
   if(editingId){const i=contacts.findIndex(x=>x.id===editingId);if(i>-1)contacts[i]={...contacts[i],...data};if(cloudOk){try{await sb.from(CFG.table).update(data).eq('id',editingId);}catch(e){console.warn(e);}}}
   else{const row={id:uid(),...data,created_at:now()};contacts.unshift(row);if(cloudOk){try{await sb.from(CFG.table).insert(row);}catch(e){console.warn(e);}}}
   saveLocal();closeModal('modal-form');renderAll();toast(editingId?'Customer updated ✓':'Customer added ✓');
@@ -1394,11 +2133,24 @@ async function nextStage(id){
   toast('Moved to '+next+' · Follow-up set for '+fuDays+' days ✓');
 }
 
+function retryCloud(){
+  console.log('Manual retry triggered');
+  toast('Retrying cloud connection...');
+  initSB().then(function(){
+    console.log('After retry, cloudOk='+cloudOk);
+    if(cloudOk){
+      loadAll();
+    }else{
+      toast('Still cannot connect to cloud');
+    }
+  });
+}
+
 function switchTab(tab){
   currentTab=tab;
-  const titles={contacts:'Contacts',pipeline:'Pipeline',reminders:'Reminders'};
+  const titles={contacts:'Contacts',pipeline:'Pipeline',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','pipeline','reminders','tasks'].forEach(t=>{
+  ['contacts','pipeline','reminders','tasks','admin'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -1408,11 +2160,14 @@ function switchTab(tab){
   document.getElementById('dv-pipeline').style.display=tab==='pipeline'?'flex':'none';
   document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
   document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
+  const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-pipeline').style.display=tab==='pipeline'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
   document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
+  const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   if(tab==='tasks')renderTasks();
+  if(tab==='admin')renderAdmin();
   renderAll();
 }
 
