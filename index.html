@@ -299,6 +299,7 @@ textarea.finput{height:70px;resize:none}
 .loading{display:flex;align-items:center;justify-content:center;height:80px;color:var(--tx4);font-size:13px;gap:8px}
 .spinner{width:16px;height:16px;border:2px solid var(--bd);border-top-color:var(--g600);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
+.tl-event-row{display:flex;gap:10px;padding:6px 16px;border-bottom:.5px solid var(--bd)} .tl-clickable:hover{background:var(--g50);cursor:pointer}
 </style>
 </head>
 <body>
@@ -329,6 +330,7 @@ textarea.finput{height:70px;resize:none}
       <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
       <button class="sn-btn" id="snav-pipeline" onclick="switchTab('pipeline')"><span class="sn-icon">&#128202;</span> Pipeline</button>
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
+      <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
       <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
@@ -356,6 +358,7 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
       <button class="d-tab" id="dtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+      <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
       <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
@@ -376,6 +379,7 @@ textarea.finput{height:70px;resize:none}
     <div id="dv-reminders" class="d-rem" style="display:none"></div>
     <div id="dv-tasks" class="d-rem" style="display:none"></div>
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   </div>
 
   <!-- MOBILE HEADER -->
@@ -398,6 +402,7 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
     <button class="m-tab" id="mtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+    <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
     <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
@@ -412,11 +417,13 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
     <button class="bnav-btn" id="mnav-pipeline" onclick="switchTab('pipeline')"><span class="bnav-icon">&#128202;</span><span class="bnav-label">Pipeline</span></button>
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
+    <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
     <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
@@ -1820,6 +1827,200 @@ function generateCRMWeeklyReport() {
   openCRMReport(html, 'MG_Weekly_' + mondayISO + '.html');
 }
 
+
+// ── WEEKLY TIMELINE ───────────────────────────────────────────────────────
+function renderTimeline(){
+  const dv = document.getElementById('dv-timeline');
+  const mv = document.getElementById('mv-timeline');
+  const html = buildTimelineHTML();
+  if(dv){ dv.innerHTML = html; }
+  if(mv){ mv.innerHTML = html; }
+}
+
+function buildTimelineHTML(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayISO = today.toISOString().split('T')[0];
+
+  // ── Collect all timeline events ──────────────────────────────────────
+  const events = [];
+
+  // Contact log entries
+  contacts.forEach(c => {
+    (c.contact_log||[]).forEach(entry => {
+      events.push({
+        date: entry.ts.split('T')[0],
+        ts: entry.ts,
+        type: 'log',
+        icon: '&#128222;',
+        label: entry.by||'Isidro',
+        title: entry.text,
+        subtitle: c.name,
+        contactId: c.id,
+        status: c.status,
+      });
+    });
+  });
+
+  // Reminders (standalone)
+  (reminders||[]).forEach(r => {
+    events.push({
+      date: r.date,
+      ts: r.date + 'T08:00:00',
+      type: r.done ? 'reminder-done' : 'reminder',
+      icon: '&#128276;',
+      label: r.done ? 'Done' : (r.priority==='high'?'Urgent':'Reminder'),
+      title: r.note,
+      subtitle: r.contactId ? (contacts.find(c=>c.id===r.contactId)||{}).name||'' : '',
+      contactId: r.contactId||null,
+      priority: r.priority||'normal',
+      done: r.done||false,
+      rid: r.id,
+    });
+  });
+
+  // Follow-ups from contacts (next 30 days + past 14 days)
+  const cutoff = new Date(today); cutoff.setDate(today.getDate()-14);
+  const cutoffISO = cutoff.toISOString().split('T')[0];
+  const horizon = new Date(today); horizon.setDate(today.getDate()+30);
+  const horizonISO = horizon.toISOString().split('T')[0];
+
+  contacts.filter(c => c.followup && c.followup >= cutoffISO && c.followup <= horizonISO).forEach(c => {
+    events.push({
+      date: c.followup,
+      ts: c.followup + 'T09:00:00',
+      type: c.followup < todayISO ? 'followup-overdue' : 'followup',
+      icon: '&#128101;',
+      label: c.followup < todayISO ? 'Overdue' : 'Follow-up',
+      title: 'Follow up with ' + c.name,
+      subtitle: c.status + (c.variety ? ' · ' + c.variety : '') + (c.trees ? ' · ' + c.trees.toLocaleString() + ' trees' : ''),
+      contactId: c.id,
+      status: c.status,
+    });
+  });
+
+  // Sort all events by date descending
+  events.sort((a,b) => b.ts.localeCompare(a.ts));
+
+  // ── Group by week ────────────────────────────────────────────────────
+  function getWeekKey(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day===0?6:day-1));
+    return monday.toISOString().split('T')[0];
+  }
+
+  function weekLabel(weekKey) {
+    const monday = new Date(weekKey + 'T12:00:00');
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    const todayWeek = getWeekKey(todayISO);
+    if(weekKey === todayWeek) return 'This week';
+    const lastWeek = new Date(today); lastWeek.setDate(today.getDate()-7);
+    if(weekKey === getWeekKey(lastWeek.toISOString().split('T')[0])) return 'Last week';
+    const nextWeek = new Date(today); nextWeek.setDate(today.getDate()+7);
+    if(weekKey === getWeekKey(nextWeek.toISOString().split('T')[0])) return 'Next week';
+    const mo = monday.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const su = sunday.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return 'Week of ' + mo + ' – ' + su;
+  }
+
+  function isFuture(weekKey) { return weekKey > getWeekKey(todayISO); }
+
+  const weeks = {};
+  events.forEach(e => {
+    const wk = getWeekKey(e.date);
+    if(!weeks[wk]) weeks[wk] = [];
+    weeks[wk].push(e);
+  });
+
+  const sortedWeeks = Object.keys(weeks).sort((a,b)=>b.localeCompare(a));
+
+  if(sortedWeeks.length === 0){
+    return '<div style="padding:32px 20px;text-align:center;color:var(--muted)">' +
+      '<div style="font-size:32px;margin-bottom:12px">&#128198;</div>' +
+      '<div style="font-size:15px;font-weight:600;margin-bottom:6px">No activity yet</div>' +
+      '<div style="font-size:13px">Log a contact note, add a reminder, or set a follow-up date to start building your timeline.</div>' +
+    '</div>';
+  }
+
+  // ── Quick-add reminder bar ───────────────────────────────────────────
+  const quickAdd =
+    '<div style="display:flex;gap:8px;align-items:center;padding:12px 16px 16px;border-bottom:1px solid var(--bd)">' +
+      '<button onclick="openReminderModal()" style="display:flex;align-items:center;gap:6px;background:var(--g900);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">&#43; Add to timeline</button>' +
+      '<div style="font-size:12px;color:var(--muted)">Log a call, set a reminder, or schedule a follow-up</div>' +
+    '</div>';
+
+  // ── Build event cards ────────────────────────────────────────────────
+  function eventCard(e) {
+    const dayStr = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const isFut = e.date > todayISO;
+    const isToday = e.date === todayISO;
+    const isOverdue = (e.type==='followup-overdue' || (e.type==='reminder' && e.date < todayISO));
+
+    let accentColor = 'var(--bd)';
+    let labelColor = 'var(--muted)';
+    if(isOverdue){ accentColor='#EF4444'; labelColor='#EF4444'; }
+    else if(isToday){ accentColor='#D97706'; labelColor='#D97706'; }
+    else if(isFut){ accentColor='var(--green)'; labelColor='var(--g700)'; }
+    else if(e.type==='log'){ accentColor='#0369A1'; labelColor='#0369A1'; }
+    else if(e.type==='reminder-done'){ accentColor='#9CA3AF'; labelColor='#9CA3AF'; }
+
+    const doneStyle = e.done ? 'opacity:.55;text-decoration:line-through' : '';
+    const clickAttr = e.contactId ? ' data-cid="'+e.contactId+'" onclick="openDetail(this.dataset.cid)"' : '';
+    const hoverClass = e.contactId ? ' tl-clickable' : '';
+
+    let overdueTag = isOverdue ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700">OVERDUE</span>' : '';
+    let todayTag = isToday ? '<span style="font-size:10px;background:#FEF3C7;color:#92400E;border-radius:8px;padding:1px 6px;font-weight:700">TODAY</span>' : '';
+
+    return (
+      '<div class="tl-event-row'+hoverClass+'"'+clickAttr+'>' +
+        '<div style="width:3px;align-self:stretch;background:'+accentColor+';border-radius:2px;flex-shrink:0;margin-top:2px"></div>' +
+        '<div style="flex:1;min-width:0;padding:10px 14px 10px 0">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">' +
+            '<span style="font-size:14px">'+e.icon+'</span>' +
+            '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:'+labelColor+'">'+e.label+'</span>' +
+            '<span style="font-size:11px;color:var(--muted)">· '+dayStr+'</span>' +
+            overdueTag + todayTag +
+          '</div>' +
+          '<div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;margin-bottom:2px;'+doneStyle+'">'+esc(e.title)+'</div>' +
+          (e.subtitle ? '<div style="font-size:11px;color:var(--muted)">'+esc(e.subtitle)+'</div>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+
+  // ── Build week sections ──────────────────────────────────────────────
+  const sections = sortedWeeks.map(wk => {
+    const label = weekLabel(wk);
+    const fut = isFuture(wk);
+    const isThisWeek = wk === getWeekKey(todayISO);
+    const weekEvents = weeks[wk];
+    const hasOverdue = weekEvents.some(e => e.type==='followup-overdue' || (e.type==='reminder'&&e.date<todayISO));
+
+    const headerBg = isThisWeek ? 'var(--g50)' : fut ? '#F0F9FF' : 'var(--surf)';
+    const headerBorder = isThisWeek ? 'var(--g200)' : fut ? '#BAE6FD' : 'var(--bd)';
+    const headerColor = isThisWeek ? 'var(--g900)' : fut ? '#0369A1' : 'var(--tx3)';
+
+    return '<div style="border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:12px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:'+headerBg+';border-bottom:1px solid '+headerBorder+'">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<span style="font-size:13px;font-weight:700;color:'+headerColor+'">'+label+'</span>'+
+          (isThisWeek?'<span style="font-size:10px;background:var(--g900);color:#fff;border-radius:8px;padding:1px 8px;font-weight:700">CURRENT</span>':'')+
+          (hasOverdue?'<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 8px;font-weight:700">HAS OVERDUE</span>':'')+
+        '</div>'+
+        '<span style="font-size:11px;color:var(--muted)">'+weekEvents.length+' item'+(weekEvents.length!==1?'s':'')+'</span>'+
+      '</div>'+
+      weekEvents.map(eventCard).join('')+
+    '</div>';
+  }).join('');
+
+  return '<div style="width:100%;overflow-y:auto">'+
+    quickAdd+
+    '<div style="padding:12px 12px 24px">'+sections+'</div>'+
+  '</div>';
+}
+
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
 function renderMetrics(){
@@ -2593,7 +2794,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',pipeline:'Pipeline',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','pipeline','reminders','tasks','admin'].forEach(t=>{
+  ['contacts','pipeline','reminders','tasks','admin','timeline'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -2604,13 +2805,16 @@ function switchTab(tab){
   document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
   document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
+  const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-pipeline').style.display=tab==='pipeline'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
   document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
+  const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
+  if(tab==='timeline')renderTimeline();
   renderAll();
 }
 
@@ -2627,4 +2831,4 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 </body>
-</html>
+      (e.contactId ? 'class="tl-clickable"' : '') + '>'+'>
