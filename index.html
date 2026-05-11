@@ -940,23 +940,28 @@ async function loadAll(){
     });
     return clist;
   }
-  if(cloudContacts.length < preLoaded.length){
-      // Cloud has fewer contacts than our real data — push real data up
-      console.log('Syncing '+preLoaded.length+' contacts to cloud...');
-      contacts=preLoaded;
-      // Delete old demo data and insert real contacts
-      try{
-        await sb.from(CFG.table).delete().neq('id','placeholder');
-        for(var i=0;i<preLoaded.length;i++){
-          await sb.from(CFG.table).upsert(preLoaded[i]);
-        }
-        console.log('Real contacts synced to cloud');
-      }catch(e2){console.warn('Sync failed:',e2);}
-    } else {
-      // Cloud has more or equal contacts — use cloud as source of truth
-      contacts=cloudContacts;
+  // Get local storage for merge safety
+  let localStored=[];
+  try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
+
+  if(cloudContacts.length < preLoaded.length && localStored.length <= preLoaded.length){
+    // Cloud missing base data — push preLoaded up
+    contacts=preLoaded;
+    try{
+      await sb.from(CFG.table).delete().neq('id','__none__');
+      for(var i=0;i<preLoaded.length;i++){ await sb.from(CFG.table).upsert(preLoaded[i]); }
+    }catch(e3){console.warn('Sync failed:',e3);}
+  } else {
+    // Cloud is source of truth — but merge local-only contacts not yet synced
+    const cloudIds=new Set(cloudContacts.map(c=>c.id));
+    const localOnly=localStored.filter(c=>!cloudIds.has(c.id));
+    contacts=[...cloudContacts,...localOnly];
+    // Push local-only contacts up to cloud
+    if(localOnly.length>0){
+      try{ for(const c of localOnly){ await sb.from(CFG.table).upsert(c); } }catch(e4){console.warn(e4);}
     }
-  }catch(e){
+  }
+    }catch(e){
     console.warn('Contacts load failed:',e);
     try{const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored2&&stored2.length>0)contacts=stored2;else contacts=preLoaded;}catch(e2){contacts=preLoaded;}
   }
@@ -993,19 +998,38 @@ function setSyncBadge(ok){
   if(ms)ms.textContent=txt;if(ss)ss.textContent=txt;
 }
 
+let _skipNextReload = false;
+let _silentReloadTimer = null;
+
 function subscribeRT(){
   if(!cloudOk||!sb)return;
-  try{sb.channel('mg-v3').on('postgres_changes',{event:'*',schema:'public'},()=>silentReload()).subscribe();}catch(e){}
+  try{
+    sb.channel('mg-v3').on('postgres_changes',{event:'*',schema:'public'},()=>{
+      // Skip reload if we triggered the change ourselves (prevents wiping new saves)
+      if(_skipNextReload){ _skipNextReload=false; return; }
+      // Debounce — wait 2 seconds before reloading to let our insert commit
+      clearTimeout(_silentReloadTimer);
+      _silentReloadTimer = setTimeout(silentReload, 2000);
+    }).subscribe();
+  }catch(e){}
 }
+
 async function silentReload(){
-  if(!cloudOk)return;
+  if(!cloudOk) return;
   try{
     const[cr,ar,or]=await Promise.all([
       sb.from(CFG.table).select('*').order('created_at',{ascending:false}),
       sb.from(CFG.actTable).select('*').order('created_at',{ascending:false}),
       sb.from(CFG.orderTable).select('*').order('created_at',{ascending:false}),
     ]);
-    contacts=cr.data||[];activities=ar.data||[];orders=or.data||[];renderAll();
+    // Merge cloud data with any contacts only in local (e.g. just saved, not yet returned)
+    const cloudIds = new Set((cr.data||[]).map(c=>c.id));
+    const localOnly = contacts.filter(c=>!cloudIds.has(c.id));
+    contacts=[...(cr.data||[]),...localOnly];
+    activities=ar.data||[];
+    orders=or.data||[];
+    saveLocal();
+    renderAll();
   }catch(e){}
 }
 
@@ -3920,8 +3944,8 @@ async function saveContact(){
     source:document.getElementById('f-source').value||null,
     contact_log:contactLog
   };
-  if(editingId){const i=contacts.findIndex(x=>x.id===editingId);if(i>-1)contacts[i]={...contacts[i],...data};if(cloudOk){try{await sb.from(CFG.table).update(data).eq('id',editingId);}catch(e){console.warn(e);}}}
-  else{const row={id:uid(),...data,created_at:now()};contacts.unshift(row);if(cloudOk){try{await sb.from(CFG.table).insert(row);}catch(e){console.warn(e);}}}
+  if(editingId){const i=contacts.findIndex(x=>x.id===editingId);if(i>-1)contacts[i]={...contacts[i],...data};if(cloudOk){try{_skipNextReload=true;await sb.from(CFG.table).update(data).eq('id',editingId);}catch(e){console.warn(e);_skipNextReload=false;}}}
+  else{const row={id:uid(),...data,created_at:now()};contacts.unshift(row);if(cloudOk){try{_skipNextReload=true;await sb.from(CFG.table).insert(row);}catch(e){console.warn(e);_skipNextReload=false;}}}
   saveLocal();closeModal('modal-form');renderAll();toast(editingId?'Customer updated ✓':'Customer added ✓');
 }
 
@@ -4014,5 +4038,852 @@ document.addEventListener('DOMContentLoaded', function(){
   if(authed)showMain();
 });
 </script>
+</body>
+      (e.contactId ? 'class="tl-clickable"' : '') + '>'+'    // Get locally stored contacts for merge safety
+    let localStored=[];
+    try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
+
+    if(cloudContacts.length < preLoaded.length && localStored.length <= preLoaded.length){
+      // Cloud is missing base data — push preLoaded up
+      contacts=preLoaded;
+      try{
+        await sb.from(CFG.table).delete().neq('id','__none__');
+        for(var i=0;i<preLoaded.length;i++){ await sb.from(CFG.table).upsert(preLoaded[i]); }
+      }catch(e3){console.warn('Sync failed:',e3);}
+    } else {
+      // Cloud is source of truth — but merge any local-only contacts not yet in cloud
+      const cloudIds=new Set(cloudContacts.map(c=>c.id));
+      const localOnly=localStored.filter(c=>!cloudIds.has(c.id));
+      contacts=[...cloudContacts,...localOnly];
+      // Push local-only contacts up to cloud
+      if(localOnly.length>0){
+        try{ for(const c of localOnly){ await sb.from(CFG.table).upsert(c); } }catch(e4){console.warn(e4);}
+      }
+    }-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MG Nursery">
+<meta name="theme-color" content="#1B4332">
+<title>M&G Nursery CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --g900:#1B4332;--g800:#2D6A4F;--g600:#40916C;--g400:#52B788;
+  --g200:#B7E4C7;--g100:#D8F3DC;--g50:#F0FDF4;
+  --amber:#92400E;--amber-bg:#FFFBEB;--amber-bd:#FDE68A;
+  --red:#991B1B;--red-bg:#FEF2F2;--red-bd:#FECACA;
+  --blue:#1E40AF;--blue-bg:#EFF6FF;--blue-bd:#BFDBFE;
+  --purple:#5B21B6;--purple-bg:#F5F3FF;--purple-bd:#DDD6FE;
+  --tx:#111827;--tx2:#374151;--tx3:#6B7280;--tx4:#9CA3AF;
+  --bg:#F3F4F0;--surf:#FFFFFF;--bd:#E5E7EB;--bd2:#D1D5DB;
+  --r:12px;--rsm:8px;--rlg:20px;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shmd:0 4px 14px rgba(0,0,0,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.5}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer}
+a{color:var(--g600);text-decoration:none}
+
+/* LOGIN */
+#screen-login{position:fixed;inset:0;background:var(--g900);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:2rem;z-index:200;transition:opacity .3s}
+#screen-login.hidden{opacity:0;pointer-events:none;display:none}
+.login-logo-img{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-bottom:14px;border:3px solid rgba(255,255,255,.25)}
+.login-title{font-family:'DM Serif Display',serif;font-size:28px;color:#fff;text-align:center;margin-bottom:4px}
+.login-tag{font-size:12px;color:var(--g200);text-align:center;margin-bottom:36px;letter-spacing:.07em;text-transform:uppercase}
+.login-box{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:var(--rlg);padding:28px;width:100%;max-width:360px}
+.login-box label{font-size:11px;color:var(--g200);display:block;margin-bottom:5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.login-box input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:var(--rsm);padding:12px 14px;color:#fff;font-size:15px;outline:none;margin-bottom:16px;transition:border .15s}
+.login-box input::placeholder{color:rgba(255,255,255,.35)}
+.login-box input:focus{border-color:var(--g400);background:rgba(255,255,255,.15)}
+.btn-login{width:100%;background:var(--g400);color:#fff;border:none;border-radius:var(--rsm);padding:13px;font-size:15px;font-weight:600;transition:background .15s}
+.btn-login:hover{background:var(--g600)}
+.login-err{font-size:13px;color:#FCA5A5;text-align:center;margin-top:12px;min-height:18px}
+
+/* MAIN */
+#screen-main{display:none;height:100%;flex-direction:column}
+#screen-main.visible{display:flex}
+
+/* DESKTOP */
+@media(min-width:768px){
+  #screen-main{flex-direction:row;overflow:hidden}
+  .sidebar{width:220px;background:var(--g900);display:flex;flex-direction:column;flex-shrink:0}
+  .sb-top{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:11px}
+  .sb-logo{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.25);flex-shrink:0}
+  .sb-brand h1{font-family:'DM Serif Display',serif;font-size:15px;color:#fff;line-height:1.2}
+  .sb-brand p{font-size:11px;color:var(--g200);margin-top:1px}
+  .sb-nav{padding:12px 10px;flex:1}
+  .sn-btn{display:flex;align-items:center;gap:9px;width:100%;padding:9px 12px;border-radius:var(--rsm);border:none;background:none;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;text-align:left;transition:all .15s;margin-bottom:2px}
+  .sn-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+  .sn-btn.active{background:rgba(255,255,255,.15);color:#fff}
+  .sn-icon{font-size:15px;width:20px;text-align:center}
+  .sb-foot{padding:14px;border-top:1px solid rgba(255,255,255,.1)}
+  .sb-foot button{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:var(--rsm);padding:8px;font-size:12px;color:rgba(255,255,255,.6);transition:all .15s}
+  .sb-foot button:hover{background:rgba(255,255,255,.14);color:#fff}
+  .main-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+  .d-hdr{background:var(--surf);border-bottom:1px solid var(--bd);padding:15px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .d-hdr h2{font-family:'DM Serif Display',serif;font-size:20px;color:var(--tx)}
+  .d-hdr-r{display:flex;align-items:center;gap:10px}
+  .sync-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:var(--g50);color:var(--g800);font-weight:600;border:1px solid var(--g100)}
+  .sync-badge.on{background:var(--g100)}
+  .d-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:14px 24px;flex-shrink:0}
+  .mcard{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh)}
+  .mcard .ml{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:4px}
+  .mcard .mv{font-size:22px;font-weight:600;color:var(--tx);line-height:1}
+  .mcard .mv.warn{color:var(--red)}.mcard .mv.good{color:var(--g600)}.mcard .mv.cap-hi{color:var(--red)}.mcard .mv.cap-mid{color:var(--amber)}
+  .mcard .msub{font-size:10px;color:var(--tx4);margin-top:3px}
+  .cap-bar{margin-top:5px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
+  .cap-fill{height:100%;border-radius:2px;transition:width .4s}
+  .d-tabs{display:flex;gap:2px;padding:0 24px;border-bottom:1px solid var(--bd);background:var(--surf);flex-shrink:0}
+  .d-tab{font-size:13px;padding:10px 16px;border:none;background:none;color:var(--tx3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+  .d-tab.active{color:var(--g800);border-bottom-color:var(--g600)}
+  .d-body{flex:1;overflow:hidden;display:flex;flex-direction:column}
+  .d-toolbar{display:flex;gap:8px;padding:13px 24px;flex-shrink:0;align-items:center}
+  .d-toolbar input{flex:1;background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 12px;font-size:13px;color:var(--tx);outline:none;box-shadow:var(--sh)}
+  .d-toolbar input:focus{border-color:var(--g400)}
+  .d-toolbar select{background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 10px;font-size:12px;color:var(--tx);outline:none;box-shadow:var(--sh)}
+  .d-scroll{flex:1;overflow-y:auto;padding:0 24px 24px}
+  .ctable{width:100%;border-collapse:collapse;font-size:13px}
+  .ctable thead th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);padding:8px 12px;border-bottom:1px solid var(--bd);background:var(--surf);position:sticky;top:0;z-index:2}
+  .ctable tbody tr{border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+  .ctable tbody tr:hover{background:var(--g50)}
+  .ctable tbody td{padding:11px 12px;color:var(--tx);vertical-align:middle}
+  .ctable tbody td.mt{color:var(--tx3)}
+  .d-pipe{display:flex;gap:12px;padding:13px 24px 24px;overflow-x:auto;flex:1}
+  .d-pipe::-webkit-scrollbar{height:5px}
+  .d-pipe::-webkit-scrollbar-thumb{background:var(--g400);border-radius:3px}
+  .pcol{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:12px;min-width:178px;flex-shrink:0;box-shadow:var(--sh)}
+  .pcol-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .pcol-ct{background:var(--bd);color:var(--tx3);border-radius:10px;padding:1px 6px;font-size:11px}
+  .pitem{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rsm);padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:border-color .15s}
+  .pitem:hover{border-color:var(--g400)}
+  .pitem-name{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:2px}
+  .pitem-det{font-size:11px;color:var(--tx3)}
+  .ptotal{font-size:11px;color:var(--tx4);padding-top:7px;border-top:1px solid var(--bd);margin-top:4px}
+  .d-rem{padding:13px 24px 24px;overflow-y:auto;flex:1}
+  .rrow{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:box-shadow .15s}
+  .rrow:hover{box-shadow:var(--shmd)}
+  .fab-d{background:var(--g900);color:#fff;border:none;border-radius:var(--rsm);padding:9px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .15s}
+  .fab-d:hover{background:var(--g800)}
+  .mobile-only{display:none!important}
+}
+@media(max-width:767px){
+  .sidebar,.d-hdr,.d-metrics,.d-tabs,.d-toolbar,.d-scroll,.ctable,.d-pipe,.d-rem,.fab-d,.desktop-only{display:none!important}
+  #screen-main{overflow:hidden}
+}
+
+/* MOBILE */
+.m-hdr{background:var(--g900);flex-shrink:0}
+.m-hdr-in{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.m-logo-row{display:flex;align-items:center;gap:10px}
+.m-logo-img{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.25)}
+.m-brand h1{font-family:'DM Serif Display',serif;font-size:16px;color:#fff;line-height:1.2}
+.m-brand p{font-size:10px;color:var(--g200)}
+.m-logout{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 10px;font-size:11px;color:#fff;font-weight:500}
+.m-met{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:9px 12px 4px;flex-shrink:0}
+.m-mc{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 11px;box-shadow:var(--sh)}
+.m-mc .ml{font-size:10px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.m-mc .mv{font-size:19px;font-weight:600;color:var(--tx);line-height:1}
+.m-mc .mv.warn{color:var(--red)}.m-mc .mv.good{color:var(--g600)}
+.m-mc .msub{font-size:10px;color:var(--tx4);margin-top:2px}
+.cap-bar{margin-top:4px;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.cap-fill{height:100%;border-radius:2px;transition:width .4s}
+.m-tabs{display:flex;padding:8px 12px 0;gap:5px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch}
+.m-tabs::-webkit-scrollbar{display:none}
+.m-tab{font-size:12px;padding:6px 13px;border-radius:20px;border:1px solid var(--bd);background:var(--surf);color:var(--tx3);font-weight:500;white-space:nowrap;flex-shrink:0;transition:all .15s;box-shadow:var(--sh)}
+.m-tab.active{background:var(--g900);color:#fff;border-color:var(--g900)}
+.m-srch{padding:8px 12px;flex-shrink:0;display:flex;gap:7px}
+.m-srch input{flex:1;background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 11px;font-size:13px;color:var(--tx);outline:none;box-shadow:var(--sh)}
+.m-srch input:focus{border-color:var(--g400)}
+.m-srch select{background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 8px;font-size:12px;color:var(--tx);outline:none;box-shadow:var(--sh);max-width:115px}
+.m-scroll{flex:1;overflow-y:auto;padding:4px 12px 88px;-webkit-overflow-scrolling:touch}
+.m-scroll::-webkit-scrollbar{display:none}
+.m-pipe{flex:1;overflow-x:auto;padding:4px 12px 88px;display:flex;gap:9px;-webkit-overflow-scrolling:touch}
+.m-pipe::-webkit-scrollbar{display:none}
+.m-rem{flex:1;overflow-y:auto;padding:4px 12px 88px;-webkit-overflow-scrolling:touch}
+.m-rem::-webkit-scrollbar{display:none}
+
+/* SHARED */
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;flex-shrink:0;white-space:nowrap;display:inline-block}
+.b-Lead{background:var(--g100);color:var(--g800)}
+.b-Quoted{background:var(--amber-bg);color:var(--amber)}
+.b-Deposit{background:var(--blue-bg);color:var(--blue)}
+.b-Production{background:var(--purple-bg);color:var(--purple)}
+.b-Ready{background:var(--g50);color:var(--g600);border:1px solid var(--g200)}
+.ccard{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 14px;margin-bottom:9px;box-shadow:var(--sh);cursor:pointer;transition:box-shadow .15s}
+.ccard:active{box-shadow:none}
+.ccard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;gap:7px}
+.ccard-name{font-size:15px;font-weight:600;color:var(--tx)}
+.ccard-co{font-size:12px;color:var(--tx3);margin-top:1px}
+.ccard-meta{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:9px}
+.chip{font-size:12px;color:var(--tx3)}.chip strong{color:var(--tx);font-weight:500}
+.ccard-foot{display:flex;align-items:center;justify-content:space-between;padding-top:9px;border-top:1px solid var(--bd);gap:7px}
+.fu{font-size:12px;font-weight:500}
+.fu-ok{color:var(--g600)}.fu-soon{color:var(--amber)}.fu-due{color:var(--red)}
+.btn-xs{font-size:12px;padding:5px 10px;border-radius:var(--rsm);border:1px solid var(--bd2);background:var(--bg);color:var(--tx2);font-weight:500;transition:background .1s}
+.btn-xs:hover{background:var(--bd)}
+.btn-xs.green{background:var(--g900);color:#fff;border-color:var(--g900)}
+.rcard{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 14px;margin-bottom:9px;display:flex;gap:11px;align-items:flex-start;box-shadow:var(--sh);cursor:pointer}
+.rdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.rdot.overdue{background:var(--red)}.rdot.today{background:var(--amber)}.rdot.upcoming{background:var(--g400)}
+.r-name{font-size:14px;font-weight:600;color:var(--tx)}
+.r-detail{font-size:12px;color:var(--tx3);margin-top:1px}
+.r-when{font-size:12px;font-weight:600;margin-top:4px}
+.r-when.overdue{color:var(--red)}.r-when.today{color:var(--amber)}.r-when.upcoming{color:var(--g600)}
+.fab{position:fixed;bottom:calc(66px + env(safe-area-inset-bottom,0px));right:16px;width:50px;height:50px;border-radius:25px;background:var(--g900);color:#fff;border:none;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(27,67,50,.4);z-index:40}
+.bnav{background:var(--surf);border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));flex-shrink:0;z-index:30}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;padding:3px 14px;color:var(--tx4);transition:color .15s}
+.bnav-btn.active{color:var(--g800)}
+.bnav-icon{font-size:19px;line-height:1}
+.bnav-label{font-size:10px;font-weight:600;letter-spacing:.02em}
+.empty{text-align:center;padding:3rem 1.5rem;color:var(--tx3)}
+.empty-icon{font-size:40px;margin-bottom:8px}
+.empty p{font-size:13px;line-height:1.7}
+
+/* MODALS */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-bg.open{opacity:1;pointer-events:all}
+@media(min-width:768px){.modal-bg{align-items:center}.modal{border-radius:var(--rlg)!important;max-height:88vh;max-width:620px}}
+.modal{background:var(--surf);border-radius:22px 22px 0 0;width:100%;max-width:620px;max-height:94vh;overflow-y:auto;padding:18px 20px calc(20px + env(safe-area-inset-bottom,0px));transform:translateY(40px);opacity:0;transition:transform .25s cubic-bezier(.32,.72,0,1),opacity .2s}
+.modal-bg.open .modal{transform:translateY(0);opacity:1}
+.mhandle{width:34px;height:4px;background:var(--bd2);border-radius:2px;margin:0 auto 18px}
+@media(min-width:768px){.mhandle{display:none}}
+.modal h2{font-family:'DM Serif Display',serif;font-size:20px;color:var(--tx);margin-bottom:15px}
+.flabel{font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px}
+.finput{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rsm);padding:10px 12px;font-size:14px;color:var(--tx);outline:none;margin-bottom:12px;transition:border .15s}
+.finput:focus{border-color:var(--g400);background:#fff}
+textarea.finput{height:70px;resize:none}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.ffull{grid-column:1/-1}
+.mact{display:flex;gap:9px;margin-top:6px;padding-top:14px;border-top:1px solid var(--bd)}
+.btn-cancel{flex:1;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rsm);padding:11px;font-size:14px;font-weight:500;color:var(--tx2)}
+.btn-cancel:hover{background:var(--bd)}
+.btn-save{flex:2;background:var(--g900);border:none;border-radius:var(--rsm);padding:11px;font-size:14px;font-weight:600;color:#fff}
+.btn-save:hover{background:var(--g800)}
+.btn-danger{background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--rsm);padding:11px 15px;font-size:13px;font-weight:500;color:var(--red)}
+
+/* DETAIL TABS */
+.dtab-row{display:flex;gap:2px;border-bottom:1px solid var(--bd);margin-bottom:15px}
+.dtab{font-size:13px;padding:8px 13px;border:none;background:none;color:var(--tx3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.dtab.active{color:var(--g800);border-bottom-color:var(--g600)}
+
+/* ACTIVITY LOG */
+.act-log{display:flex;flex-direction:column}
+.act-entry{display:flex;gap:11px;padding-bottom:14px;position:relative}
+.act-entry:not(:last-child)::before{content:'';position:absolute;left:14px;top:30px;bottom:0;width:1px;background:var(--bd)}
+.act-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:2px solid var(--surf);position:relative;z-index:1}
+.act-type{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:1px}
+.act-by{font-size:11px;color:var(--tx3)}
+.act-note{font-size:13px;color:var(--tx2);margin-top:3px;line-height:1.5}
+.act-date{font-size:11px;color:var(--tx4);margin-top:2px}
+.act-add-btn{display:flex;align-items:center;gap:6px;background:var(--g50);border:1px dashed var(--g200);border-radius:var(--rsm);padding:9px 13px;color:var(--g800);font-size:13px;font-weight:500;width:100%;margin-bottom:13px;transition:background .15s}
+.act-add-btn:hover{background:var(--g100)}
+
+/* ORDER DOCS */
+.ord-section{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:13px;margin-bottom:11px}
+.ord-section h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:9px}
+.ord-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--bd)}
+.ord-row:last-child{border-bottom:none}
+.ord-label{font-size:13px;color:var(--tx3)}
+.ord-val{font-size:13px;font-weight:600;color:var(--tx)}
+.chk-row{display:flex;align-items:center;gap:8px;padding:8px 0}
+.chk-dot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.chk-dot.done{background:var(--g100);color:var(--g800)}
+.chk-dot.pend{background:var(--bd);color:var(--tx4)}
+.chk-label{font-size:13px}
+.chk-label.done{color:var(--tx)}
+.chk-label.pend{color:var(--tx3)}
+.btn-ord{background:var(--g900);color:#fff;border:none;border-radius:var(--rsm);padding:9px 16px;font-size:13px;font-weight:600;margin-right:8px;margin-top:4px;transition:background .15s}
+.btn-ord:hover{background:var(--g800)}
+.btn-ord.out{background:none;color:var(--g900);border:1px solid var(--g900)}
+.btn-ord.out:hover{background:var(--g50)}
+
+/* DETAIL INFO */
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:13px}
+.ditem label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx4);display:block;margin-bottom:2px}
+.ditem p{font-size:14px;color:var(--tx);font-weight:500}
+.nbox{background:var(--bg);border-radius:var(--rsm);padding:11px;font-size:13px;color:var(--tx2);line-height:1.7;white-space:pre-wrap;margin-bottom:13px;border:1px solid var(--bd)}
+/* TASKS */
+.task-banner{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 16px;margin:0 14px 6px;box-shadow:var(--sh)}
+.task-banner-d{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 18px;margin:0 24px 12px;box-shadow:var(--sh);flex-shrink:0}
+.task-banner-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.task-banner-title{font-size:13px;font-weight:700;color:var(--blue)}
+.task-card{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;margin-bottom:9px;box-shadow:var(--sh);cursor:pointer;transition:box-shadow .15s}
+.task-card:hover{box-shadow:var(--shmd)}
+.task-card.done{opacity:0.5;border-style:dashed}
+.task-card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+.task-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.task-status-dot.pending{background:var(--blue)}
+.task-status-dot.done{background:var(--tx4)}
+.task-text{font-size:14px;font-weight:500;color:var(--tx);line-height:1.4;flex:1}
+.task-text.done{text-decoration:line-through;color:var(--tx3)}
+.task-meta{font-size:11px;color:var(--tx4);margin-top:3px}
+.task-hint{font-size:12px;color:var(--g800);background:var(--g50);border-radius:var(--rsm);padding:7px 10px;margin-top:7px;border:1px solid var(--g100)}
+.task-section-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);padding:10px 0 5px;border-bottom:1px solid var(--bd);margin-bottom:8px}
+.mic-pulse{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(27,67,50,.4)}50%{box-shadow:0 0 0 12px rgba(27,67,50,0)}}
+.msg-ch-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--surf);font-size:13px;font-weight:600;color:var(--tx2);transition:all .15s;cursor:pointer}
+.msg-ch-btn:hover{border-color:var(--g400);color:var(--g800);background:var(--g50)}
+.msg-ch-btn.selected{border-color:var(--g900);background:var(--g900);color:#fff}
+.msg-ch-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* MORNING DIGEST */
+.digest-banner{background:var(--surf);border:1.5px solid var(--amber-bd);border-radius:var(--r);padding:14px 16px;margin:12px 14px 0;box-shadow:var(--sh)}
+.digest-banner-d{background:var(--surf);border:1.5px solid var(--amber-bd);border-radius:var(--r);padding:14px 18px;margin:0 24px 14px;box-shadow:var(--sh);flex-shrink:0}
+.digest-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.digest-title{font-size:13px;font-weight:700;color:var(--amber)}
+.digest-close{background:none;border:none;font-size:16px;color:var(--tx4);cursor:pointer;padding:0 2px}
+.digest-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.digest-item:last-child{border-bottom:none}
+.digest-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.digest-dot.overdue{background:var(--red)}
+.digest-dot.today{background:var(--amber)}
+.digest-item-name{font-size:13px;font-weight:600;color:var(--tx)}
+.digest-item-when{font-size:12px;margin-left:auto;font-weight:500}
+.digest-item-when.overdue{color:var(--red)}
+.digest-item-when.today{color:var(--amber)}
+/* OVERDUE ROW HIGHLIGHT */
+.ccard.overdue-card{border-color:var(--red-bd);background:#FFFAFA}
+.ctable tbody tr.overdue-row{background:#FFFAFA}
+.ctable tbody tr.overdue-row:hover{background:var(--red-bg)}
+/* TOAST + SPINNER */
+.toast{position:fixed;bottom:calc(74px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(14px);background:var(--g900);color:#fff;padding:9px 18px;border-radius:22px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;z-index:300;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(min-width:768px){.toast{bottom:22px}}
+.loading{display:flex;align-items:center;justify-content:center;height:80px;color:var(--tx4);font-size:13px;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid var(--bd);border-top-color:var(--g600);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tl-event-row{display:flex;gap:10px;padding:6px 16px;border-bottom:.5px solid var(--bd)} .tl-clickable:hover{background:var(--g50);cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login">
+  <img class="login-logo-img" src="data:image/png;base64,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" alt="M&G Nursery Logo">
+  <div class="login-title">M&amp;G Nursery</div>
+  <div class="login-tag">CRM &amp; Pipeline Manager</div>
+  <div class="login-box">
+    <label>Team password</label>
+    <input type="password" id="pw-input" placeholder="Enter password" autocomplete="current-password">
+    <button class="btn-login" onclick="doLogin()">Sign in</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="screen-main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar desktop-only">
+    <div class="sb-top">
+      <img class="sb-logo" src="data:image/png;base64,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" alt="Logo">
+      <div class="sb-brand"><h1>M&amp;G Nursery</h1><p id="sb-sub">CRM &amp; Pipeline</p></div>
+    </div>
+    <nav class="sb-nav">
+      <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
+      <button class="sn-btn" id="snav-pipeline" onclick="switchTab('pipeline')"><span class="sn-icon">&#128202;</span> Pipeline</button>
+      <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
+      <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
+      <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
+      <button class="sn-btn" id="snav-journal" onclick="switchTab('journal')"><span class="sn-icon">&#128221;</span> Journal</button>
+      <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
+      <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
+        <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
+        <button class="sn-btn" onclick="generateCRMWeeklyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128202;</span> Weekly Report</button>
+      </div>
+      <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
+    </nav>
+    <div class="sb-foot"><button onclick="doLogout()">Sign out</button></div>
+  </div>
+
+  <!-- DESKTOP MAIN -->
+  <div class="main-content desktop-only">
+    <div class="d-hdr">
+      <h2 id="d-tab-title">Contacts</h2>
+      <div class="d-hdr-r">
+        <span class="sync-badge" id="sync-badge" onclick="retryCloud()" title="Click to retry cloud connection" style="cursor:pointer">&#128190; Local</span>
+        <button class="fab-d" id="mic-btn-d" onclick="openDictate()" style="background:var(--g800);margin-right:6px">&#127908; Dictate task</button>
+        <button class="fab-d" onclick="openAdd()">+ Add customer</button>
+      </div>
+    </div>
+    <div class="d-metrics" id="d-metrics"></div>
+    <div id="d-digest"></div>
+    <div id="d-task-banner"></div>
+    <div class="d-tabs">
+      <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
+      <button class="d-tab" id="dtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
+      <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+      <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
+      <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
+      <button class="d-tab" id="dtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
+      <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
+      <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
+    </div>
+    <div id="dv-contacts" class="d-body">
+      <div class="d-toolbar">
+        <input id="d-search" placeholder="Search name or company..." oninput="renderAll()">
+        <select id="d-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+        <select id="d-variety" onchange="renderAll()"><option value="">All varieties</option></select>
+      </div>
+      <div class="d-scroll">
+        <table class="ctable">
+          <thead><tr><th>Name</th><th>Company</th><th>Stage</th><th>Variety</th><th>Trees</th><th>Value</th><th>Pickup</th><th>Follow-up</th><th></th></tr></thead>
+          <tbody id="d-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="dv-pipeline" class="d-pipe" style="display:none"></div>
+    <div id="dv-reminders" class="d-rem" style="display:none"></div>
+    <div id="dv-tasks" class="d-rem" style="display:none"></div>
+  <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-journal" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  </div>
+
+  <!-- MOBILE HEADER -->
+  <div class="m-hdr mobile-only">
+    <div class="m-hdr-in">
+      <div class="m-logo-row">
+        <img class="m-logo-img" src="data:image/png;base64,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" alt="Logo">
+        <div class="m-brand"><h1>M&amp;G Nursery</h1><p id="m-sub">CRM &amp; Pipeline</p></div>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <button class="m-logout" id="mic-btn-m" onclick="openDictate()" style="background:var(--g800);border-color:var(--g600)">&#127908;</button>
+        <button class="m-logout" onclick="doLogout()">Sign out</button>
+      </div>
+    </div>
+  </div>
+  <div class="m-met mobile-only" id="m-metrics"></div>
+  <div id="m-digest" class="mobile-only"></div>
+  <div id="m-task-banner" class="mobile-only"></div>
+  <div class="m-tabs mobile-only">
+    <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
+    <button class="m-tab" id="mtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
+    <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
+    <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
+    <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
+    <button class="m-tab" id="mtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
+    <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
+    <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
+  </div>
+  <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="m-srch">
+      <input id="m-search" placeholder="Search..." oninput="renderAll()">
+      <select id="m-stage" onchange="renderAll()"><option value="">All</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+    </div>
+    <div class="m-scroll" id="m-list"></div>
+  </div>
+  <div id="mv-pipeline" class="m-pipe mobile-only" style="display:none"></div>
+  <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-journal" class="m-rem mobile-only" style="display:none"></div>
+  <button class="fab mobile-only" onclick="openAdd()">+</button>
+  <div class="bnav mobile-only">
+    <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
+    <button class="bnav-btn" id="mnav-pipeline" onclick="switchTab('pipeline')"><span class="bnav-icon">&#128202;</span><span class="bnav-label">Pipeline</span></button>
+    <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
+    <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
+    <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
+    <button class="bnav-btn" id="mnav-journal" onclick="switchTab('journal')"><span class="bnav-icon">&#128221;</span><span class="bnav-label">Journal</span></button>
+    <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
+    <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
+  </div>
+</div>
+
+<!-- MODAL: ADD/EDIT -->
+<div class="modal-bg" id="modal-form">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="form-title">Add customer</h2>
+  <div class="fgrid">
+    <div class="ffull"><label class="flabel">Full name *</label><input class="finput" id="f-name" placeholder="e.g. Juan Martinez"></div>
+    <div><label class="flabel">Company / ranch</label><input class="finput" id="f-company" placeholder="Sunrise Farms"></div>
+    <div><label class="flabel">Phone</label><input class="finput" id="f-phone" type="tel" placeholder="559-555-0100"></div>
+    <div><label class="flabel">Email</label><input class="finput" id="f-email" type="email" placeholder="email@example.com"></div>
+    <div><label class="flabel">Stage</label><select class="finput" id="f-status"><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select></div>
+    <div class="ffull" style="grid-column:1/-1">
+      <label class="flabel">Varieties, Rootstocks &amp; Quantities</label>
+      <div style="display:flex;gap:6px;margin-bottom:4px;padding:0 2px">
+        <div style="flex:2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Variety</div>
+        <div style="flex:1.2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Rootstock</div>
+        <div style="flex:0.6;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:center">Qty</div>
+        <div style="width:38px"></div>
+      </div>
+      <div id="f-varieties-list" style="display:flex;flex-direction:column;gap:0px;margin-bottom:8px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <button type="button" onclick="addVarietyRow()" style="background:#2D6A4F;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">&#43; Add Variety / Agregar Variedad</button>
+        <span id="f-variety-total" style="font-size:13px;font-weight:700;color:var(--g800)"></span>
+      </div>
+    </div>
+    <div><label class="flabel">Total Trees <span style="font-weight:400;color:var(--tx3)">(auto-calculated from varieties, or enter manually)</span></label><input class="finput" id="f-trees" type="number" min="1" placeholder="500"></div>
+    <div><label class="flabel">Price per tree ($)</label><input class="finput" id="f-price" type="number" step="0.01" min="0" placeholder="13.50"></div>
+    <div><label class="flabel">Pickup / delivery date</label><input class="finput" id="f-date" type="date"></div>
+    <div><label class="flabel">Follow-up date</label><input class="finput" id="f-followup" type="date"></div>
+    <div><label class="flabel">Contract # / Numero de Contrato</label><input class="finput" id="f-contract" placeholder="e.g. 1003, 26004"></div>
+    <div><label class="flabel">AgCommand Lot # / Lote AgCommand</label><input class="finput" id="f-lot" placeholder="e.g. MG-N3-TANGO-CAR-001"></div>
+    <div><label class="flabel">Lead source</label>
+      <select class="finput" id="f-source">
+        <option value="">Unknown</option>
+        <option>Referral — Isidro network</option>
+        <option>Referral — existing customer</option>
+        <option>Postcard / mailer</option>
+        <option>Social media</option>
+        <option>Trade show / event</option>
+        <option>Cold outreach</option>
+        <option>Walk-in / inbound call</option>
+        <option>AgCommand / online</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="ffull" style="grid-column:1/-1">
+      <label class="flabel">General Notes</label>
+      <textarea class="finput" id="f-notes" placeholder="Acreage, grower background, special instructions..." style="height:70px"></textarea>
+    </div>
+    <div class="ffull" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label class="flabel" style="margin:0">Contact Log / Historial de Contacto</label>
+        <span style="font-size:11px;color:var(--muted)">Saved automatically with contact</span>
+      </div>
+      <div id="f-contact-log" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;background:var(--bg)"></div>
+      <div style="display:flex;gap:6px">
+        <textarea id="f-new-log-entry" placeholder="Log a conversation, follow-up, or update..." style="flex:1;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;resize:none;height:60px;outline:none"></textarea>
+        <button type="button" onclick="addLogEntry()" style="background:#2D6A4F;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;align-self:flex-end">Add Note</button>
+      </div>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-form')">Cancel</button>
+    <button class="btn-save" onclick="saveContact()">Save customer</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: DETAIL -->
+<div class="modal-bg" id="modal-detail">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="det-name" style="margin-bottom:2px"></h2>
+  <p id="det-co" style="font-size:13px;color:var(--tx3);margin-bottom:13px"></p>
+  <div class="dtab-row">
+    <button class="dtab active" id="dt-info" onclick="detTab('info')">Info</button>
+    <button class="dtab" id="dt-activity" onclick="detTab('activity')">Activity</button>
+    <button class="dtab" id="dt-order" onclick="detTab('order')">Docs</button>
+  </div>
+  <div id="det-info-pane"></div>
+  <div id="det-activity-pane" style="display:none"></div>
+  <div id="det-order-pane" style="display:none"></div>
+  <div class="mact" style="flex-wrap:wrap;gap:6px">
+    <button class="btn-cancel" onclick="closeModal('modal-detail')" style="flex:0.8">Close</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px" onclick="editFromDetail()">Edit</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#0369A1;color:#fff" onclick="generateQuote(currentId)">&#128196; Quote</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#9997; Contract</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#7C3AED;color:#fff" onclick="openReminderModal(currentId)">&#128276; Remind</button>
+    <button class="btn-danger" onclick="deleteContact()">Delete</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: VOICE JOURNAL -->
+<div class="modal-bg" id="modal-voice-journal">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>&#127908; Voice Journal Entry</h2>
+  <div style="background:#F5F3FF;border-radius:8px;padding:10px 14px;font-size:12px;color:#5B21B6;margin-bottom:14px">
+    Speak naturally about your day — mention client names and the AI will sort everything automatically. Say <strong>STOP</strong> when done.
+  </div>
+  <div id="vj-status" style="text-align:center;padding:10px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start</div>
+  <div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:10px">Say <strong>STOP</strong> to finish recording</div>
+  <div style="display:flex;justify-content:center;margin-bottom:14px">
+    <button id="vj-mic-btn" onclick="toggleVoiceJournal()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
+  </div>
+  <div id="vj-preview" style="display:none">
+    <label class="flabel">What you said (edit if needed)</label>
+    <textarea class="finput" id="vj-raw" style="height:100px;resize:vertical"></textarea>
+    <button onclick="processVoiceJournal()" style="width:100%;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">&#9889; Sort Notes by Client</button>
+  </div>
+  <div id="vj-result" style="display:none;margin-top:14px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">AI sorted your notes</div>
+    <div id="vj-result-content"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button onclick="applyVoiceJournalResult()" style="flex:1;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; Save to Journal &amp; Contacts</button>
+      <button onclick="document.getElementById('vj-result').style.display='none';document.getElementById('vj-preview').style.display='block'" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Re-record</button>
+    </div>
+  </div>
+  <div class="mact" style="margin-top:8px">
+    <button class="btn-cancel" onclick="stopVoiceJournal();closeModal('modal-voice-journal')">Cancel</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: JOURNAL ENTRY -->
+<div class="modal-bg" id="modal-journal">
+<div class="modal" style="max-height:90vh;overflow-y:auto">
+  <div class="mhandle"></div>
+  <h2 id="jnl-modal-title">New Journal Entry</h2>
+  <div class="fgrid">
+    <div class="ffull">
+      <label class="flabel">Date</label>
+      <input class="finput" id="jnl-date" type="date">
+    </div>
+    <div class="ffull">
+      <label class="flabel">Entry — What happened today? Who did you talk to?</label>
+      <textarea class="finput" id="jnl-body" style="height:200px;resize:vertical" placeholder="Write about your calls, meetings, follow-ups, and anything worth remembering...&#10;&#10;Example:&#10;Called Jireh — they confirmed Summer pickup window is June 15-30. Want exact delivery dates by end of May.&#10;&#10;Spoke with Robert LoBue — Shiranui trees looking good, he asked about adding 500 more. Said I'd check availability.&#10;&#10;New lead from Oscar at Valley AG — looking for 3,000 Tango Carrizo Spring 2027. Sending him a quote this week."></textarea>
+    </div>
+    <div class="ffull">
+      <label class="flabel">Clients mentioned (tap to tag)</label>
+      <div id="jnl-contacts-wrap" style="display:flex;flex-wrap:wrap;gap:2px;padding:6px 0;max-height:140px;overflow-y:auto"></div>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-journal');journalEditId=null">Cancel</button>
+    <button class="btn-xs" onclick="openVoiceJournal()" style="background:#7C3AED;color:#fff;padding:11px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-family:inherit">&#127908; Dictate</button><button class="btn-save" onclick="saveJournalEntry()">Save Entry</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: INV ROW -->
+<div class="modal-bg" id="modal-inv-row">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="inv-row-modal-title">Update Growing Count</h2>
+  <div class="fgrid">
+    <div><label class="flabel">Variety *</label>
+      <select class="finput" id="inv-variety">
+        <option>Tango</option><option>Olinda</option><option>Shiranui</option>
+        <option>Parent Washington</option><option>Autumn Gold</option>
+        <option>Powell</option><option>Gillette</option><option>Late Lane</option>
+        <option>Australian Finger Lime</option><option>Fukumoto</option>
+      </select></div>
+    <div><label class="flabel">Rootstock *</label>
+      <select class="finput" id="inv-rootstock">
+        <option>Carrizo</option><option>C35</option><option>Rich 16-6</option>
+        <option>Rubidoux</option><option>Trifoliata</option>
+      </select></div>
+    <div><label class="flabel">Total Trees Growing *</label>
+      <input class="finput" id="inv-total" type="number" min="0" placeholder="e.g. 25000"></div>
+    <div><label class="flabel">Bud / Graft Date</label>
+      <input class="finput" id="inv-bud-date" type="date"></div>
+    <div><label class="flabel">Months to Ready</label>
+      <select class="finput" id="inv-months">
+        <option value="6">6 months</option><option value="7">7 months</option>
+        <option value="8">8 months</option><option value="9" selected>9 months</option>
+        <option value="10">10 months</option><option value="11">11 months</option>
+        <option value="12">12 months</option>
+      </select></div>
+    <div><label class="flabel">Notes</label>
+      <input class="finput" id="inv-notes" placeholder="e.g. House 2 North section"></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" onclick="saveInvRow()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: INV LOT -->
+<div class="modal-bg" id="modal-inv-lot">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 style="color:#5B21B6">&#128218; Create New Lot</h2>
+  <div style="background:#EDE9FE;border-radius:6px;padding:8px 12px;font-size:12px;color:#5B21B6;margin-bottom:12px">Lots are created at transplant — when seedlings move to grow-out rows.</div>
+  <div class="fgrid">
+    <div><label class="flabel">Lot Number</label>
+      <input class="finput" id="lot-num" placeholder="e.g. MG-LOT-2026-001"></div>
+    <div><label class="flabel">Location (House / Row)</label>
+      <input class="finput" id="lot-location" placeholder="e.g. N3 Row 2"></div>
+    <div><label class="flabel">Variety *</label>
+      <select class="finput" id="lot-variety">
+        <option>Tango</option><option>Olinda</option><option>Shiranui</option>
+        <option>Parent Washington</option><option>Autumn Gold</option>
+        <option>Powell</option><option>Gillette</option><option>Late Lane</option>
+        <option>Australian Finger Lime</option><option>Fukumoto</option>
+      </select></div>
+    <div><label class="flabel">Rootstock</label>
+      <select class="finput" id="lot-rootstock">
+        <option>Carrizo</option><option>C35</option><option>Rich 16-6</option>
+        <option>Rubidoux</option><option>Trifoliata</option>
+      </select></div>
+    <div><label class="flabel">Trees at Transplant *</label>
+      <input class="finput" id="lot-qty" type="number" min="1" placeholder="e.g. 2500"></div>
+    <div><label class="flabel">Bud Date</label>
+      <input class="finput" id="lot-bud-date" type="date"></div>
+    <div><label class="flabel">Months to Ready</label>
+      <select class="finput" id="lot-months">
+        <option value="6">6 months</option><option value="7">7 months</option>
+        <option value="8">8 months</option><option value="9" selected>9 months</option>
+        <option value="10">10 months</option><option value="11">11 months</option>
+        <option value="12">12 months</option>
+      </select></div>
+    <div class="ffull"><label class="flabel">Assign to Buyer (optional)</label>
+      <select class="finput" id="lot-contact"><option value="">Unassigned</option></select></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" style="background:#7C3AED" onclick="saveLot()">Create Lot</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: INV LOG -->
+<div class="modal-bg" id="modal-inv-log">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="inv-log-title">Log Movement</h2>
+  <div class="fgrid">
+    <div class="ffull"><label class="flabel">Date</label>
+      <input class="finput" id="log-date" type="date"></div>
+    <div><label class="flabel">Trees In (transplanted / received)</label>
+      <input class="finput" id="log-in" type="number" min="0" placeholder="0"></div>
+    <div><label class="flabel">Trees Out (shipped / removed)</label>
+      <input class="finput" id="log-out" type="number" min="0" placeholder="0"></div>
+    <div class="ffull"><label class="flabel">Note</label>
+      <input class="finput" id="log-note" placeholder="e.g. Shipped to Jireh March 15, Culled 50 undersized"></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeInvModal()">Cancel</button>
+    <button class="btn-save" onclick="saveLogMovement()">Save Log</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: ADD REMINDER -->
+<div class="modal-bg" id="modal-reminder">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="rem-modal-title">Add Reminder</h2>
+  <div class="fgrid">
+    <div class="ffull">
+      <label class="flabel">What do you need to do? *</label>
+      <textarea class="finput" id="rem-note" style="height:80px" placeholder="e.g. Call Jireh to confirm Summer delivery dates&#10;e.g. Send contract to LoBue Ranches&#10;e.g. CDFA report due"></textarea>
+    </div>
+    <div>
+      <label class="flabel">Date *</label>
+      <input class="finput" id="rem-date" type="date">
+    </div>
+    <div>
+      <label class="flabel">Priority</label>
+      <select class="finput" id="rem-priority">
+        <option value="normal">Normal</option>
+        <option value="high">High — Urgent</option>
+        <option value="low">Low — FYI</option>
+      </select>
+    </div>
+    <div class="ffull">
+      <label class="flabel">Linked Contact (optional)</label>
+      <select class="finput" id="rem-contact">
+        <option value="">— No contact linked —</option>
+      </select>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-reminder')">Cancel</button>
+    <button class="btn-save" onclick="saveReminder()">Save Reminder</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: LOG ACTIVITY -->
+<div class="modal-bg" id="modal-activity">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>Log activity</h2>
+  <div class="fgrid">
+    <div class="ffull"><label class="flabel">Activity type *</label>
+      <select class="finput" id="act-type">
+        <option>Call / voicemail</option><option>Email sent</option><option>In-person meeting</option>
+        <option>Quote sent</option><option>Deposit received</option><option>Order confirmed</option>
+        <option>Production update</option><option>Pickup scheduled</option><option>General note</option>
+      </select>
+    </div>
+    <div class="ffull"><label class="flabel">Logged by</label><input class="finput" id="act-by" placeholder="e.g. Isidro, Maria"></div>
+    <div class="ffull"><label class="flabel">Notes</label><textarea class="finput" id="act-note" placeholder="What happened? Any follow-up needed?"></textarea></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-activity')">Cancel</button>
+    <button class="btn-save" onclick="saveActivity()">Save activity</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: ORDER DOCS -->
+<div class="modal-bg" id="modal-order">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>Order documentation</h2>
+  <div class="fgrid">
+    <div><label class="flabel">Lot number</label><input class="finput" id="ord-lot" placeholder="e.g. LOT-2025-042"></div>
+    <div><label class="flabel">Pickup date</label><input class="finput" id="ord-pickup" type="date"></div>
+    <div><label class="flabel">Pickup time</label><input class="finput" id="ord-time" type="time"></div>
+    <div><label class="flabel">Trees confirmed</label><input class="finput" id="ord-trees" type="number" placeholder="Quantity"></div>
+    <div class="ffull"><label class="flabel">Variety confirmed</label><input class="finput" id="ord-variety" placeholder="Variety / rootstock"></div>
+    <div class="ffull"><label class="flabel">Planting guide URL (optional)</label><input class="finput" id="ord-guide" placeholder="https://..."></div>
+    <div class="ffull"><label class="flabel">Special instructions for client</label><textarea class="finput" id="ord-notes" placeholder="Irrigation schedule, spacing, care notes..."></textarea></div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-order')">Cancel</button>
+    <button class="btn-save" onclick="saveOrder()">Save order docs</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: DICTATE TASK -->
+<div class="modal-bg" id="modal-dictate">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>&#127908; Dictate a task</h2>
+  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div><div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div><div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
+  <div style="display:flex;justify-content:center;margin-bottom:16px">
+    <button id="mic-record-btn" onclick="toggleRecording()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
+  </div>
+  <div id="dictate-preview" style="display:none">
+    <label class="flabel">Task (edit before saving)</label>
+    <textarea class="finput" id="dictate-text" style="height:90px"></textarea>
+    <label class="flabel">Created by</label>
+    <input class="finput" id="dictate-by" placeholder="e.g. Raffi, Isidro">
+    <div id="dictate-assignee-box" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#1B4332">
+      <strong>&#128119; Assign to:</strong> <span id="dictate-assignee-name" style="font-weight:700"></span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px" id="dictate-assignee-btns"></div>
+    </div>
+    <div id="dictate-suggestion" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--g800)">
+      <strong>&#128161; Suggested CRM action:</strong><br>
+      <span id="dictate-hint"></span>
+    </div>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-dictate');stopRecording()">Cancel</button>
+    <button class="btn-save" id="dictate-save-btn" onclick="saveTask()" style="display:none">Save task</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: TASK DETAIL -->
+<div class="modal-bg" id="modal-task-detail">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2 id="td-title" style="font-size:16px;margin-bottom:4px"></h2>
+  <p id="td-meta" style="font-size:12px;color:var(--tx3);margin-bottom:14px"></p>
+  <div id="td-hint-wrap" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--g800)">
+    <strong>&#128161; How to action this in the CRM:</strong><br>
+    <span id="td-hint"></span>
+  </div>
+  <div class="mact">
+    <button class="btn-cancel" onclick="closeModal('modal-task-detail')">Close</button>
+    <button class="btn-save" onclick="completeTask()">Mark complete ✓</button>
+    <button class="btn-danger" onclick="deleteTask()">Delete</button>
+  </div>
+</div>
+</div>
+
+
 </body>
       (e.contactId ? 'class="tl-clickable"' : '') + '>'+'>
