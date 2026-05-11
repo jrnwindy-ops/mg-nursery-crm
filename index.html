@@ -337,6 +337,7 @@ textarea.finput{height:70px;resize:none}
       <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
         <button class="sn-btn" onclick="generateCRMWeeklyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128202;</span> Weekly Report</button>
+        <button class="sn-btn" id="notif-btn" onclick="handleNotifBtn()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128276;</span> <span id="notif-btn-label">Enable Notifications</span></button>
       </div>
       <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
     </nav>
@@ -901,6 +902,7 @@ function showMain(){
   contacts=seed();
   activities=[];orders=[];tasks=[];
   renderAll();
+  setTimeout(updateNotifBtn, 300);
   initSB().then(function(){
     console.log('Supabase cloudOk='+cloudOk);
     loadAll();
@@ -3309,6 +3311,131 @@ async function applyVoiceJournalResult(){
   toast('Journal saved & '+mentioned_ids.length+' contacts updated \u2713');
 }
 
+
+// ── PUSH NOTIFICATION SYSTEM ──────────────────────────────────────────────────
+let swRegistration = null;
+
+async function initNotifications() {
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+  try {
+    swRegistration = await navigator.serviceWorker.register('/sw.js');
+    console.log('SW registered:', swRegistration.scope);
+    if (Notification.permission === 'granted') setupNotificationSchedule();
+  } catch(e) { console.warn('SW failed:', e); }
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('Notifications not supported. Use Chrome or Safari.'); return false;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    toast('Notifications enabled ✓');
+    setupNotificationSchedule();
+    checkAndNotify();
+    return true;
+  }
+  toast('Notifications blocked — enable in browser settings');
+  return false;
+}
+
+function setupNotificationSchedule() {
+  sendDataToSW();
+  setInterval(() => { checkAndNotify(); sendDataToSW(); }, 60 * 60 * 1000);
+  window.addEventListener('focus', checkAndNotify);
+}
+
+function sendDataToSW() {
+  if (!swRegistration || !swRegistration.active) return;
+  const today = new Date().toISOString().split('T')[0];
+  const payload = {
+    contacts: contacts.filter(c => c.date).map(c => ({name: c.name, date: c.date})),
+    reminders: (window.reminders || []).map(r => ({note: r.note, date: r.date, done: r.done})),
+    followups: contacts.filter(c => c.followup).map(c => ({name: c.name, date: c.followup, done: c.followup_done}))
+  };
+  swRegistration.active.postMessage({type: 'SCHEDULE_CHECK', payload});
+}
+
+async function checkAndNotify() {
+  if (Notification.permission !== 'granted') return;
+  const today = new Date().toISOString().split('T')[0];
+  const hour = new Date().getHours();
+  if (hour < 7 || hour > 20) return;
+
+  const notifiedKey = 'mg_notified_' + today;
+  const alreadyNotified = JSON.parse(localStorage.getItem(notifiedKey) || '[]');
+  const toNotify = [];
+
+  // Overdue follow-ups
+  const overdueFollowups = contacts.filter(c =>
+    c.followup && c.followup < today && !c.followup_done && c.status !== 'Ready'
+  );
+  if (overdueFollowups.length > 0 && !alreadyNotified.includes('followups')) {
+    toNotify.push({
+      title: overdueFollowups.length + ' overdue follow-up' + (overdueFollowups.length > 1 ? 's' : ''),
+      body: overdueFollowups.slice(0, 3).map(c => c.name).join(', '),
+      tag: 'mg-followups', urgent: true
+    });
+    alreadyNotified.push('followups');
+  }
+
+  // Reminders due today
+  const todayReminders = (window.reminders || []).filter(r => r.date === today && !r.done);
+  if (todayReminders.length > 0 && !alreadyNotified.includes('rem-' + today)) {
+    toNotify.push({
+      title: todayReminders.length + ' reminder' + (todayReminders.length > 1 ? 's' : '') + ' due today',
+      body: todayReminders.slice(0, 2).map(r => r.note).join(' - '),
+      tag: 'mg-reminders', urgent: false
+    });
+    alreadyNotified.push('rem-' + today);
+  }
+
+  // Deliveries in next 3 days
+  const soon = new Date(); soon.setDate(soon.getDate() + 3);
+  const soonISO = soon.toISOString().split('T')[0];
+  const upcoming = contacts.filter(c => c.date && c.date >= today && c.date <= soonISO);
+  if (upcoming.length > 0 && !alreadyNotified.includes('del-' + today)) {
+    toNotify.push({
+      title: upcoming.length + ' delivery date' + (upcoming.length > 1 ? 's' : '') + ' in 3 days',
+      body: upcoming.slice(0, 2).map(c => c.name).join(', '),
+      tag: 'mg-deliveries', urgent: false
+    });
+    alreadyNotified.push('del-' + today);
+  }
+
+  for (const n of toNotify) {
+    const opts = {body: n.body, tag: n.tag, requireInteraction: n.urgent,
+      icon: '/icon-192.png', data: 'https://mgnurserycrm.netlify.app'};
+    if (swRegistration) swRegistration.showNotification(n.title, opts);
+    else new Notification(n.title, opts);
+  }
+
+  localStorage.setItem(notifiedKey, JSON.stringify(alreadyNotified));
+  Object.keys(localStorage).filter(k => k.startsWith('mg_notified_') && k < 'mg_notified_' + today)
+    .forEach(k => localStorage.removeItem(k));
+}
+
+function getNotificationStatus() {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
+
+function updateNotifBtn() {
+  const btn = document.getElementById('notif-btn-label');
+  if (!btn) return;
+  const s = getNotificationStatus();
+  btn.textContent = s === 'granted' ? 'Notifications On ✓' :
+    s === 'denied' ? 'Notifications Blocked' : 'Enable Notifications';
+}
+
+function handleNotifBtn() {
+  const s = getNotificationStatus();
+  if (s === 'unsupported') { alert('Use Chrome or Safari for notifications.'); return; }
+  if (s === 'granted') { checkAndNotify(); toast('Checking for notifications...'); return; }
+  if (s === 'denied') { alert('Notifications blocked. Allow in browser settings for mgnurserycrm.netlify.app'); return; }
+  requestNotificationPermission().then(ok => updateNotifBtn());
+}
+
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
 function renderMetrics(){
@@ -4131,6 +4258,7 @@ document.addEventListener('DOMContentLoaded', function(){
   var authed=false;
   try{authed=sessionStorage.getItem('mg_auth')==='1';}catch(e){}
   if(authed)showMain();
+  initNotifications();
 });
 </script>
 </body>
