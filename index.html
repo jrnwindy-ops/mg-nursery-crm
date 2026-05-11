@@ -550,7 +550,7 @@ textarea.finput{height:70px;resize:none}
   <div id="vj-preview" style="display:none">
     <label class="flabel">What you said (edit if needed)</label>
     <textarea class="finput" id="vj-raw" style="height:100px;resize:vertical"></textarea>
-    <button onclick="processVoiceJournal()" style="width:100%;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">&#9889; Process with AI — Sort by Client</button>
+    <button onclick="processVoiceJournal()" style="width:100%;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">&#9889; Sort Notes by Client</button>
   </div>
   <div id="vj-result" style="display:none;margin-top:14px">
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">AI sorted your notes</div>
@@ -3058,63 +3058,93 @@ function stopVoiceJournal(){
 
 let _vjParsedResult=null;
 
-async function processVoiceJournal(){
-  const raw=(document.getElementById('vj-raw')||{}).value||'';
+function processVoiceJournal(){
+  const raw = (document.getElementById('vj-raw')||{}).value||'';
   if(!raw.trim()){ alert('Nothing to process.'); return; }
-  const clientList=contacts.filter(c=>!c.name.includes('M&R')).map(c=>c.name).join(', ');
-  const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  const todayISO=new Date().toISOString().split('T')[0];
-  document.getElementById('vj-result').style.display='block';
-  document.getElementById('vj-result-content').innerHTML=
-    '<div style="text-align:center;padding:20px;color:var(--muted)">&#9889; AI is sorting your notes...</div>';
-  try{
-    const prompt='Parse this voice journal from nursery owner Rafael Macias. Known clients: '+clientList+
-      '. Voice entry: '+JSON.stringify(raw)+
-      '. Extract client mentions and discussions. Respond ONLY with JSON no markdown: '+
-      '{"journal_summary":"string","date":"'+todayISO+'","client_notes":[{"client_name":"string","note":"string","action":"string"}]}';
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:'You are a nursery CRM assistant. Respond ONLY with valid JSON. No markdown fences, no explanation.',
-        messages:[{role:'user',content:prompt}]
-      })
+
+  document.getElementById('vj-result').style.display = 'block';
+  document.getElementById('vj-result-content').innerHTML =
+    '<div style="text-align:center;padding:16px;color:var(--muted)">&#9889; Sorting your notes...</div>';
+
+  // ── Local NLP parser ──────────────────────────────────────────────────────
+  // Build a map of client first names / last names / company words -> contact
+  const clientMap = [];
+  contacts.filter(c=>!c.name.includes('M&R')).forEach(c=>{
+    const words = c.name.toLowerCase().replace(/[().,]/g,' ').split(/\s+/).filter(w=>w.length>2);
+    clientMap.push({ contact: c, words });
+  });
+
+  // Split transcript into sentences
+  const sentences = raw.split(/(?<=[.!?])\s+|,\s*(?=[A-Z])|;\s*/).filter(s=>s.trim().length>3);
+
+  // Score each sentence against each client
+  const clientNotes = {};
+  const generalSentences = [];
+
+  sentences.forEach(sentence => {
+    const lower = sentence.toLowerCase();
+    let bestMatch = null;
+    let bestScore = 0;
+
+    clientMap.forEach(({contact, words}) => {
+      const score = words.reduce((s,w) => s + (lower.includes(w) ? 1 : 0), 0);
+      if(score > bestScore){ bestScore = score; bestMatch = contact; }
     });
-    const data=await resp.json();
-    const textBlock=(data.content||[]).find(b=>b.type==='text');
-    if(!textBlock) throw new Error('No response from AI');
-    let parsed;
-    try{ parsed=JSON.parse(textBlock.text.replace(/```json|```/g,'').trim()); }
-    catch(e){ throw new Error('Could not parse AI response'); }
-    _vjParsedResult=parsed;
-    let html='';
-    html+='<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;margin-bottom:10px">';
-    html+='<div style="font-size:11px;font-weight:700;color:#1B4332;text-transform:uppercase;margin-bottom:4px">&#128221; Journal Summary</div>';
-    html+='<div style="font-size:13px;color:var(--tx);line-height:1.6">'+esc(parsed.journal_summary||raw)+'</div>';
-    html+='</div>';
-    if(parsed.client_notes&&parsed.client_notes.length){
-      parsed.client_notes.forEach(function(cn){
-        const match=contacts.find(function(c){
-          return c.name.toLowerCase().includes(cn.client_name.toLowerCase())||
-            cn.client_name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]);
-        });
-        html+='<div style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px">';
-        html+='<div style="font-size:12px;font-weight:700;color:'+(match?'#0369A1':'var(--muted)')+';margin-bottom:4px">'+
-          (match?'&#128101; ':'&#9888; ')+esc(cn.client_name)+
-          (match?'':' <span style="font-size:10px">(not in CRM)</span>')+
-        '</div>';
-        html+='<div style="font-size:13px;color:var(--tx);line-height:1.5'+(cn.action?';margin-bottom:5px':'')+'">'+esc(cn.note||'')+'</div>';
-        if(cn.action) html+='<div style="font-size:11px;color:#D97706;font-weight:600">&#128204; Action: '+esc(cn.action)+'</div>';
-        html+='</div>';
-      });
+
+    if(bestMatch && bestScore >= 1){
+      if(!clientNotes[bestMatch.id]) clientNotes[bestMatch.id] = { contact: bestMatch, sentences: [] };
+      clientNotes[bestMatch.id].sentences.push(sentence.trim());
+    } else {
+      generalSentences.push(sentence.trim());
     }
-    document.getElementById('vj-result-content').innerHTML=html;
-  }catch(err){
-    document.getElementById('vj-result-content').innerHTML=
-      '<div style="color:var(--red);font-size:13px;padding:12px">Could not process: '+esc(err.message)+'</div>';
+  });
+
+  // Build result object
+  const client_notes = Object.values(clientNotes).map(cn => {
+    const note = cn.sentences.join(' ');
+    // Look for action words
+    const actionWords = ['call','follow','send','email','check','confirm','schedule','remind','order','quote','contract','deliver'];
+    const actionSent = cn.sentences.find(s => actionWords.some(a => s.toLowerCase().includes(a)));
+    return {
+      client_name: cn.contact.name,
+      contact_id: cn.contact.id,
+      note,
+      action: actionSent || ''
+    };
+  });
+
+  _vjParsedResult = {
+    journal_summary: raw.trim(),
+    date: new Date().toISOString().split('T')[0],
+    client_notes,
+    general: generalSentences.join(' ')
+  };
+
+  // ── Render result ─────────────────────────────────────────────────────────
+  let html = '';
+
+  // Summary box
+  html += '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;margin-bottom:10px">';
+  html += '<div style="font-size:11px;font-weight:700;color:#1B4332;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">&#128221; Full Journal Entry</div>';
+  html += '<div style="font-size:13px;color:var(--tx);line-height:1.6">' + esc(raw.trim()) + '</div>';
+  html += '</div>';
+
+  if(client_notes.length){
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Sorted by client (' + client_notes.length + ' found)</div>';
+    client_notes.forEach(cn => {
+      html += '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px">';
+      html += '<div style="font-size:12px;font-weight:700;color:#0369A1;margin-bottom:4px">&#128101; ' + esc(cn.client_name) + '</div>';
+      html += '<div style="font-size:13px;color:var(--tx);line-height:1.5' + (cn.action ? ';margin-bottom:5px' : '') + '">' + esc(cn.note) + '</div>';
+      if(cn.action) html += '<div style="font-size:11px;color:#D97706;font-weight:600">&#128204; Possible action: ' + esc(cn.action) + '</div>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400E">';
+    html += '&#9888; No client names detected in your entry. The full text will be saved to your journal. You can manually tag clients when saving.';
+    html += '</div>';
   }
+
+  document.getElementById('vj-result-content').innerHTML = html;
 }
 
 
