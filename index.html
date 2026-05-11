@@ -1059,539 +1059,150 @@ function renderTasks(){
   if(mv)mv.innerHTML=html;
 }
 
-let adminTasks=JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
-function saveAdminTasks(){localStorage.setItem('mg_admin_tasks',JSON.stringify(adminTasks));}
+let adminTasks = JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
+let adminStaff = JSON.parse(localStorage.getItem('mg_admin_staff')||'null') || ['Isidro','Admin Juan','Admin Julie'];
+
+function saveAdminTasks(){ localStorage.setItem('mg_admin_tasks', JSON.stringify(adminTasks)); }
+function saveAdminStaff(){ localStorage.setItem('mg_admin_staff', JSON.stringify(adminStaff)); }
 
 function renderAdmin(){
+  const dv = document.getElementById('dv-admin');
+  const mv = document.getElementById('mv-admin');
   const html = buildAdminHTML();
-  const dv=document.getElementById('dv-admin');
-  const mv=document.getElementById('mv-admin');
-  if(dv)dv.innerHTML=html;
-  if(mv)mv.innerHTML=html;
+  if(dv) dv.innerHTML = html;
+  if(mv) mv.innerHTML = html;
 }
 
 function buildAdminHTML(){
-  const pending=adminTasks.filter(t=>!t.done);
-  const done=adminTasks.filter(t=>t.done);
-  const byStaff={};
-  const ADMIN_STAFF=['Isidro','Admin Juan','Admin Julie'];
-  ADMIN_STAFF.forEach(s=>{byStaff[s]=pending.filter(t=>t.assignee===s);});
+  const pending = adminTasks.filter(t => !t.done);
+  const done = adminTasks.filter(t => t.done);
 
-  const staffCols=ADMIN_STAFF.map(s=>{
-    const tasks=byStaff[s]||[];
-    const taskRows=tasks.length>0
-      ?tasks.map((t,i)=>{
-        const realIdx=adminTasks.indexOf(t);
-        return'<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:var(--sh)">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
-            '<div style="flex:1">' +
-              '<div style="font-size:13px;font-weight:600;color:var(--text);line-height:1.4">'+t.task+'</div>' +
-              (t.due?'<div style="font-size:11px;color:var(--muted);margin-top:3px">Due: '+new Date(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div>':'') +
-              '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(t.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div>' +
-            '</div>' +
-            '<div style="display:flex;gap:4px;flex-shrink:0">' +
-              '<button onclick="completeAdminTask('+realIdx+')" style="background:#F0FDF4;border:1px solid var(--green);color:var(--green);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600">✓</button>' +
-              '<button onclick="deleteAdminTask('+realIdx+')" style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✕</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('')
-      :'<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">No tasks assigned</div>';
+  // Staff management header
+  const staffPills = adminStaff.map((s, si) =>
+    '<span style="display:inline-flex;align-items:center;gap:5px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:16px;padding:4px 10px;font-size:12px;font-weight:600;color:#1B4332;margin:2px">' +
+    esc(s) +
+    '<span data-si="'+si+'" onclick="removeStaffMember(parseInt(this.dataset.si))" style="cursor:pointer;color:#9CA3AF;font-size:11px;margin-left:2px" title="Remove">&#x2715;</span>' +
+    '</span>'
+  ).join('');
 
-    return'<div style="flex:1;min-width:220px;background:var(--bg);border-radius:12px;padding:16px;border:1px solid var(--bd)">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--g200)">&#128119; '+s+'<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tasks.length+' task'+(tasks.length!==1?'s':'')+'</span></div>' +
+  const staffHeader =
+    '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:14px 16px;background:#F9FAFB;border-bottom:1px solid var(--bd);margin-bottom:20px">' +
+      '<span style="font-size:12px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Staff Members:</span>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px;flex:1">' + staffPills + '</div>' +
+      '<div style="display:flex;gap:6px;flex-shrink:0">' +
+        '<input id="new-staff-name" type="text" placeholder="Add team member..." style="border:1px solid var(--bd);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none;width:160px;background:var(--surf)">' +
+        '<button onclick="addStaffMember()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">+ Add</button>' +
+      '</div>' +
+    '</div>';
+
+  // Staff task columns
+  const staffCols = adminStaff.map((s, si) => {
+    const tasks = pending.filter(t => t.assignee === s);
+    const taskRows = tasks.length > 0
+      ? tasks.map(t => {
+          const idx = adminTasks.indexOf(t);
+          const isOverdue = t.due && t.due < new Date().toISOString().split('T')[0];
+          return '<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+              '<div style="flex:1">' +
+                '<div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.4">' + esc(t.task) + '</div>' +
+                (t.due ? '<div style="font-size:11px;color:'+(isOverdue?'#EF4444':'var(--muted)')+';margin-top:3px;font-weight:'+(isOverdue?'700':'400')+'">'+(isOverdue?'⚠ Overdue: ':'Due: ')+new Date(t.due+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</div>' : '') +
+              '</div>' +
+              '<div style="display:flex;gap:4px;flex-shrink:0">' +
+                '<button data-idx="'+idx+'" onclick="completeAdminTask(parseInt(this.dataset.idx))" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit">&#10003;</button>' +
+                '<button data-idx="'+idx+'" onclick="deleteAdminTask(parseInt(this.dataset.idx))" style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit">&#x2715;</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('')
+      : '<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center;border:1px dashed var(--bd);border-radius:8px">No tasks</div>';
+
+    const inputId = 'new-admin-task-' + si;
+    const dueId = 'due-admin-task-' + si;
+
+    return '<div style="flex:1;min-width:200px;background:var(--bg);border-radius:12px;padding:14px;border:1px solid var(--bd)">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #D8F3DC">' +
+        '<span style="font-size:13px;font-weight:700;color:var(--g900)">&#128119; ' + esc(s) + '</span>' +
+        '<span style="font-size:11px;font-weight:600;background:#F0FDF4;color:#1B4332;border-radius:10px;padding:2px 8px">' + tasks.length + '</span>' +
+      '</div>' +
       taskRows +
       '<div style="margin-top:10px">' +
-        '<textarea id="new-admin-task-'+s.replace(/\s/g,'_')+'" placeholder="Add task for '+s+'..." style="width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:none;height:52px;outline:none;box-sizing:border-box;background:var(--surf)"></textarea>' +
+        '<textarea id="'+inputId+'" placeholder="Add task for '+esc(s)+'..." style="width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:none;height:52px;outline:none;box-sizing:border-box;background:var(--surf)"></textarea>' +
         '<div style="display:flex;gap:5px;margin-top:5px">' +
-          '<input id="due-admin-task-'+s.replace(/\s/g,'_')+'" type="date" style="flex:1;border:1px solid var(--bd);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;outline:none">' +
-          '<button onclick="addAdminTask(\''+s+'\')" style="background:var(--g900);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Add</button>' +
+          '<input id="'+dueId+'" type="date" style="flex:1;border:1px solid var(--bd);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;outline:none">' +
+          '<button data-si="'+si+'" onclick="addAdminTask(adminStaff[parseInt(this.dataset.si)],'+si+')" style="background:var(--g900);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">+ Add</button>' +
         '</div>' +
       '</div>' +
     '</div>';
   }).join('');
 
-  const completedSection=done.length>0
-    ?'<div style="margin-top:20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">✅ Recently Completed ('+done.length+')</div>'+
-      done.slice(0,10).map((t,i)=>{
-        const realIdx=adminTasks.indexOf(t);
-        return'<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;margin-bottom:5px;border:1px solid var(--bd)">'+
-          '<span style="color:var(--green);font-size:14px">✓</span>'+
-          '<span style="font-size:12px;color:var(--muted);flex:1;text-decoration:line-through">'+t.task+'</span>'+
-          '<span style="font-size:11px;color:var(--muted)">'+t.assignee+'</span>'+
-          '<button onclick="deleteAdminTask('+realIdx+')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">✕</button>'+
-        '</div>';
-      }).join('')+
+  // Completed tasks
+  const completedSection = done.length > 0
+    ? '<div style="margin-top:20px">' +
+        '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">&#10003; Completed (' + done.length + ')</div>' +
+        done.slice(0,10).map((t, i) => {
+          const idx = adminTasks.indexOf(t);
+          return '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg);border-radius:8px;margin-bottom:5px;border:1px solid var(--bd)">' +
+            '<span style="color:#22C55E;font-size:13px">&#10003;</span>' +
+            '<span style="font-size:12px;color:var(--muted);flex:1;text-decoration:line-through">' + esc(t.task) + '</span>' +
+            '<span style="font-size:11px;color:var(--muted)">' + esc(t.assignee) + '</span>' +
+            '<button data-idx="'+idx+'" onclick="deleteAdminTask(parseInt(this.dataset.idx))" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">&#x2715;</button>' +
+          '</div>';
+        }).join('') +
       '</div>'
-    :'';
+    : '';
 
-  return'<div style="padding:20px;width:100%;overflow-y:auto">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+  return '<div style="width:100%;overflow-y:auto">' +
+    '<div style="padding:16px 20px 0;display:flex;align-items:center;justify-content:space-between">' +
       '<h2 style="font-size:18px;font-weight:700;color:var(--g900)">&#128119; Staff Task Board</h2>' +
-      '<div style="font-size:12px;color:var(--muted)">'+pending.length+' active task'+(pending.length!==1?'s':'')+'</div>' +
+      '<div style="font-size:12px;color:var(--muted)">' + pending.length + ' active task' + (pending.length!==1?'s':'') + '</div>' +
     '</div>' +
-    '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">'+staffCols+'</div>' +
-    completedSection +
+    staffHeader +
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;padding:0 20px 20px">' + staffCols + '</div>' +
+    (completedSection ? '<div style="padding:0 20px 20px">' + completedSection + '</div>' : '') +
   '</div>';
 }
 
-function addAdminTask(assignee){
-  const key=assignee.replace(/\s/g,'_');
-  const inp=document.getElementById('new-admin-task-'+key);
-  const due=document.getElementById('due-admin-task-'+key);
-  if(!inp||!inp.value.trim())return;
-  adminTasks.unshift({id:uid(),task:inp.value.trim(),assignee,due:due?due.value:'',done:false,created_at:now()});
-  inp.value='';if(due)due.value='';
-  saveAdminTasks();renderAdmin();
+function addStaffMember(){
+  const inp = document.getElementById('new-staff-name');
+  if (!inp || !inp.value.trim()) return;
+  const name = inp.value.trim();
+  if (adminStaff.includes(name)) { inp.value=''; return; }
+  adminStaff.push(name);
+  saveAdminStaff();
+  inp.value = '';
+  renderAdmin();
+}
+
+function removeStaffMember(si){
+  const name = adminStaff[si];
+  if (!confirm('Remove ' + name + ' from the team? Their tasks will remain but show unassigned.')) return;
+  adminStaff.splice(si, 1);
+  saveAdminStaff();
+  renderAdmin();
+}
+
+function addAdminTask(assignee, si){
+  const key = si;
+  const inp = document.getElementById('new-admin-task-' + key);
+  const due = document.getElementById('due-admin-task-' + key);
+  if (!inp || !inp.value.trim()) return;
+  adminTasks.unshift({id:uid(), task:inp.value.trim(), assignee, due:due?due.value:'', done:false, created_at:now()});
+  inp.value = ''; if(due) due.value = '';
+  saveAdminTasks();
+  renderAdmin();
 }
 
 function completeAdminTask(idx){
-  if(adminTasks[idx])adminTasks[idx].done=true;
-  saveAdminTasks();renderAdmin();
+  if (adminTasks[idx]) adminTasks[idx].done = true;
+  saveAdminTasks();
+  renderAdmin();
 }
 
 function deleteAdminTask(idx){
-  adminTasks.splice(idx,1);
-  saveAdminTasks();renderAdmin();
-}
-
-// ── CRM REPORTS ──────────────────────────────────────────────────────────
-function openCRMReport(html, filename) {
-  const blob = new Blob([html], {type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (!win) { const a=document.createElement('a');a.href=url;a.download=filename;a.click(); }
-}
-
-function buildCRMReportHTML(title, period, stats, sections) {
-  const generated = new Date().toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
-  const statsHtml = stats.map(s =>
-    '<div style="flex:1;min-width:130px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center">' +
-    '<div style="font-size:28px;font-weight:800;color:#1B4332;line-height:1">' + s.value + '</div>' +
-    '<div style="font-size:11px;color:#4B9A4B;font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.05em">' + s.label + '</div>' +
-    '</div>'
-  ).join('');
-
-  const sectionsHtml = sections.map(sec => {
-    const headerRow = '<tr>' + sec.headers.map(h =>
-      '<th style="background:#1B4332;color:#fff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.03em">' + h + '</th>'
-    ).join('') + '</tr>';
-    const dataRows = sec.rows.length > 0
-      ? sec.rows.map((row, ri) =>
-          '<tr style="background:' + (ri%2===0?'#fff':'#F9FAFB') + '">' +
-          row.map(cell => '<td style="padding:9px 12px;font-size:13px;color:#374151;border-bottom:1px solid #F3F4F6">' + (cell||'—') + '</td>').join('') +
-          '</tr>').join('')
-      : '<tr><td colspan="' + sec.headers.length + '" style="padding:16px;text-align:center;color:#9CA3AF;font-size:13px">No records for this period</td></tr>';
-    return '<div style="margin-bottom:28px">' +
-      '<h2 style="font-size:16px;font-weight:700;color:#1B4332;margin:0 0 10px;border-bottom:2px solid #D8F3DC;padding-bottom:8px">' + sec.icon + ' ' + sec.title + '</h2>' +
-      '<table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">' +
-      headerRow + dataRows + '</table></div>';
-  }).join('');
-
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>' +
-    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#F9FAFB;color:#111827}@media print{body{background:white}.no-print{display:none}@page{margin:1.5cm}}</style></head><body>' +
-    '<div class="no-print" style="background:#1B4332;padding:12px 24px;display:flex;align-items:center;justify-content:space-between">' +
-      '<span style="color:#fff;font-size:14px;font-weight:600">' + title + '</span>' +
-      '<div style="display:flex;gap:8px">' +
-        '<button onclick="window.print()" style="background:#52B788;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button>' +
-        '<button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer">✕ Close</button>' +
-      '</div>' +
-    '</div>' +
-    '<div style="max-width:960px;margin:0 auto;padding:32px 24px">' +
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #1B4332">' +
-      '<div>' +
-        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#52B788;margin-bottom:6px">M&G Nursery · Powered by AgCommand</div>' +
-        '<h1 style="font-size:26px;font-weight:800;color:#1B4332;margin-bottom:4px">' + title + '</h1>' +
-        '<div style="font-size:15px;color:#6B7280">' + period + '</div>' +
-      '</div>' +
-      '<div style="text-align:right">' +
-        '<div style="font-size:11px;color:#9CA3AF">Generated</div>' +
-        '<div style="font-size:13px;font-weight:600;color:#374151">' + generated + '</div>' +
-        '<div style="font-size:11px;color:#9CA3AF;margin-top:4px">Martinez Accounting Inc.</div>' +
-      '</div>' +
-    '</div>' +
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:28px">' + statsHtml + '</div>' +
-    sectionsHtml +
-    '<div style="border-top:1px solid #E5E7EB;padding-top:16px;margin-top:8px;display:flex;justify-content:space-between">' +
-      '<div style="font-size:11px;color:#9CA3AF">M&G Nursery · Martinez Accounting Inc. CFO Services</div>' +
-      '<div style="font-size:11px;color:#9CA3AF">Powered by AgCommand</div>' +
-    '</div></div></body></html>';
-}
-
-function generateCRMDailyReport() {
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  const todayISO = today.toISOString().split('T')[0];
-
-  // Follow-ups due today or overdue
-  const overdue = contacts.filter(c => c.followup && c.followup < todayISO && c.status !== 'Ready');
-  const dueToday = contacts.filter(c => c.followup === todayISO);
-  const urgent = [...new Set([...overdue,...dueToday])];
-
-  // Pipeline by stage
-  const stages = ['Lead','Quoted','Deposit received','In production','Ready'];
-  const stageCounts = {};
-  stages.forEach(s => stageCounts[s] = contacts.filter(c=>c.status===s).length);
-
-  // Spring shipments — due soon
-  const springOrders = contacts.filter(c => c.date && c.date <= '2026-06-30' && c.status !== 'Ready');
-
-  // Total pipeline value
-  const totalValue = contacts.reduce((s,c) => s + ((c.trees||0)*(c.price||0)), 0);
-  const depositValue = contacts.filter(c=>c.status==='Deposit received'||c.status==='In production')
-    .reduce((s,c) => s + ((c.trees||0)*(c.price||0)), 0);
-  const totalTrees = contacts.reduce((s,c) => s + (c.trees||0), 0);
-
-  // Recent contact log activity (last 24h)
-  const since24h = new Date(Date.now() - 24*60*60*1000).toISOString();
-  const recentActivity = [];
-  contacts.forEach(c => {
-    (c.contact_log||[]).forEach(entry => {
-      if (entry.ts > since24h) recentActivity.push({contact: c.name, ...entry});
-    });
-  });
-
-  const html = buildCRMReportHTML(
-    'Daily Sales & Operations Report',
-    'M&G Nursery — ' + todayStr,
-    [
-      {label:'Total Contacts', value: contacts.length},
-      {label:'Pipeline Value', value: '$' + Math.round(totalValue/1000) + 'K'},
-      {label:'Committed Value', value: '$' + Math.round(depositValue/1000) + 'K'},
-      {label:'Total Trees', value: totalTrees.toLocaleString()},
-      {label:'Follow-ups Due', value: urgent.length},
-      {label:'Spring Shipments', value: springOrders.length},
-    ],
-    [
-      urgent.length > 0 ? {
-        title: 'Follow-ups Required Today', icon: '⚠️',
-        headers: ['Client','Trees','Stage','Follow-up Date','Notes'],
-        rows: urgent.map(c => [c.name, (c.trees||0).toLocaleString(), c.status, c.followup,
-          (c.notes||'').substring(0,60)])
-      } : null,
-      {
-        title: 'Pipeline Summary by Stage', icon: '📊',
-        headers: ['Stage','Count','Trees','Value'],
-        rows: stages.map(s => {
-          const sc = contacts.filter(c=>c.status===s);
-          const trees = sc.reduce((t,c)=>t+(c.trees||0),0);
-          const val = sc.reduce((t,c)=>t+((c.trees||0)*(c.price||0)),0);
-          return [s, sc.length, trees.toLocaleString(), val>0?'$'+val.toLocaleString():'—'];
-        })
-      },
-      {
-        title: 'Spring Shipment Schedule', icon: '🌱',
-        headers: ['Client','Variety','Trees','Price','Delivery Date','Stage'],
-        rows: contacts.filter(c=>c.date&&c.date<='2026-06-30')
-          .sort((a,b)=>a.date.localeCompare(b.date))
-          .map(c => [c.name, c.variety||'', (c.trees||0).toLocaleString(),
-            c.price?'$'+c.price:'—', c.date, c.status])
-      },
-      recentActivity.length > 0 ? {
-        title: 'Contact Activity (Last 24 Hours)', icon: '📋',
-        headers: ['Client','Note','By','Time'],
-        rows: recentActivity.map(a => [
-          a.contact, (a.text||'').substring(0,80), a.by||'',
-          new Date(a.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
-        ])
-      } : null,
-      {
-        title: 'Full Contact Register', icon: '📒',
-        headers: ['Client','Variety','Trees','Price/Tree','Stage','Follow-up'],
-        rows: contacts.filter(c=>!c.name.includes('M&R'))
-          .sort((a,b)=>(b.trees||0)-(a.trees||0))
-          .map(c => [c.name, c.variety||'', (c.trees||0).toLocaleString(),
-            c.price?'$'+c.price:'—', c.status, c.followup||''])
-      }
-    ].filter(Boolean)
-  );
-  openCRMReport(html, 'MG_Nursery_Daily_' + todayISO + '.html');
-}
-
-function generateCRMWeeklyReport() {
-  const today = new Date();
-  const day = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (day===0?6:day-1));
-  monday.setHours(0,0,0,0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate()+6);
-  const period = monday.toLocaleDateString('en-US',{month:'long',day:'numeric'}) +
-    ' – ' + sunday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const mondayISO = monday.toISOString().split('T')[0];
-  const sundayISO = sunday.toISOString().split('T')[0];
-  const todayISO = today.toISOString().split('T')[0];
-
-  // Contacts touched this week (contact log entries)
-  const weekActivity = [];
-  contacts.forEach(c => {
-    (c.contact_log||[]).forEach(entry => {
-      if (entry.ts >= monday.toISOString()) weekActivity.push({contact:c.name, status:c.status, trees:c.trees, ...entry});
-    });
-  });
-
-  // Follow-ups this week
-  const weekFollowups = contacts.filter(c => c.followup >= mondayISO && c.followup <= sundayISO);
-  const overdueFollowups = contacts.filter(c => c.followup && c.followup < todayISO && c.status !== 'Ready');
-
-  // Upcoming deliveries next 30 days
-  const next30 = new Date(today); next30.setDate(today.getDate()+30);
-  const upcoming = contacts.filter(c => c.date && c.date >= todayISO && c.date <= next30.toISOString().split('T')[0]);
-
-  const totalValue = contacts.reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
-  const committedVal = contacts.filter(c=>['Deposit received','In production','Ready'].includes(c.status))
-    .reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
-  const springTrees = contacts.filter(c=>c.date&&c.date<='2026-06-30').reduce((s,c)=>s+(c.trees||0),0);
-
-  // Variety breakdown
-  const byVariety = {};
-  contacts.forEach(c => {
-    const v = c.variety || 'Unknown';
-    if (!byVariety[v]) byVariety[v] = {trees:0, clients:0, value:0};
-    byVariety[v].trees += (c.trees||0);
-    byVariety[v].clients++;
-    byVariety[v].value += (c.trees||0)*(c.price||0);
-  });
-
-  const html = buildCRMReportHTML(
-    'Weekly Sales Report',
-    'M&G Nursery — Week of ' + period,
-    [
-      {label:'Total Contacts', value: contacts.length},
-      {label:'Total Pipeline', value: '$'+Math.round(totalValue/1000)+'K'},
-      {label:'Committed', value: '$'+Math.round(committedVal/1000)+'K'},
-      {label:'Spring Trees', value: springTrees.toLocaleString()},
-      {label:'Overdue Follow-ups', value: overdueFollowups.length},
-      {label:'Upcoming Deliveries', value: upcoming.length},
-    ],
-    [
-      overdueFollowups.length > 0 ? {
-        title: 'Overdue Follow-ups — Action Required', icon: '🔴',
-        headers: ['Client','Trees','Stage','Overdue Since','Last Note'],
-        rows: overdueFollowups.sort((a,b)=>a.followup.localeCompare(b.followup)).map(c => {
-          const lastNote = (c.contact_log||[])[0];
-          return [c.name, (c.trees||0).toLocaleString(), c.status, c.followup,
-            lastNote ? lastNote.text.substring(0,50)+'...' : 'No notes'];
-        })
-      } : null,
-      weekActivity.length > 0 ? {
-        title: 'Contact Activity This Week', icon: '📋',
-        headers: ['Date','Client','Stage','Trees','Note','By'],
-        rows: weekActivity.sort((a,b)=>b.ts.localeCompare(a.ts)).map(a => [
-          new Date(a.ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),
-          a.contact, a.status, (a.trees||0).toLocaleString(),
-          (a.text||'').substring(0,60), a.by||'Isidro'
-        ])
-      } : null,
-      {
-        title: 'Pipeline Overview', icon: '📊',
-        headers: ['Stage','Clients','Trees','Pipeline Value','% of Total'],
-        rows: ['Lead','Quoted','Deposit received','In production','Ready'].map(s => {
-          const sc = contacts.filter(c=>c.status===s);
-          const trees = sc.reduce((t,c)=>t+(c.trees||0),0);
-          const val = sc.reduce((t,c)=>t+((c.trees||0)*(c.price||0)),0);
-          const pct = totalValue>0?Math.round(val/totalValue*100):0;
-          return [s, sc.length, trees.toLocaleString(), val>0?'$'+val.toLocaleString():'—', pct+'%'];
-        })
-      },
-      {
-        title: 'Variety Breakdown', icon: '🍊',
-        headers: ['Variety','Clients','Total Trees','Pipeline Value'],
-        rows: Object.entries(byVariety).sort((a,b)=>b[1].trees-a[1].trees).map(([v,d]) =>
-          [v, d.clients, d.trees.toLocaleString(), d.value>0?'$'+d.value.toLocaleString():'—'])
-      },
-      upcoming.length > 0 ? {
-        title: 'Upcoming Deliveries (Next 30 Days)', icon: '🚛',
-        headers: ['Client','Variety','Trees','Delivery Date','Stage'],
-        rows: upcoming.sort((a,b)=>a.date.localeCompare(b.date)).map(c =>
-          [c.name, c.variety||'', (c.trees||0).toLocaleString(), c.date, c.status])
-      } : null,
-      {
-        title: 'Full Client Register', icon: '📒',
-        headers: ['Client','Variety','Trees','$/Tree','Stage','Delivery','Follow-up','Contract'],
-        rows: contacts.filter(c=>!c.name.includes('M&R'))
-          .sort((a,b)=>(b.trees||0)-(a.trees||0))
-          .map(c => {
-            const contractMatch = (c.notes||'').match(/Contract\(s\): ([^|]+)/);
-            const contract = contractMatch ? contractMatch[1].trim() : '—';
-            return [c.name, c.variety||'', (c.trees||0).toLocaleString(),
-              c.price?'$'+c.price:'—', c.status, c.date||'—', c.followup||'—', contract];
-          })
-      }
-    ].filter(Boolean)
-  );
-  openCRMReport(html, 'MG_Nursery_Weekly_' + mondayISO + '.html');
-}
-
-// ── CONTRACT GENERATOR ────────────────────────────────────────────────────
-function generateContract(contactId) {
-  const c = contacts.find(x => x.id === contactId);
-  if (!c) return;
-
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const rawContract = c.notes ? c.notes.split('Contract(s): ')[1] : null;
-  const contractNum = rawContract ? rawContract.split('|')[0].split(',')[0].trim()
-    : 'MG-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0');
-
-  const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
-  const varietyRows = varieties.map(v =>
-    '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
-    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td></tr>'
-  ).join('');
-
-  const trees = c.trees || 0;
-  const price = c.price || 12.50;
-  const total = trees * price;
-  const deposit = Math.round(total * 0.40 * 100)/100;
-  const balance = Math.round((total - deposit)*100)/100;
-  const deliveryDate = c.date
-    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
-    : 'To be determined';
-  const buyerBlock = esc(c.name) + (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
-    (c.phone ? '<br>'+esc(c.phone) : '') + (c.email ? '<br>'+esc(c.email) : '');
-  const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
-
-  const css = [
-    '* { box-sizing: border-box; margin: 0; padding: 0; }',
-    'body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; }',
-    '.page { max-width: 760px; margin: 0 auto; padding: 48px; }',
-    '@media print { .no-print { display: none !important; } @page { margin: 2cm; } }',
-    '.hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; }',
-    '.co-name { font-size: 22px; font-weight: 700; color: #1B4332; }',
-    '.co-sub { font-size: 12px; color: #555; margin-top: 3px; }',
-    '.cn { text-align: right; font-size: 12px; color: #555; }',
-    '.cn-num { font-size: 15px; font-weight: 700; color: #1B4332; }',
-    'h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; }',
-    '.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }',
-    '.fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }',
-    '.fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; }',
-    'table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }',
-    'thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; }',
-    '.tr-tot td { background: #F0FDF4; font-weight: 700; }',
-    '.tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; }',
-    '.tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; }',
-    '.tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; }',
-    '.tb ol { padding-left: 18px; }',
-    '.sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; }',
-    '.sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; }',
-    '.pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; }',
-    '.pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; }',
-    '.dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }',
-  ].join(' ');
-
-  const parts = [
-    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-    '<title>Nursery Purchase Agreement — ' + esc(c.name) + '</title>',
-    '<style>' + css + '</style></head><body>',
-    '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
-      '<div>',
-        '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
-        '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
-        '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715;</button>',
-      '</div>',
-    '</div>',
-    '<div class="page">',
-    // HEADER
-    '<div class="hdr">',
-      '<div><div class="co-name">M&amp;G Nursery</div>',
-      '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-      '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-      '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div></div>',
-      '<div class="cn"><div class="cn-num">CONTRACT #' + contractNum + '</div>',
-      '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-      '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div></div>',
-    '</div>',
-    // PARTIES
-    '<h2>Parties</h2>',
-    '<div class="two">',
-      '<div><div class="fl">Seller</div>',
-      '<div class="fv"><strong>M&amp;G Nursery</strong><br>Raffi Minassian<br>39390 Rd 116, Cutler CA 93615</div></div>',
-      '<div><div class="fl">Buyer</div>',
-      '<div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
-    '</div>',
-    // ORDER
-    '<h2>Order Details</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Total Trees Ordered</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
-    '</div>',
-    // PRICING
-    '<h2>Pricing &amp; Payment</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td>',
-      '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td>',
-      '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td>',
-      '<td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-    '</tbody></table>',
-    // TERMS
-    '<h2>Terms &amp; Conditions</h2>',
-    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order and initiate production.</li>',
-      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery or pickup</strong>. Trees will not be released until full payment is received.</li>',
-      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
-      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
-      '<li>Delivery date is estimated and subject to crop conditions, regulatory requirements, and weather. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
-      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
-      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
-      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
-      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> from contracted quantity due to natural production variation. Price per tree remains as stated.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
-      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
-      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
-      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
-      '<li>M&amp;G Nursery may cancel in the event of crop failure, disease, regulatory action, or force majeure — all deposits refunded in full.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
-      '<li>M&amp;G Nursery warrants all trees are grown from certified budwood and free from known diseases at time of sale per CDFA regulations.</li>',
-      '<li>No warranty is made as to performance after delivery. Buyer assumes all risk related to planting conditions and post-delivery care.</li>',
-      '<li>Quality claims must be made within <strong>48 hours of delivery</strong> before trees leave delivery vehicle or staging area.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>5. General</h3><ol>',
-      '<li>This agreement constitutes the entire understanding between parties. No verbal representations alter its terms.</li>',
-      '<li>Governed by the laws of the State of California. Disputes resolved in Tulare County, California.</li>',
-    '</ol></div>',
-    // SIGNATURES
-    '<h2>Signatures</h2>',
-    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms and conditions of this Nursery Purchase Agreement.</p>',
-    '<div class="sg">',
-      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div>',
-      '<div style="font-size:11px;color:#6B7280">Raffi Minassian, Owner · M&amp;G Nursery</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
-      '<div><div class="fl">Buyer</div><div class="sl"></div>',
-      '<div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
-    '</div>',
-    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
-      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
-    '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:24px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · 39390 Rd 116, Cutler CA 93615 · Contract #' + contractNum + ' · Generated ' + dateStr + ' via AgCommand',
-    '</div>',
-    '</div>',
-    '<script>document.getElementById("dlbtn").onclick=function(){',
-      'var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});',
-      'var a=document.createElement("a");a.href=URL.createObjectURL(b);',
-      'a.download="' + dlName + '";a.click();',
-    '};<\/script>',
-    '</body></html>'
-  ];
-
-  const html = parts.join('');
-  const blob = new Blob([html], {type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (!win) {
-    const a = document.createElement('a');
-    a.href = url; a.download = dlName; a.click();
-  }
+  adminTasks.splice(idx, 1);
+  saveAdminTasks();
+  renderAdmin();
 }
 
 
