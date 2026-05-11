@@ -442,6 +442,8 @@ textarea.finput{height:70px;resize:none}
     <div><label class="flabel">Price per tree ($)</label><input class="finput" id="f-price" type="number" step="0.01" min="0" placeholder="13.50"></div>
     <div><label class="flabel">Pickup / delivery date</label><input class="finput" id="f-date" type="date"></div>
     <div><label class="flabel">Follow-up date</label><input class="finput" id="f-followup" type="date"></div>
+    <div><label class="flabel">Contract # / Numero de Contrato</label><input class="finput" id="f-contract" placeholder="e.g. 1003, 26004"></div>
+    <div><label class="flabel">AgCommand Lot # / Lote AgCommand</label><input class="finput" id="f-lot" placeholder="e.g. MG-N3-TANGO-CAR-001"></div>
     <div><label class="flabel">Lead source</label>
       <select class="finput" id="f-source">
         <option value="">Unknown</option>
@@ -488,7 +490,7 @@ textarea.finput{height:70px;resize:none}
   <div class="dtab-row">
     <button class="dtab active" id="dt-info" onclick="detTab('info')">Info</button>
     <button class="dtab" id="dt-activity" onclick="detTab('activity')">Activity</button>
-    <button class="dtab" id="dt-order" onclick="detTab('order')">Order docs</button>
+    <button class="dtab" id="dt-order" onclick="detTab('order')">Docs</button>
   </div>
   <div id="det-info-pane"></div>
   <div id="det-activity-pane" style="display:none"></div>
@@ -496,7 +498,8 @@ textarea.finput{height:70px;resize:none}
   <div class="mact" style="flex-wrap:wrap;gap:6px">
     <button class="btn-cancel" onclick="closeModal('modal-detail')" style="flex:0.8">Close</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px" onclick="editFromDetail()">Edit</button>
-    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#128196; Contract</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#0369A1;color:#fff" onclick="generateQuote(currentId)">&#128196; Quote</button>
+    <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#9997; Contract</button>
     <button class="btn-danger" onclick="deleteContact()">Delete</button>
   </div>
 </div>
@@ -678,6 +681,13 @@ function seed(){return contacts;} // seed returns pre-loaded contacts
 
 async function loadAll(){
   const preLoaded = contacts.slice(); // save our 27 real contacts
+  // Pre-migrate contract numbers from notes for pre-loaded contacts
+  preLoaded.forEach(c => {
+    if (!c.contract_num && c.notes) {
+      const m = c.notes.match(/Contract\(s\): ([^|]+)/);
+      if (m) c.contract_num = m[1].trim().split(',')[0].trim();
+    }
+  });
   if(!cloudOk){
     try{const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored&&stored.length>0)contacts=stored;else contacts=preLoaded;}catch(e){contacts=preLoaded;}
     setSyncBadge(false);
@@ -688,7 +698,17 @@ async function loadAll(){
     const cr=await sb.from(CFG.table).select('*').order('created_at',{ascending:false});
     if(cr.error)throw cr.error;
     const cloudContacts=cr.data||[];
-    if(cloudContacts.length < preLoaded.length){
+    // Migrate contract numbers from notes field for existing contacts
+  function migrateContractNums(clist) {
+    clist.forEach(c => {
+      if (!c.contract_num && c.notes) {
+        const m = c.notes.match(/Contract\(s\): ([^|]+)/);
+        if (m) c.contract_num = m[1].trim().split(',')[0].trim();
+      }
+    });
+    return clist;
+  }
+  if(cloudContacts.length < preLoaded.length){
       // Cloud has fewer contacts than our real data — push real data up
       console.log('Syncing '+preLoaded.length+' contacts to cloud...');
       contacts=preLoaded;
@@ -1207,6 +1227,196 @@ function deleteAdminTask(idx){
 }
 
 
+// ── QUOTE & CONTRACT FLOW ────────────────────────────────────────────────
+function generateQuote(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const quoteNum = 'Q-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0') + '-' + Date.now().toString().slice(-3);
+  const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
+  const trees = c.trees||0;
+  const price = c.price||12.50;
+  const total = trees*price;
+  const deposit = Math.round(total*0.40*100)/100;
+  const balance = total-deposit;
+  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'Spring 2026 — Exact date TBD';
+  const validUntil = new Date(today); validUntil.setDate(today.getDate()+30);
+  const validStr = validUntil.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const varRows = varieties.map(v=>'<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.variety||'')+'</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.rootstock||'—')+'</td></tr>').join('');
+  const dlName = 'MG_Quote_' + quoteNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
+
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .qn { text-align: right; font-size: 12px; color: #555; } .qn-num { font-size: 15px; font-weight: 700; color: #0369A1; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #0369A1; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #EFF6FF; font-weight: 700; } .valid-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #92400E; } .note-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-top: 20px; font-size: 13px; color: #1B4332; } .approve-box { background: #0369A1; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center; } .pbar { background:#0369A1;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#fff;color:#0369A1;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+
+  const parts = [
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quote — ' + esc(c.name) + '</title><style>'+css+'</style></head><body>',
+    '<div class="no-print pbar">',
+      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Quote #' + quoteNum + ' — ' + esc(c.name) + '</span>',
+      '<div>',
+        '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
+        '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
+        '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715;</button>',
+      '</div>',
+    '</div>',
+    '<div class="page">',
+    // HEADER
+    '<div class="hdr">',
+      '<div><div class="co-name">M&amp;G Nursery</div>',
+      '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
+      '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
+      '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div></div>',
+      '<div class="qn"><div class="qn-num">QUOTE #' + quoteNum + '</div>',
+      '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
+      '<div style="margin-top:4px;color:#D97706;font-weight:600">Valid until: ' + validStr + '</div>',
+      '<div style="font-weight:700;color:#0369A1;margin-top:2px">NURSERY PRICE QUOTATION</div></div>',
+    '</div>',
+    // VALIDITY WARNING
+    '<div class="valid-box">&#9888; This quote is valid for 30 days from the date of issue. Pricing and availability are subject to change after ' + validStr + '.</div>',
+    // PARTIES
+    '<h2>Prepared For</h2>',
+    '<div class="two">',
+      '<div><div class="fl">Buyer / Prospective Purchaser</div><div class="fv"><strong>'+esc(c.name)+'</strong>'+(c.company&&c.company!==c.name?'<br>'+esc(c.company):'')+(c.phone?'<br>'+esc(c.phone):'')+(c.email?'<br>'+esc(c.email):'')+'</div></div>',
+      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Raffi Minassian<br>39390 Rd 116, Cutler CA 93615</div></div>',
+    '</div>',
+    // ORDER DETAILS
+    '<h2>Quoted Items</h2>',
+    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>'+varRows+'</tbody></table>',
+    '<div class="two">',
+      '<div><div class="fl">Quantity</div><div class="fv"><strong>'+trees.toLocaleString()+' trees</strong></div></div>',
+      '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>'+deliveryDate+'</strong></div></div>',
+    '</div>',
+    // PRICING
+    '<h2>Pricing Summary</h2>',
+    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+trees.toLocaleString()+' trees &times; $'+price.toFixed(2)+' per tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$'+total.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (40%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
+      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$'+balance.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
+    '</tbody></table>',
+    // NOTES
+    '<div class="note-box">',
+      '<strong>Notes:</strong><br>',
+      '• All trees are grown from CDFA-certified budwood and will meet nursery certification standards at delivery.<br>',
+      '• Final tree count may vary ±5% due to natural production variation.<br>',
+      '• A formal purchase agreement will be issued upon quote approval and deposit receipt.<br>',
+      '• Delivery date is estimated. Minimum 14 days advance notice will be provided.',
+    '</div>',
+    // APPROVE CTA
+    '<div class="approve-box">',
+      '<div style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">Ready to move forward?</div>',
+      '<div style="color:rgba(255,255,255,.85);font-size:13px;margin-bottom:12px">Reply to this quote or contact Raffi to approve and receive your purchase contract.</div>',
+      '<div style="color:#fff;font-size:14px;font-weight:600">mgfarmsinc@gmail.com &nbsp;·&nbsp; (559) 397-1401</div>',
+    '</div>',
+    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
+      'M&amp;G Nursery · Quote #' + quoteNum + ' · ' + dateStr + ' · AgCommand CRM · Martinez Accounting Inc.',
+    '</div>',
+    '</div>',
+    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="'+dlName+'";a.click();};<\/script>',
+    '</body></html>'
+  ];
+
+  const html = parts.join('');
+
+  // Save quote record to contact
+  const c2 = contacts.find(x=>x.id===contactId);
+  if(c2){
+    if(!c2.docs) c2.docs=[];
+    c2.docs.push({type:'quote',num:quoteNum,date:new Date().toISOString(),html});
+    if(c2.status==='Lead') { c2.status='Quoted'; }
+    saveLocal();
+    renderAll();
+  }
+
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url,'_blank');
+  if(!win){const a=document.createElement('a');a.href=url;a.download=dlName;a.click();}
+}
+
+function approveQuote(contactId) {
+  const c = contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  const msg = 'Approve quote for ' + c.name + '? This will move the status to Deposit received and generate a purchase contract.';
+  if(!confirm(msg)) return;
+  c.status = 'Deposit received';
+  saveLocal();
+  renderAll();
+  generateContract(contactId);
+  toast('Quote approved → Contract generated ✓');
+}
+
+function emailContract(contactId) {
+  const c = contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  if(!c.email && !c.phone) {
+    alert('No email or phone on file for this contact.\nAdd an email address in Edit, then try again.');
+    return;
+  }
+  const trees = c.trees||0;
+  const price = c.price||12.5;
+  const total = trees*price;
+  const deposit = Math.round(total*0.40*100)/100;
+  const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties.map(v=>v.variety).join(', ') : (c.variety||'citrus trees');
+  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2026';
+  const contractNum = c.contract_num || 'TBD';
+
+  const subject = 'M&G Nursery — Purchase Agreement & Next Steps | ' + esc(c.name);
+  const body =
+    'Dear ' + c.name.split(' ')[0] + ',\n\n' +
+    'Thank you for your order. Please find attached your M&G Nursery Purchase Agreement.\n\n' +
+    'ORDER SUMMARY\n' +
+    '─────────────────────────────\n' +
+    'Variety: ' + varieties + '\n' +
+    'Quantity: ' + trees.toLocaleString() + ' trees\n' +
+    'Price: $' + price.toFixed(2) + '/tree\n' +
+    'Total: $' + total.toLocaleString() + '\n' +
+    'Deposit Required (40%): $' + deposit.toLocaleString() + '\n' +
+    'Estimated Delivery: ' + deliveryDate + '\n' +
+    'Contract #: ' + contractNum + '\n\n' +
+    'NEXT STEPS\n' +
+    '─────────────────────────────\n' +
+    '1. Review and sign the attached purchase agreement\n' +
+    '2. Return the signed agreement with your deposit of $' + deposit.toLocaleString() + '\n' +
+    '3. We will confirm your order and production slot upon receipt\n\n' +
+    'Please make checks payable to M&G Nursery or contact us for wire transfer details.\n\n' +
+    'If you have any questions please do not hesitate to call or reply to this email.\n\n' +
+    'Best regards,\n' +
+    'Raffi Minassian\n' +
+    'M&G Nursery\n' +
+    '39390 Rd 116, Cutler, CA 93615\n' +
+    '(559) 397-1401 · mgfarmsinc@gmail.com\n\n' +
+    '---\n' +
+    'Financial Management by Martinez Accounting Inc.';
+
+  if(c.email) {
+    const mailto = 'mailto:' + encodeURIComponent(c.email) +
+      '?subject=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(body);
+    window.open(mailto);
+    toast('Email client opened ✓');
+  } else {
+    // No email — offer WhatsApp
+    const waMsg = 'Hello ' + c.name.split(' ')[0] + ', this is Raffi from M&G Nursery. Your purchase agreement for ' +
+      trees.toLocaleString() + ' ' + varieties + ' trees is ready. Total: $' + total.toLocaleString() +
+      ' — Deposit: $' + deposit.toLocaleString() + '. Please reply to receive your contract. (559) 397-1401';
+    window.open('https://wa.me/?text=' + encodeURIComponent(waMsg), '_blank');
+    toast('WhatsApp opened ✓');
+  }
+
+  // Log the action
+  if(!c.contact_log) c.contact_log=[];
+  c.contact_log.unshift({text:'Contract emailed/sent to client. '+(c.email||'via WhatsApp'),ts:new Date().toISOString(),by:'Isidro'});
+  saveLocal();
+}
+
+function reOpenDoc(idx) {
+  const c = contacts.find(x=>x.id===currentId);
+  if(!c||!c.docs||!c.docs[idx]) return;
+  const doc = c.docs[idx];
+  const blob = new Blob([doc.html],{type:'text/html'});
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+
 function generateContract(contactId) {
   const c = contacts.find(x => x.id === contactId);
   if (!c) return;
@@ -1338,6 +1548,230 @@ function generateContract(contactId) {
     const a = document.createElement('a');
     a.href = url; a.download = dlName; a.click();
   }
+}
+
+
+// ── CRM REPORTS ──────────────────────────────────────────────────────────
+function openCRMReport(html, filename) {
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) { const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); }
+}
+
+function buildCRMReportHTML(title, period, stats, sections) {
+  const generated = new Date().toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  const statsHtml = stats.map(s =>
+    '<div style="flex:1;min-width:120px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center">' +
+    '<div style="font-size:26px;font-weight:800;color:#1B4332;line-height:1">' + s.value + '</div>' +
+    '<div style="font-size:10px;color:#4B9A4B;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.05em">' + s.label + '</div>' +
+    '</div>'
+  ).join('');
+  const sHtml = sections.map(sec => {
+    const hRow = '<tr>' + sec.headers.map(h => '<th style="background:#1B4332;color:#fff;padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.03em">' + h + '</th>').join('') + '</tr>';
+    const dRows = sec.rows && sec.rows.length > 0
+      ? sec.rows.map((row,ri) => '<tr style="background:'+(ri%2===0?'#fff':'#F9FAFB')+'">' + row.map(cell => '<td style="padding:8px 12px;font-size:12px;color:#374151;border-bottom:1px solid #F3F4F6;vertical-align:top">'+(cell||'—')+'</td>').join('') + '</tr>').join('')
+      : '<tr><td colspan="'+sec.headers.length+'" style="padding:14px;text-align:center;color:#9CA3AF;font-size:12px">No records</td></tr>';
+    return '<div style="margin-bottom:28px">' +
+      '<h2 style="font-size:14px;font-weight:700;color:#1B4332;margin:0 0 10px;border-bottom:2px solid #D8F3DC;padding-bottom:6px">' + sec.icon + ' ' + sec.title + '</h2>' +
+      '<table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">' + hRow + dRows + '</table></div>';
+  }).join('');
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>' +
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#F9FAFB;color:#111}@media print{body{background:#fff}.np{display:none}@page{margin:1.5cm}}</style></head><body>' +
+    '<div class="np" style="background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0">' +
+      '<span style="color:#fff;font-size:13px;font-weight:600">' + title + '</span>' +
+      '<div><button onclick="window.print()" style="background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-right:6px">🖨 Print / Save PDF</button>' +
+      '<button onclick="window.close()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:13px;cursor:pointer">✕</button></div>' +
+    '</div>' +
+    '<div style="max-width:960px;margin:0 auto;padding:28px 24px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1B4332">' +
+      '<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#52B788;margin-bottom:4px">M&G Nursery · AgCommand CRM</div>' +
+      '<h1 style="font-size:22px;font-weight:800;color:#1B4332;margin-bottom:2px">' + title + '</h1>' +
+      '<div style="font-size:13px;color:#6B7280">' + period + '</div></div>' +
+      '<div style="text-align:right"><div style="font-size:10px;color:#9CA3AF">Generated</div>' +
+      '<div style="font-size:12px;font-weight:600;color:#374151">' + generated + '</div>' +
+      '<div style="font-size:10px;color:#9CA3AF;margin-top:2px">Martinez Accounting Inc.</div></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">' + statsHtml + '</div>' +
+    sHtml +
+    '<div style="border-top:1px solid #E5E7EB;padding-top:12px;margin-top:8px;display:flex;justify-content:space-between">' +
+      '<div style="font-size:10px;color:#9CA3AF">M&G Nursery · Martinez Accounting Inc. CFO Services</div>' +
+      '<div style="font-size:10px;color:#9CA3AF">Powered by AgCommand</div>' +
+    '</div></div></body></html>';
+}
+
+function generateCRMDailyReport() {
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+  const todayStr = today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  const overdue = contacts.filter(c => c.followup && c.followup < todayISO && c.status !== 'Ready' && c.status !== 'In production');
+  const dueToday = contacts.filter(c => c.followup === todayISO);
+  const urgent = [...new Map([...overdue,...dueToday].map(c=>[c.id,c])).values()];
+  const totalTrees = contacts.reduce((s,c)=>s+(c.trees||0),0);
+  const totalValue = contacts.reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const inProd = contacts.filter(c=>c.status==='In production');
+  const inProdValue = inProd.reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const spring = contacts.filter(c=>c.date&&c.date<='2026-06-30'&&c.status!=='Ready');
+
+  // Recent log activity last 24h
+  const since = new Date(Date.now()-24*60*60*1000).toISOString();
+  const recentLogs = [];
+  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e.ts>since)recentLogs.push({name:c.name,status:c.status,...e});});});
+
+  const html = buildCRMReportHTML(
+    'Daily Sales Report',
+    'M&G Nursery — ' + todayStr,
+    [
+      {label:'Total Contacts', value: contacts.length},
+      {label:'Total Trees', value: totalTrees.toLocaleString()},
+      {label:'Pipeline Value', value: '$'+Math.round(totalValue/1000)+'K'},
+      {label:'In Production', value: inProd.length},
+      {label:'Production Value', value: '$'+Math.round(inProdValue/1000)+'K'},
+      {label:'Follow-ups Due', value: urgent.length},
+    ],
+    [
+      urgent.length > 0 ? {
+        title:'Follow-ups Required', icon:'⚠️',
+        headers:['Client','Trees','Stage','Due','Contract #','Lot #'],
+        rows: urgent.sort((a,b)=>a.followup.localeCompare(b.followup)).map(c=>[
+          c.name, (c.trees||0).toLocaleString(), c.status, c.followup,
+          c.contract_num||'—', c.lot_num||'—'
+        ])
+      } : null,
+      {
+        title:'Pipeline by Stage', icon:'📊',
+        headers:['Stage','Clients','Trees','Value'],
+        rows:['Lead','Quoted','Deposit received','In production','Ready'].map(s=>{
+          const sc=contacts.filter(c=>c.status===s);
+          const t=sc.reduce((a,c)=>a+(c.trees||0),0);
+          const v=sc.reduce((a,c)=>a+((c.trees||0)*(c.price||0)),0);
+          return[s,sc.length,t.toLocaleString(),v>0?'$'+v.toLocaleString():'—'];
+        })
+      },
+      spring.length > 0 ? {
+        title:'Spring Shipment Schedule', icon:'🌱',
+        headers:['Client','Variety','Trees','Delivery','Contract #','Lot #','Stage'],
+        rows: spring.sort((a,b)=>a.date.localeCompare(b.date)).map(c=>[
+          c.name, c.variety||'', (c.trees||0).toLocaleString(),
+          c.date, c.contract_num||'—', c.lot_num||'—', c.status
+        ])
+      } : null,
+      recentLogs.length > 0 ? {
+        title:'Contact Activity (Last 24 Hours)', icon:'📋',
+        headers:['Client','Note','By','Time'],
+        rows: recentLogs.map(e=>[
+          e.name, (e.text||'').substring(0,80), e.by||'',
+          new Date(e.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+        ])
+      } : null,
+      {
+        title:'Full Client Register', icon:'📒',
+        headers:['Client','Variety','Trees','$/Tree','Stage','Contract #','Lot #','Delivery'],
+        rows: contacts.filter(c=>!c.name.includes('M&R')).sort((a,b)=>(b.trees||0)-(a.trees||0)).map(c=>[
+          c.name, c.variety||'', (c.trees||0).toLocaleString(),
+          c.price?'$'+c.price:'—', c.status,
+          c.contract_num||'—', c.lot_num||'—', c.date||'—'
+        ])
+      }
+    ].filter(Boolean)
+  );
+  openCRMReport(html, 'MG_Daily_' + todayISO + '.html');
+}
+
+function generateCRMWeeklyReport() {
+  const today = new Date();
+  const day = today.getDay();
+  const monday = new Date(today); monday.setDate(today.getDate()-(day===0?6:day-1)); monday.setHours(0,0,0,0);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6); sunday.setHours(23,59,59,999);
+  const mondayISO = monday.toISOString().split('T')[0];
+  const sundayISO = sunday.toISOString().split('T')[0];
+  const todayISO = today.toISOString().split('T')[0];
+  const period = monday.toLocaleDateString('en-US',{month:'long',day:'numeric'}) + ' – ' + sunday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  const overdue = contacts.filter(c=>c.followup&&c.followup<todayISO&&c.status!=='Ready'&&c.status!=='In production');
+  const weekFollowups = contacts.filter(c=>c.followup>=mondayISO&&c.followup<=sundayISO);
+  const next30 = new Date(today); next30.setDate(today.getDate()+30);
+  const upcoming = contacts.filter(c=>c.date&&c.date>=todayISO&&c.date<=next30.toISOString().split('T')[0]);
+  const totalValue = contacts.reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const committedVal = contacts.filter(c=>['Deposit received','In production','Ready'].includes(c.status)).reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
+  const springTrees = contacts.filter(c=>c.date&&c.date<='2026-06-30').reduce((s,c)=>s+(c.trees||0),0);
+
+  // This week log activity
+  const weekLogs = [];
+  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e.ts>=monday.toISOString())weekLogs.push({name:c.name,status:c.status,trees:c.trees,...e});});});
+
+  // Variety breakdown
+  const byVar={};
+  contacts.forEach(c=>{const v=c.variety||'Unknown';if(!byVar[v])byVar[v]={trees:0,clients:0,value:0};byVar[v].trees+=(c.trees||0);byVar[v].clients++;byVar[v].value+=(c.trees||0)*(c.price||0);});
+
+  const html = buildCRMReportHTML(
+    'Weekly Sales Report',
+    'M&G Nursery — Week of ' + period,
+    [
+      {label:'Total Contacts', value: contacts.length},
+      {label:'Total Pipeline', value: '$'+Math.round(totalValue/1000)+'K'},
+      {label:'Committed', value: '$'+Math.round(committedVal/1000)+'K'},
+      {label:'Spring Trees', value: springTrees.toLocaleString()},
+      {label:'Overdue Follow-ups', value: overdue.length},
+      {label:'Upcoming Deliveries', value: upcoming.length},
+    ],
+    [
+      overdue.length > 0 ? {
+        title:'Overdue Follow-ups — Action Required', icon:'🔴',
+        headers:['Client','Trees','Stage','Overdue Since','Contract #','Last Note'],
+        rows: overdue.sort((a,b)=>a.followup.localeCompare(b.followup)).map(c=>{
+          const last=(c.contact_log||[])[0];
+          return[c.name,(c.trees||0).toLocaleString(),c.status,c.followup,c.contract_num||'—',
+            last?last.text.substring(0,50)+'...':'No notes'];
+        })
+      } : null,
+      weekLogs.length > 0 ? {
+        title:'Contact Activity This Week', icon:'📋',
+        headers:['Date','Client','Stage','Trees','Note','By'],
+        rows: weekLogs.sort((a,b)=>b.ts.localeCompare(a.ts)).map(e=>[
+          new Date(e.ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),
+          e.name,e.status,(e.trees||0).toLocaleString(),(e.text||'').substring(0,60),e.by||''
+        ])
+      } : null,
+      {
+        title:'Pipeline Overview', icon:'📊',
+        headers:['Stage','Clients','Trees','Value','% of Total'],
+        rows:['Lead','Quoted','Deposit received','In production','Ready'].map(s=>{
+          const sc=contacts.filter(c=>c.status===s);
+          const t=sc.reduce((a,c)=>a+(c.trees||0),0);
+          const v=sc.reduce((a,c)=>a+((c.trees||0)*(c.price||0)),0);
+          const pct=totalValue>0?Math.round(v/totalValue*100):0;
+          return[s,sc.length,t.toLocaleString(),v>0?'$'+v.toLocaleString():'—',pct+'%'];
+        })
+      },
+      {
+        title:'Variety Breakdown', icon:'🍊',
+        headers:['Variety','Clients','Total Trees','Pipeline Value'],
+        rows:Object.entries(byVar).sort((a,b)=>b[1].trees-a[1].trees).map(([v,d])=>[
+          v,d.clients,d.trees.toLocaleString(),d.value>0?'$'+d.value.toLocaleString():'—'
+        ])
+      },
+      upcoming.length > 0 ? {
+        title:'Upcoming Deliveries (Next 30 Days)', icon:'🚛',
+        headers:['Client','Variety','Trees','Delivery','Contract #','Lot #','Stage'],
+        rows: upcoming.sort((a,b)=>a.date.localeCompare(b.date)).map(c=>[
+          c.name,c.variety||'',(c.trees||0).toLocaleString(),
+          c.date,c.contract_num||'—',c.lot_num||'—',c.status
+        ])
+      } : null,
+      {
+        title:'Full Client Register', icon:'📒',
+        headers:['Client','Variety','Trees','$/Tree','Stage','Contract #','Lot #','Delivery','Follow-up'],
+        rows:contacts.filter(c=>!c.name.includes('M&R')).sort((a,b)=>(b.trees||0)-(a.trees||0)).map(c=>[
+          c.name,c.variety||'',(c.trees||0).toLocaleString(),
+          c.price?'$'+c.price:'—',c.status,
+          c.contract_num||'—',c.lot_num||'—',c.date||'—',c.followup||'—'
+        ])
+      }
+    ].filter(Boolean)
+  );
+  openCRMReport(html, 'MG_Weekly_' + mondayISO + '.html');
 }
 
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
@@ -1508,7 +1942,7 @@ function detTab(tab){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
   if(tab==='info')renderDetInfo(c);
   if(tab==='activity')renderDetActivity(c);
-  if(tab==='order')renderDetOrder(c);
+  if(tab==='order'){renderDetOrder(c);}
   if(tab==='message')renderDetMessage(c);
 }
 
@@ -1526,6 +1960,8 @@ function renderDetInfo(c){
     '<div class="ditem"><label>Pickup / delivery</label><p>'+fmtDate(c.date)+'</p></div>'+
     '<div class="ditem"><label>Follow-up</label><p>'+fmtDate(c.followup)+'</p></div>'+
     '<div class="ditem"><label>Lead source</label><p>'+(c.source||'—')+'</p></div>'+
+    '<div class="ditem"><label>Contract #</label><p>'+(c.contract_num?'<strong style="color:#1B4332">'+esc(c.contract_num)+'</strong>':'—')+'</p></div>'+
+    '<div class="ditem"><label>AgCommand Lot #</label><p>'+(c.lot_num?'<strong style="color:#1B4332">'+esc(c.lot_num)+'</strong>':'—')+'</p></div>'+
     '</div>'+(c.notes?'<div class="nbox">'+esc(c.notes)+'</div>':'');
 }
 
@@ -1536,48 +1972,82 @@ function renderDetActivity(c){
 }
 
 function renderDetOrder(c){
-  const ord=orders.find(o=>o.contact_id===c.id);
-  const checks=[
-    {label:'Order confirmation created',done:!!ord},
-    {label:'Lot number assigned',done:!!(ord&&ord.lot_number)},
-    {label:'Pickup date & time confirmed',done:!!(ord&&ord.pickup_date&&ord.pickup_time)},
-    {label:'Tree variety & quantity confirmed',done:!!(ord&&ord.trees_confirmed&&ord.variety_confirmed)},
-    {label:'Planting guide shared with client',done:!!(ord&&ord.guide_url)},
-  ];
-  const chkHtml=checks.map(ch=>'<div class="chk-row"><div class="chk-dot '+(ch.done?'done':'pend')+'">'+(ch.done?'✓':'·')+'</div><div class="chk-label '+(ch.done?'done':'pend')+'">'+ch.label+'</div></div>').join('');
-  const detHtml=ord?'<div class="ord-section"><h3>Order details</h3>'+
-    '<div class="ord-row"><span class="ord-label">Lot number</span><span class="ord-val">'+esc(ord.lot_number||'—')+'</span></div>'+
-    '<div class="ord-row"><span class="ord-label">Pickup date</span><span class="ord-val">'+fmtDate(ord.pickup_date)+'</span></div>'+
-    '<div class="ord-row"><span class="ord-label">Pickup time</span><span class="ord-val">'+(ord.pickup_time||'—')+'</span></div>'+
-    '<div class="ord-row"><span class="ord-label">Trees confirmed</span><span class="ord-val">'+(ord.trees_confirmed?Number(ord.trees_confirmed).toLocaleString():'—')+'</span></div>'+
-    '<div class="ord-row"><span class="ord-label">Variety confirmed</span><span class="ord-val">'+esc(ord.variety_confirmed||'—')+'</span></div>'+
-    (ord.guide_url?'<div class="ord-row"><span class="ord-label">Planting guide</span><span class="ord-val"><a href="'+esc(ord.guide_url)+'" target="_blank">View guide →</a></span></div>':'')+
-    (ord.special_notes?'<div class="ord-row" style="flex-direction:column;gap:4px"><span class="ord-label">Special instructions</span><p style="font-size:13px;color:var(--tx2);margin-top:4px;line-height:1.5">'+esc(ord.special_notes)+'</p></div>':'')+'</div>':
-    '<div class="empty" style="padding:1.5rem"><div class="empty-icon">📦</div><p>No order docs yet.<br>Create when sale is confirmed.</p></div>';
-  document.getElementById('det-order-pane').innerHTML=
-    '<div class="ord-section"><h3>Completion checklist</h3>'+chkHtml+'</div>'+detHtml+
-    '<div style="margin-top:12px"><button class="btn-ord" onclick="openOrderModal()">'+(ord?'Update order docs':'Create order docs')+'</button>'+
-    (ord?'<button class="btn-ord out" onclick="printOrder()">Print / share</button>':'')+'</div>';
-}
+  const docs = c.docs || [];
+  const quoteDoc = docs.filter(d=>d.type==='quote');
+  const contractDoc = docs.filter(d=>d.type==='contract');
+  const trees = c.trees||0;
+  const price = c.price||12.5;
+  const total = trees*price;
+  const deposit = Math.round(total*0.40*100)/100;
+  const balance = total-deposit;
 
-const MSG_TEMPLATES={
-  "Quote follow-up":{
-    sms:"Hi {name}, this is {firm} following up on the quote we sent for {trees} {variety} trees. Any questions? We would love to get your order confirmed.",
-    email:{subject:"Following up on your tree quote - {firm}",body:"Hi {name},\n\nI wanted to follow up on the quote we sent for {trees} {variety} trees. Please let me know if you have any questions or if you would like to move forward. We can confirm your order and get production scheduled.\n\nBest,\nM&G Nursery"}
-  },
-  "Order confirmation":{
-    sms:"Hi {name}, your order of {trees} {variety} trees is confirmed with M&G Nursery. Lot assigned. We will be in touch with your pickup date soon.",
-    email:{subject:"Order confirmed - {trees} {variety} trees",body:"Hi {name},\n\nGreat news - your order of {trees} {variety} trees has been confirmed. Your lot has been assigned and your trees are in production. We will reach out as your pickup date approaches.\n\nThank you for your business.\n\nM&G Nursery"}
-  },
-  "Pickup reminder":{
-    sms:"Hi {name}, your {trees} {variety} trees are ready for pickup at M&G Nursery. Please call us to confirm your pickup time. Thank you!",
-    email:{subject:"Your trees are ready for pickup - M&G Nursery",body:"Hi {name},\n\nGreat news - your {trees} {variety} trees are ready for pickup. Please give us a call or reply to this email to confirm your pickup date and time.\n\nWe look forward to seeing you soon.\n\nM&G Nursery"}
-  },
-  "General outreach":{
-    sms:"Hi {name}, this is M&G Nursery reaching out. We grow premium citrus trees and would love to discuss your upcoming planting needs. Give us a call anytime.",
-    email:{subject:"Premium citrus trees - M&G Nursery",body:"Hi {name},\n\nMy name is Isidro with M&G Nursery. We specialize in premium citrus trees and work closely with growers throughout the region. I would love to learn more about your operation and see if we can be a resource for your upcoming planting needs.\n\nFeel free to call or reply anytime.\n\nIsidro\nM&G Nursery"}
+  let html = '<div style="padding:4px 0">';
+
+  // Quote status
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+  html += '<span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Quote</span>';
+  if(quoteDoc.length>0){
+    const q=quoteDoc[quoteDoc.length-1];
+    html += '<span style="font-size:11px;background:#DBEAFE;color:#1D4ED8;border-radius:10px;padding:2px 8px;font-weight:600">Sent '+new Date(q.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</span>';
   }
-};
+  html += '</div>';
+  html += '<div style="background:var(--g50);border:1px solid var(--bd);border-radius:8px;padding:12px">';
+  html += '<div style="font-size:13px;color:var(--tx);margin-bottom:8px">'+
+    '<strong>'+(trees?trees.toLocaleString():'—')+' trees</strong>'+(c.variety?' of '+esc(c.variety):'')+'<br>'+
+    (price?'$'+price.toFixed(2)+'/tree':'Price TBD')+' · Total: '+(total?'$'+total.toLocaleString():'TBD')+
+  '</div>';
+  html += '<div style="display:flex;gap:6px">';
+  html += '<button onclick="generateQuote(currentId)" style="flex:1;background:#0369A1;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">'+
+    (quoteDoc.length>0?'&#128196; Re-generate Quote':'&#128196; Generate Quote')+'</button>';
+  if(quoteDoc.length>0 && c.status==='Quoted'){
+    html += '<button onclick="approveQuote(currentId)" style="flex:1;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; Approve → Contract</button>';
+  }
+  html += '</div>';
+  html += '</div></div>';
+
+  // Contract status
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+  html += '<span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Contract</span>';
+  if(contractDoc.length>0){
+    const ct=contractDoc[contractDoc.length-1];
+    html += '<span style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:10px;padding:2px 8px;font-weight:600">Generated '+new Date(ct.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</span>';
+  }
+  html += '</div>';
+  html += '<div style="background:var(--g50);border:1px solid var(--bd);border-radius:8px;padding:12px">';
+  if(contractDoc.length===0){
+    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:8px">No contract generated yet. Approve quote first, or generate directly.</div>';
+  } else {
+    html += '<div style="font-size:13px;color:var(--tx);margin-bottom:8px">'+
+      'Contract #'+(c.contract_num||'—')+' · Deposit: $'+deposit.toLocaleString()+' · Balance: $'+balance.toLocaleString()+
+    '</div>';
+  }
+  html += '<div style="display:flex;gap:6px">';
+  html += '<button onclick="generateContract(currentId)" style="flex:1;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#9997; '+(contractDoc.length>0?'Re-generate Contract':'Generate Contract')+'</button>';
+  html += '<button onclick="emailContract(currentId)" style="flex:1;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#9993; Email to Client</button>';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Doc history
+  if(docs.length>0){
+    html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Document History</div>';
+    html += docs.slice().reverse().map(d=>{
+      const icon = d.type==='quote'?'&#128196;':'&#9997;';
+      const label = d.type==='quote'?'Quote':'Contract';
+      const dateStr = new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)">'+
+        '<span style="font-size:16px">'+icon+'</span>'+
+        '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+label+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+dateStr+'</div></div>'+
+        '<button data-docidx="'+docs.indexOf(d)+'" onclick="reOpenDoc(this.dataset.docidx)" style="background:none;border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--tx3)">View</button>'+
+      '</div>';
+    }).join('');
+  }
+
+  html += '</div>';
+  document.getElementById('det-order-pane').innerHTML = html;
+}
 
 function fillTemplate(tmpl, c){
   return tmpl
@@ -1736,7 +2206,7 @@ function printOrder(){
 }
 
 function clearForm(){
-  ['name','company','phone','email','notes'].forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value='';});
+  ['name','company','phone','email','notes'].forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value='';}); const cE=document.getElementById('f-contract');if(cE)cE.value=''; const lE=document.getElementById('f-lot');if(lE)lE.value='';
   document.getElementById('f-source').value='';
   ['trees','price'].forEach(f=>document.getElementById('f-'+f).value='');
   document.getElementById('f-status').value='Lead';
@@ -1795,7 +2265,9 @@ function addLogEntry(){
 function openEdit(id){
   const c=contacts.find(x=>x.id===id);if(!c)return;editingId=id;
   document.getElementById('form-title').textContent='Edit customer';
-  ['name','company','phone','email','notes'].forEach(f=>{const el=document.getElementById('f-'+f);if(el)el.value=c[f]||'';});
+  ['name','company','phone','email','notes','contract_num','lot_num'].forEach(f=>{const el=document.getElementById('f-'+f.replace('_num','').replace('contract','contract').replace('lot','lot'));if(el)el.value=c[f]||'';});
+  const cEl=document.getElementById('f-contract');if(cEl)cEl.value=c.contract_num||'';
+  const lEl=document.getElementById('f-lot');if(lEl)lEl.value=c.lot_num||'';
   document.getElementById('f-status').value=c.status||'Lead';
   document.getElementById('f-trees').value=c.trees||'';
   document.getElementById('f-price').value=c.price||'';
@@ -1849,6 +2321,8 @@ async function saveContact(){
     date:document.getElementById('f-date').value||null,
     followup:document.getElementById('f-followup').value||null,
     notes:document.getElementById('f-notes').value.trim()||null,
+    contract_num:(document.getElementById('f-contract')||{}).value||null,
+    lot_num:(document.getElementById('f-lot')||{}).value||null,
     source:document.getElementById('f-source').value||null,
     contact_log:contactLog
   };
