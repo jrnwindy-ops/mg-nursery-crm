@@ -1523,8 +1523,15 @@ function renderAdmin(){
   const dv = document.getElementById('dv-admin');
   const mv = document.getElementById('mv-admin');
   const html = buildAdminHTML();
-  if(dv){ dv.innerHTML = html; dv.style.display = currentTab==='admin'?'flex':'none'; }
-  if(mv){ mv.innerHTML = html; mv.style.display = currentTab==='admin'?'block':'none'; }
+  // Only populate the visible container to avoid duplicate IDs
+  const isDesktop = window.innerWidth >= 768;
+  if(isDesktop){
+    if(dv){ dv.innerHTML = html; dv.style.display = currentTab==='admin'?'flex':'none'; }
+    if(mv){ mv.innerHTML = ''; mv.style.display = 'none'; }
+  } else {
+    if(mv){ mv.innerHTML = html; mv.style.display = currentTab==='admin'?'block':'none'; }
+    if(dv){ dv.innerHTML = ''; dv.style.display = 'none'; }
+  }
 }
 
 function buildAdminHTML(){
@@ -1618,7 +1625,9 @@ function buildAdminHTML(){
 }
 
 function addStaffMember(){
-  const inp = document.getElementById('new-staff-name');
+  // Search both containers since ID may appear in either
+  const inputs = document.querySelectorAll('#new-staff-name');
+  const inp = Array.from(inputs).find(el => el.value.trim()) || inputs[0];
   if (!inp || !inp.value.trim()) return;
   const name = inp.value.trim();
   if (adminStaff.includes(name)) { inp.value=''; return; }
@@ -1626,6 +1635,7 @@ function addStaffMember(){
   saveAdminStaff();
   inp.value = '';
   renderAdmin();
+  toast(name + ' added to team ✓');
 }
 
 function removeStaffMember(si){
@@ -1638,13 +1648,17 @@ function removeStaffMember(si){
 
 function addAdminTask(assignee, si){
   const key = si;
-  const inp = document.getElementById('new-admin-task-' + key);
-  const due = document.getElementById('due-admin-task-' + key);
+  // Query all matching inputs (may be in dv or mv)
+  const inpAll = document.querySelectorAll('#new-admin-task-' + key);
+  const inp = Array.from(inpAll).find(el => el.value.trim()) || inpAll[0];
+  const dueAll = document.querySelectorAll('#due-admin-task-' + key);
+  const due = dueAll[0];
   if (!inp || !inp.value.trim()) return;
   adminTasks.unshift({id:uid(), task:inp.value.trim(), assignee, due:due?due.value:'', done:false, created_at:now()});
   inp.value = ''; if(due) due.value = '';
   saveAdminTasks();
   renderAdmin();
+  toast('Task added for ' + assignee + ' ✓');
 }
 
 function completeAdminTask(idx){
@@ -2213,8 +2227,9 @@ function renderTimeline(){
   const dv = document.getElementById('dv-timeline');
   const mv = document.getElementById('mv-timeline');
   const html = buildTimelineHTML();
-  if(dv){ dv.innerHTML = html; }
-  if(mv){ mv.innerHTML = html; }
+  const isDesktop = window.innerWidth >= 768;
+  if(isDesktop){ if(dv) dv.innerHTML=html; if(mv) mv.innerHTML=''; }
+  else { if(mv) mv.innerHTML=html; if(dv) dv.innerHTML=''; }
 }
 
 function buildTimelineHTML(){
@@ -2870,8 +2885,9 @@ function renderJournal(){
   const dv = document.getElementById('dv-journal');
   const mv = document.getElementById('mv-journal');
   const html = buildJournalHTML();
-  if(dv) dv.innerHTML = html;
-  if(mv) mv.innerHTML = html;
+  const isDesktop = window.innerWidth >= 768;
+  if(isDesktop){ if(dv) dv.innerHTML=html; if(mv) mv.innerHTML=''; }
+  else { if(mv) mv.innerHTML=html; if(dv) dv.innerHTML=''; }
 }
 
 function buildJournalHTML(){
@@ -3589,8 +3605,9 @@ function renderReminders(){
 
   const html = addBtn + overdueBanner + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
   const dr=document.getElementById('dv-reminders'), mr=document.getElementById('mv-reminders');
-  if(dr)dr.innerHTML=html;
-  if(mr)mr.innerHTML=html;
+  const isD=window.innerWidth>=768;
+  if(isD){ if(dr)dr.innerHTML=html; if(mr)mr.innerHTML=''; }
+  else { if(mr)mr.innerHTML=html; if(dr)dr.innerHTML=''; }
 }
 
 
