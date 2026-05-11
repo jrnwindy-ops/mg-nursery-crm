@@ -331,6 +331,7 @@ textarea.finput{height:70px;resize:none}
       <button class="sn-btn" id="snav-pipeline" onclick="switchTab('pipeline')"><span class="sn-icon">&#128202;</span> Pipeline</button>
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
+      <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
       <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
@@ -359,6 +360,7 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab" id="dtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
+      <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
       <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
@@ -380,6 +382,7 @@ textarea.finput{height:70px;resize:none}
     <div id="dv-tasks" class="d-rem" style="display:none"></div>
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
+  <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   </div>
 
   <!-- MOBILE HEADER -->
@@ -403,6 +406,7 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab" id="mtab-pipeline" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
+    <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
     <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
@@ -418,12 +422,14 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
+  <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
     <button class="bnav-btn" id="mnav-pipeline" onclick="switchTab('pipeline')"><span class="bnav-icon">&#128202;</span><span class="bnav-label">Pipeline</span></button>
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
+    <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
     <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
@@ -2088,6 +2094,422 @@ function buildTimelineHTML(){
   '</div>';
 }
 
+
+// ── INVENTORY MODULE ─────────────────────────────────────────────────────────
+// Storage: inventory rows saved to localStorage as mg_inventory
+let inventoryRows = JSON.parse(localStorage.getItem('mg_inventory') || '[]');
+let inventoryLots = JSON.parse(localStorage.getItem('mg_inv_lots') || '[]');
+let invView = 'summary'; // 'summary' | 'lots' | 'add_lot' | 'add_row'
+let editingInvId = null;
+
+function saveInventory(){
+  localStorage.setItem('mg_inventory', JSON.stringify(inventoryRows));
+  localStorage.setItem('mg_inv_lots', JSON.stringify(inventoryLots));
+}
+
+// ── Calculate promised trees from CRM contacts ────────────────────────────────
+function getPromised(){
+  const promised = {};
+  contacts.forEach(c => {
+    if((c.notes||'').includes('INTERNAL')) return;
+    const varieties = c.varieties || [];
+    const totalTrees = parseInt(c.trees) || 0;
+    if(varieties.length){
+      const hasQty = varieties.some(v => parseInt(v.qty||0) > 0);
+      varieties.forEach(v => {
+        const var_ = (v.variety||'').trim();
+        const rs = (v.rootstock||'').trim() || '—';
+        let qty = parseInt(v.qty||0);
+        if(!hasQty) qty = Math.floor(totalTrees / varieties.length);
+        if(var_ && qty){
+          const key = var_ + '||' + rs;
+          promised[key] = (promised[key]||0) + qty;
+        }
+      });
+    } else {
+      const var_ = (c.variety||'Unknown').trim();
+      if(var_ && totalTrees){
+        const key = var_ + '||—';
+        promised[key] = (promised[key]||0) + totalTrees;
+      }
+    }
+  });
+  return promised;
+}
+
+function renderInventory(){
+  const dv = document.getElementById('dv-inventory');
+  const mv = document.getElementById('mv-inventory');
+  const html = buildInventoryHTML();
+  if(dv) dv.innerHTML = html;
+  if(mv) mv.innerHTML = html;
+}
+
+function buildInventoryHTML(){
+  const promised = getPromised();
+
+  // Build combined variety list: from inventory rows + from promised (CRM)
+  const allKeys = new Set();
+  inventoryRows.forEach(r => allKeys.add(r.variety + '||' + (r.rootstock||'—')));
+  Object.keys(promised).forEach(k => allKeys.add(k));
+
+  // Summary table
+  let totalGrowing = 0, totalPromised = 0, totalAvail = 0;
+  const rows = Array.from(allKeys).map(key => {
+    const [var_, rs] = key.split('||');
+    const invRow = inventoryRows.find(r => r.variety === var_ && (r.rootstock||'—') === rs);
+    const growing = invRow ? (parseInt(invRow.total)||0) : 0;
+    const prom = promised[key] || 0;
+    const avail = growing - prom;
+    totalGrowing += growing; totalPromised += prom; totalAvail += avail;
+    return { var_, rs, growing, prom, avail, invRow };
+  }).sort((a,b) => b.growing - a.growing || b.prom - a.prom);
+
+  // Metric cards
+  const metrics =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">' +
+      mkCard('Growing', totalGrowing.toLocaleString(), '#1B4332') +
+      mkCard('Promised', totalPromised.toLocaleString(), '#0369A1') +
+      mkCard('Available', totalAvail >= 0 ? totalAvail.toLocaleString() : '⚠ '+Math.abs(totalAvail).toLocaleString()+' over', totalAvail < 0 ? '#991B1B' : '#7C3AED') +
+    '</div>';
+
+  function mkCard(label, val, col){
+    return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center">' +
+      '<div style="font-size:22px;font-weight:800;color:'+col+'">'+val+'</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">'+label+'</div>' +
+    '</div>';
+  }
+
+  // Variety rows table
+  const tableRows = rows.map(r => {
+    const availColor = r.avail < 0 ? '#991B1B' : r.avail === 0 ? '#6B7280' : '#1B4332';
+    const availBg = r.avail < 0 ? '#FEF2F2' : r.avail === 0 ? '#F9FAFB' : '#F0FDF4';
+    const budDate = r.invRow && r.invRow.bud_date ? r.invRow.bud_date : null;
+    const readyDate = budDate ? calcReadyDate(budDate, r.invRow.months||9) : null;
+    const readyStr = readyDate ? new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
+    const isReady = readyDate && readyDate <= new Date().toISOString().split('T')[0];
+
+    return '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" data-ikey="'+r.var_+'||'+r.rs+'" onclick="openInvDetail(this.dataset.ikey)">' +
+      '<td style="padding:10px 12px">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.var_)+'</div>' +
+        '<div style="font-size:11px;color:var(--muted)">'+esc(r.rs)+'</div>' +
+      '</td>' +
+      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)">'+(r.growing?r.growing.toLocaleString():'<span style="color:var(--muted)">—</span>')+'</td>' +
+      '<td style="padding:10px 12px;text-align:right;font-size:13px;color:#0369A1;font-weight:600">'+r.prom.toLocaleString()+'</td>' +
+      '<td style="padding:10px 12px;text-align:right">' +
+        '<span style="font-size:13px;font-weight:700;color:'+availColor+';background:'+availBg+';border-radius:6px;padding:3px 8px">'+(r.avail>=0?r.avail.toLocaleString():'▲'+Math.abs(r.avail).toLocaleString())+'</span>' +
+      '</td>' +
+      '<td style="padding:10px 12px;text-align:center">' +
+        (readyStr !== '—' ? '<span style="font-size:11px;background:'+(isReady?'#D1FAE5':'#EFF6FF')+';color:'+(isReady?'#065F46':'#1E40AF')+';border-radius:6px;padding:2px 8px;font-weight:600">'+(isReady?'✓ Ready':readyStr)+'</span>' : '<span style="font-size:11px;color:var(--muted)">—</span>') +
+      '</td>' +
+      '<td style="padding:10px 12px;text-align:center">' +
+        '<button data-key="'+esc(r.var_)+'||'+esc(r.rs)+'" onclick="event.stopPropagation();openEditInvRow(this.dataset.key)" style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  const table =
+    '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:20px">' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="background:#F0FDF4">' +
+          '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Variety / Rootstock</th>' +
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Growing</th>' +
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0369A1">Promised</th>' +
+          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7C3AED">Available</th>' +
+          '<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#1B4332">Ready</th>' +
+          '<th style="padding:10px 12px;text-align:center;font-size:11px;color:var(--muted)"></th>' +
+        '</tr></thead>' +
+        '<tbody>' + (tableRows || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);font-size:13px">No inventory entered yet. Add a row to start tracking.</td></tr>') + '</tbody>' +
+      '</table>' +
+    '</div>';
+
+  // Lots section
+  const lotsHtml = buildLotsHTML();
+
+  // Add row form
+  const addForm = buildInvAddForm();
+
+  return (
+    '<div style="width:100%;overflow-y:auto">' +
+      '<div style="padding:16px 20px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+        '<h2 style="font-size:18px;font-weight:700;color:var(--g900)">&#127807; Nursery Inventory</h2>' +
+        '<div style="display:flex;gap:6px">' +
+          '<button onclick="openAddInvRow()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">+ Update Inventory</button>' +
+          '<button onclick="openAddLot()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">+ New Lot</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="inv-add-form" style="display:none;padding:0 20px;margin-bottom:16px">' + addForm + '</div>' +
+      '<div style="padding:0 20px 24px">' +
+        metrics + table + lotsHtml +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function calcReadyDate(budDate, months){
+  const d = new Date(budDate + 'T12:00:00');
+  d.setMonth(d.getMonth() + parseInt(months||9));
+  return d.toISOString().split('T')[0];
+}
+
+function buildLotsHTML(){
+  if(!inventoryLots.length) return (
+    '<div style="border:1px dashed var(--bd);border-radius:10px;padding:24px;text-align:center;color:var(--muted)">' +
+      '<div style="font-size:20px;margin-bottom:8px">&#128218;</div>' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">No lots yet</div>' +
+      '<div style="font-size:12px">Lots are created at transplant. Tap + New Lot when trees move from seedling to grow-out.</div>' +
+    '</div>'
+  );
+
+  const lotCards = inventoryLots.map(lot => {
+    const totalOut = (lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+(m.qty||0),0);
+    const remaining = (lot.qty||0) - totalOut;
+    const buyerName = lot.contact_id ? (contacts.find(c=>c.id===lot.contact_id)||{}).name||'Unassigned' : 'Unassigned';
+    const isUnassigned = !lot.contact_id;
+    const readyDate = lot.bud_date ? calcReadyDate(lot.bud_date, lot.months||9) : null;
+    const readyStr = readyDate ? new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
+    const isReady = readyDate && readyDate <= new Date().toISOString().split('T')[0];
+
+    return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:8px">' +
+      '<div style="display:flex;align-items:flex-start;gap:10px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">' +
+            '<span style="font-size:14px;font-weight:700;color:var(--g900)">'+esc(lot.lot_num)+'</span>' +
+            '<span style="font-size:11px;background:'+(isUnassigned?'#F3F4F6':'#EFF6FF')+';color:'+(isUnassigned?'#6B7280':'#1D4ED8')+';border-radius:8px;padding:1px 8px;font-weight:600">'+(isUnassigned?'Unassigned':buyerName)+'</span>' +
+            (isReady?'<span style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:1px 8px;font-weight:600">✓ Ready</span>':'') +
+          '</div>' +
+          '<div style="display:flex;gap:16px;font-size:12px;color:var(--muted);flex-wrap:wrap">' +
+            '<span>&#127807; '+esc(lot.variety)+(lot.rootstock?' · '+esc(lot.rootstock):'')+'</span>' +
+            '<span>&#127968; '+esc(lot.location)+'</span>' +
+            '<span style="font-weight:600;color:var(--tx)">'+remaining.toLocaleString()+' / '+(lot.qty||0).toLocaleString()+' trees remaining</span>' +
+            (readyStr!=='—'?'<span>Ready: '+readyStr+'</span>':'') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:5px;flex-shrink:0">' +
+          '<button data-lid="'+lot.id+'" onclick="logLotMovement(this.dataset.lid)" style="font-size:11px;background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;font-family:inherit">+ Log</button>' +
+          '<button data-lid="'+lot.id+'" onclick="assignLotToBuyer(this.dataset.lid)" style="font-size:11px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;font-family:inherit">Assign</button>' +
+        '</div>' +
+      '</div>' +
+      (lot.movements && lot.movements.length ?
+        '<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px">' +
+          lot.movements.slice().reverse().slice(0,3).map(m =>
+            '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0">' +
+              '<span>'+(m.type==='out'?'&#8595;':'&#8593;')+' '+m.qty.toLocaleString()+' trees — '+esc(m.note||m.type)+'</span>' +
+              '<span>'+new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</span>' +
+            '</div>'
+          ).join('') +
+        '</div>'
+      : '') +
+    '</div>';
+  }).join('');
+
+  return (
+    '<div style="margin-top:8px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:10px">&#128218; Active Lots ('+inventoryLots.length+')</div>' +
+      '<div id="inv-add-lot-form" style="display:none;margin-bottom:12px"></div>' +
+      lotCards +
+    '</div>'
+  );
+}
+
+function buildInvAddForm(){
+  const varieties = ['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
+  const rootstocks = ['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
+  return (
+    '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:16px">' +
+      '<div style="font-size:14px;font-weight:700;color:#1B4332;margin-bottom:12px">Update Inventory Count</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
+        '<div><label class="flabel">Variety *</label>' +
+          '<select class="finput" id="inv-variety" style="margin:0">' +
+            varieties.map(v=>'<option>'+v+'</option>').join('') +
+            '<option value="other">Other...</option>' +
+          '</select></div>' +
+        '<div><label class="flabel">Rootstock *</label>' +
+          '<select class="finput" id="inv-rootstock" style="margin:0">' +
+            rootstocks.map(r=>'<option>'+r+'</option>').join('') +
+          '</select></div>' +
+        '<div><label class="flabel">Total Trees Growing *</label><input class="finput" id="inv-total" type="number" min="0" placeholder="e.g. 25000" style="margin:0"></div>' +
+        '<div><label class="flabel">Bud / Graft Date</label><input class="finput" id="inv-bud-date" type="date" style="margin:0"></div>' +
+        '<div><label class="flabel">Months to Ready</label>' +
+          '<select class="finput" id="inv-months" style="margin:0">' +
+            [6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('') +
+          '</select></div>' +
+        '<div><label class="flabel">Notes</label><input class="finput" id="inv-notes" placeholder="e.g. House 2 South section" style="margin:0"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button onclick="saveInvRow()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Save</button>' +
+        '<button onclick="closeInvForm()" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Cancel</button>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function openAddInvRow(){
+  const f = document.getElementById('inv-add-form');
+  if(f){ f.style.display = f.style.display==='none'?'block':'none'; }
+  editingInvId = null;
+}
+
+function closeInvForm(){
+  const f = document.getElementById('inv-add-form');
+  if(f) f.style.display='none';
+  editingInvId = null;
+}
+
+function openEditInvRow(key){
+  const [var_, rs] = key.split('||');
+  const row = inventoryRows.find(r=>r.variety===var_ && (r.rootstock||'—')===rs);
+  if(!row) return;
+  editingInvId = row.id;
+  const f = document.getElementById('inv-add-form');
+  if(f) f.style.display='block';
+  setTimeout(()=>{
+    const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value=row.variety||'';
+    const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value=row.rootstock||'';
+    const tEl=document.getElementById('inv-total'); if(tEl) tEl.value=row.total||'';
+    const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value=row.bud_date||'';
+    const mEl=document.getElementById('inv-months'); if(mEl) mEl.value=row.months||9;
+    const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value=row.notes||'';
+  }, 50);
+}
+
+function saveInvRow(){
+  const variety = (document.getElementById('inv-variety')||{}).value||'';
+  const rootstock = (document.getElementById('inv-rootstock')||{}).value||'';
+  const total = parseInt((document.getElementById('inv-total')||{}).value||0);
+  const bud_date = (document.getElementById('inv-bud-date')||{}).value||'';
+  const months = parseInt((document.getElementById('inv-months')||{}).value||9);
+  const notes = (document.getElementById('inv-notes')||{}).value||'';
+  if(!variety || !total){ alert('Variety and tree count are required.'); return; }
+
+  if(editingInvId){
+    const i = inventoryRows.findIndex(r=>r.id===editingInvId);
+    if(i>-1) inventoryRows[i] = {...inventoryRows[i], variety, rootstock, total, bud_date, months, notes, updated_at:now()};
+  } else {
+    // Check if entry already exists for this variety+rootstock
+    const existing = inventoryRows.findIndex(r=>r.variety===variety && (r.rootstock||'')===rootstock);
+    if(existing > -1){
+      inventoryRows[existing] = {...inventoryRows[existing], total, bud_date, months, notes, updated_at:now()};
+    } else {
+      inventoryRows.unshift({id:uid(), variety, rootstock, total, bud_date, months, notes, created_at:now()});
+    }
+  }
+  saveInventory();
+  closeInvForm();
+  renderInventory();
+  toast('Inventory updated ✓');
+}
+
+function openAddLot(){
+  const varieties = ['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
+  const rootstocks = ['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
+  const contactOpts = contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  const lotNum = 'MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
+
+  const html =
+    '<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:16px">' +
+      '<div style="font-size:14px;font-weight:700;color:#5B21B6;margin-bottom:12px">&#128218; Create New Lot</div>' +
+      '<div style="background:#EDE9FE;border-radius:6px;padding:8px 12px;font-size:12px;color:#5B21B6;margin-bottom:10px">&#128161; Lots are created at transplant — when seedlings move to grow-out rows. Not before.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
+        '<div><label class="flabel">Lot Number</label><input class="finput" id="lot-num" value="'+lotNum+'" style="margin:0"></div>' +
+        '<div><label class="flabel">Location (House / Row)</label><input class="finput" id="lot-location" placeholder="e.g. N3 Row 2, House 2 S4" style="margin:0"></div>' +
+        '<div><label class="flabel">Variety *</label>' +
+          '<select class="finput" id="lot-variety" style="margin:0">'+varieties.map(v=>'<option>'+v+'</option>').join('')+'</select></div>' +
+        '<div><label class="flabel">Rootstock *</label>' +
+          '<select class="finput" id="lot-rootstock" style="margin:0">'+rootstocks.map(r=>'<option>'+r+'</option>').join('')+'</select></div>' +
+        '<div><label class="flabel">Qty at Transplant *</label><input class="finput" id="lot-qty" type="number" min="1" placeholder="e.g. 2500" style="margin:0"></div>' +
+        '<div><label class="flabel">Bud Date</label><input class="finput" id="lot-bud-date" type="date" style="margin:0"></div>' +
+        '<div><label class="flabel">Months to Ready</label>' +
+          '<select class="finput" id="lot-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>' +
+        '<div><label class="flabel">Assign to Buyer (optional)</label>' +
+          '<select class="finput" id="lot-contact" style="margin:0"><option value="">Unassigned</option>'+contactOpts+'</select></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button onclick="saveLot()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Create Lot</button>' +
+        '<button onclick="closeAddLot()" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Cancel</button>' +
+      '</div>' +
+    '</div>';
+
+  const lotFormEl = document.getElementById('inv-add-lot-form');
+  if(lotFormEl){ lotFormEl.innerHTML=html; lotFormEl.style.display='block'; }
+  else {
+    // Fallback: re-render with form visible
+    window._showLotForm = true;
+    renderInventory();
+    window._showLotForm = false;
+  }
+}
+
+function closeAddLot(){
+  const el = document.getElementById('inv-add-lot-form');
+  if(el){ el.style.display='none'; el.innerHTML=''; }
+}
+
+function saveLot(){
+  const lot_num = (document.getElementById('lot-num')||{}).value||'';
+  const location = (document.getElementById('lot-location')||{}).value||'';
+  const variety = (document.getElementById('lot-variety')||{}).value||'';
+  const rootstock = (document.getElementById('lot-rootstock')||{}).value||'';
+  const qty = parseInt((document.getElementById('lot-qty')||{}).value||0);
+  const bud_date = (document.getElementById('lot-bud-date')||{}).value||'';
+  const months = parseInt((document.getElementById('lot-months')||{}).value||9);
+  const contact_id = (document.getElementById('lot-contact')||{}).value||null;
+  if(!variety || !qty){ alert('Variety and quantity are required.'); return; }
+  const lot = {
+    id: uid(), lot_num: lot_num||('MG-LOT-'+Date.now()),
+    location, variety, rootstock, qty, bud_date, months,
+    contact_id: contact_id||null, movements:[], created_at:now()
+  };
+  inventoryLots.unshift(lot);
+  saveInventory();
+  closeAddLot();
+  // Also update the matching inventory row if exists
+  const invRow = inventoryRows.find(r=>r.variety===variety&&(r.rootstock||'')===rootstock);
+  if(invRow){ invRow.bud_date = invRow.bud_date||bud_date; invRow.months = invRow.months||months; saveInventory(); }
+  renderInventory();
+  // Link lot_num to contact if assigned
+  if(contact_id){
+    const c = contacts.find(x=>x.id===contact_id);
+    if(c){ c.lot_num = c.lot_num ? c.lot_num+', '+lot.lot_num : lot.lot_num; saveLocal(); }
+  }
+  toast('Lot '+lot.lot_num+' created ✓');
+}
+
+function logLotMovement(lotId){
+  const lot = inventoryLots.find(l=>l.id===lotId);
+  if(!lot) return;
+  const totalOut=(lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+m.qty,0);
+  const qty = prompt('How many trees? Negative to remove, positive to add. Current: '+(lot.qty-totalOut).toLocaleString()+' remaining');
+  if(!qty || isNaN(qty)) return;
+  const note = prompt('What happened? e.g. Shipped to client, Transplanted, Culled') || '';
+  const qtyNum = parseInt(qty);
+  const type = qtyNum < 0 ? 'out' : 'in';
+  if(!lot.movements) lot.movements = [];
+  lot.movements.push({ id:uid(), qty:Math.abs(qtyNum), type, note, date:new Date().toISOString().split('T')[0], ts:now() });
+  saveInventory();
+  renderInventory();
+  toast('Movement logged ✓');
+}
+
+function assignLotToBuyer(lotId){
+  const lot = inventoryLots.find(l=>l.id===lotId);
+  if(!lot) return;
+  const opts = contacts.filter(c=>!c.name.includes('M&R')).map((c,i)=>(i+1)+'. '+c.name).join('\n');
+  const choice = prompt('Assign lot '+lot.lot_num+' to which buyer? Enter number: '+opts);
+  if(!choice) return;
+  const idx = parseInt(choice)-1;
+  const c = contacts.filter(x=>!x.name.includes('M&R'))[idx];
+  if(!c) return;
+  lot.contact_id = c.id;
+  saveInventory();
+  c.lot_num = c.lot_num ? c.lot_num+', '+lot.lot_num : lot.lot_num;
+  saveLocal();
+  renderInventory();
+  toast('Lot assigned to '+c.name+' ✓');
+}
+
+function openInvDetail(key){} // placeholder for future drill-down
+
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
 function renderMetrics(){
@@ -2861,7 +3283,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',pipeline:'Pipeline',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','pipeline','reminders','tasks','admin','timeline'].forEach(t=>{
+  ['contacts','pipeline','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -2873,15 +3295,18 @@ function switchTab(tab){
   document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
+  const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=tab==='inventory'?'flex':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-pipeline').style.display=tab==='pipeline'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
   document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
+  const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
   if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
+  if(tab==='inventory')renderInventory();
   renderAll();
 }
 
