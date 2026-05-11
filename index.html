@@ -676,35 +676,36 @@ function off(d){const t=new Date();t.setDate(t.getDate()+d);return t.toISOString
 function seed(){return contacts;} // seed returns pre-loaded contacts
 
 async function loadAll(){
-  console.log('loadAll started, cloudOk='+cloudOk);
+  const preLoaded = contacts.slice(); // save our 27 real contacts
   if(!cloudOk){
-    console.log('Not cloud, using local/seed');
-    try{const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored&&stored.length>0)contacts=stored;}catch(e){}
+    try{const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored&&stored.length>0)contacts=stored;else contacts=preLoaded;}catch(e){contacts=preLoaded;}
     setSyncBadge(false);
     renderAll();
     return;
   }
   try{
-    console.log('Trying contacts table...');
     const cr=await sb.from(CFG.table).select('*').order('created_at',{ascending:false});
-    console.log('Contacts result:', cr.error?'ERROR:'+cr.error.message:'OK, rows='+( cr.data||[]).length);
     if(cr.error)throw cr.error;
-    contacts=cr.data||[];
-    if(contacts.length===0){
-      console.log('No contacts in DB, inserting seed data...');
-      contacts=seed();
+    const cloudContacts=cr.data||[];
+    if(cloudContacts.length < preLoaded.length){
+      // Cloud has fewer contacts than our real data — push real data up
+      console.log('Syncing '+preLoaded.length+' contacts to cloud...');
+      contacts=preLoaded;
+      // Delete old demo data and insert real contacts
       try{
-        for(var i=0;i<contacts.length;i++){
-          await sb.from(CFG.table).insert(contacts[i]);
+        await sb.from(CFG.table).delete().neq('id','placeholder');
+        for(var i=0;i<preLoaded.length;i++){
+          await sb.from(CFG.table).upsert(preLoaded[i]);
         }
-        console.log('Seed data inserted successfully');
-      }catch(e){
-        console.warn('Seed insert failed:',e);
-      }
+        console.log('Real contacts synced to cloud');
+      }catch(e2){console.warn('Sync failed:',e2);}
+    } else {
+      // Cloud has more or equal contacts — use cloud as source of truth
+      contacts=cloudContacts;
     }
   }catch(e){
     console.warn('Contacts load failed:',e);
-      try{const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored2&&stored2.length>0)contacts=stored2;}catch(e2){}
+    try{const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored2&&stored2.length>0)contacts=stored2;else contacts=preLoaded;}catch(e2){contacts=preLoaded;}
   }
 
   try{
