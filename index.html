@@ -784,13 +784,21 @@ textarea.finput{height:70px;resize:none}
 <div class="modal">
   <div class="mhandle"></div>
   <h2>&#127908; Dictate a task</h2>
-  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div><div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div><div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
-  <div style="display:flex;justify-content:center;margin-bottom:16px">
+  <div id="dictate-browser-warn" style="display:none;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:10px">
+    &#9888; Your browser has limited voice support. Use <strong>Chrome</strong> or <strong>Safari</strong> for best results, or type your task below instead.
+  </div>
+  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div>
+  <div id="dictate-stop-hint" style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div>
+  <div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
+  <div style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;align-items:center">
     <button id="mic-record-btn" onclick="toggleRecording()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
+  </div>
+  <div id="dictate-type-toggle" style="text-align:center;margin-bottom:10px">
+    <button onclick="toggleDictateMode()" style="font-size:12px;background:none;border:1px solid var(--bd);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--tx3);font-family:inherit" id="dictate-mode-btn">&#9000; Switch to typing instead</button>
   </div>
   <div id="dictate-preview" style="display:none">
     <label class="flabel">Task (edit before saving)</label>
-    <textarea class="finput" id="dictate-text" style="height:90px"></textarea>
+    <textarea class="finput" id="dictate-text" style="height:90px" placeholder="Type your task here..."></textarea>
     <label class="flabel">Created by</label>
     <input class="finput" id="dictate-by" placeholder="e.g. Raffi, Isidro">
     <div id="dictate-assignee-box" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#1B4332">
@@ -1196,15 +1204,85 @@ function cancelDictateAssign(){
   const box = document.getElementById('dictate-assignee-box');
   if(box) box.style.display = 'none';
 }
+function openDictateModal(){
+  // Reset state
+  const warn = document.getElementById('dictate-browser-warn');
+  if(warn) warn.style.display = 'none';
+  const mic = document.getElementById('mic-record-btn');
+  if(mic) mic.style.display = '';
+  const hint = document.getElementById('dictate-stop-hint');
+  if(hint) hint.style.display = '';
+  const preview = document.getElementById('dictate-preview');
+  if(preview) preview.style.display = 'none';
+  const saveBtn = document.getElementById('dictate-save-btn');
+  if(saveBtn) saveBtn.style.display = 'none';
+  const status = document.getElementById('dictate-status');
+  if(status) status.textContent = 'Tap the mic to start speaking';
+  const mb = document.getElementById('dictate-mode-btn');
+  if(mb) mb.textContent = '\u232b Switch to typing instead';
+  openModal('modal-dictate');
+  // Auto-detect browser
+  setTimeout(function(){
+    const b = detectBrowserSupport();
+    if(b.limited && warn) warn.style.display = 'block';
+    if(!b.supported){
+      if(warn) warn.style.display = 'block';
+      toggleDictateMode();
+    }
+  }, 150);
+}
+
 function toggleRecording(){
   if(isRecording){stopRecording();}
   else{startRecording();}
 }
 
+function detectBrowserSupport(){
+  const ua = navigator.userAgent.toLowerCase();
+  const isDuckDuckGo = ua.includes('ddg') || ua.includes('duckduckgo') || document.referrer.includes('duckduckgo');
+  const isFirefox = ua.includes('firefox');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  return { supported: !!SR, limited: isDuckDuckGo || isFirefox, isDDG: isDuckDuckGo };
+}
+
+function toggleDictateMode(){
+  const isVoice = document.getElementById('mic-record-btn').style.display !== 'none';
+  const micBtn = document.getElementById('mic-record-btn');
+  const modeBtn = document.getElementById('dictate-mode-btn');
+  const stopHint = document.getElementById('dictate-stop-hint');
+  const preview = document.getElementById('dictate-preview');
+  if(isVoice){
+    // Switch to type mode
+    micBtn.style.display = 'none';
+    if(stopHint) stopHint.style.display = 'none';
+    modeBtn.textContent = '\u1f3a4 Switch to voice instead';
+    preview.style.display = 'block';
+    document.getElementById('dictate-text').focus();
+    document.getElementById('dictate-save-btn').style.display = 'block';
+    document.getElementById('dictate-status').textContent = 'Type your task below';
+  } else {
+    // Switch back to voice
+    micBtn.style.display = '';
+    if(stopHint) stopHint.style.display = '';
+    modeBtn.textContent = '\u232b Switch to typing instead';
+    document.getElementById('dictate-status').textContent = 'Tap the mic to start speaking';
+  }
+}
+
 function startRecording(){
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const browser = detectBrowserSupport();
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SpeechRecognition){
-    alert('Voice dictation is not supported on this browser. Please use Chrome or Safari.');return;
+    // No speech support — auto-switch to type mode
+    const warn = document.getElementById('dictate-browser-warn');
+    if(warn) warn.style.display = 'block';
+    toggleDictateMode();
+    return;
+  }
+  if(browser.limited){
+    // Show warning but still try
+    const warn = document.getElementById('dictate-browser-warn');
+    if(warn) warn.style.display = 'block';
   }
   recognition=new SpeechRecognition();
   recognition.continuous=true;      // stays on until manually stopped
