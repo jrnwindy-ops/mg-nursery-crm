@@ -3966,7 +3966,15 @@ function switchTab(tab){
 
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{
+  if(e.target!==m) return; // only trigger if clicking the backdrop itself
+  // These modals contain data entry — never close on outside click
+  const safe=['modal-form','modal-journal','modal-voice-journal','modal-reminder',
+    'modal-activity','modal-order','modal-dictate','modal-inv-row','modal-inv-lot',
+    'modal-inv-log','modal-task-detail'];
+  if(safe.includes(m.id)) return;
+  m.classList.remove('open');
+}));
 let toastT;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2500);}
 
