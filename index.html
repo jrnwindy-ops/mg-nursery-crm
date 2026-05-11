@@ -2131,15 +2131,16 @@ function openDetail(id){
 
 function detTab(tab){
   currentDetTab=tab;
-  ['info','activity','order','message'].forEach(t=>{
-    document.getElementById('dt-'+t).classList.toggle('active',t===tab);
-    document.getElementById('det-'+t+'-pane').style.display=t===tab?'block':'none';
+  ['info','activity','order'].forEach(t=>{
+    const btn=document.getElementById('dt-'+t);
+    const pane=document.getElementById('det-'+t+'-pane');
+    if(btn) btn.classList.toggle('active',t===tab);
+    if(pane) pane.style.display=t===tab?'block':'none';
   });
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
   if(tab==='info')renderDetInfo(c);
   if(tab==='activity')renderDetActivity(c);
-  if(tab==='order'){renderDetOrder(c);}
-  if(tab==='message')renderDetMessage(c);
+  if(tab==='order')renderDetOrder(c);
 }
 
 function renderDetInfo(c){
