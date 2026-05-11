@@ -375,6 +375,7 @@ textarea.finput{height:70px;resize:none}
     <div id="dv-pipeline" class="d-pipe" style="display:none"></div>
     <div id="dv-reminders" class="d-rem" style="display:none"></div>
     <div id="dv-tasks" class="d-rem" style="display:none"></div>
+  <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   </div>
 
   <!-- MOBILE HEADER -->
@@ -1069,8 +1070,8 @@ function renderAdmin(){
   const dv = document.getElementById('dv-admin');
   const mv = document.getElementById('mv-admin');
   const html = buildAdminHTML();
-  if(dv) dv.innerHTML = html;
-  if(mv) mv.innerHTML = html;
+  if(dv){ dv.innerHTML = html; dv.style.display = currentTab==='admin'?'flex':'none'; }
+  if(mv){ mv.innerHTML = html; mv.style.display = currentTab==='admin'?'block':'none'; }
 }
 
 function buildAdminHTML(){
@@ -1205,6 +1206,139 @@ function deleteAdminTask(idx){
   renderAdmin();
 }
 
+
+function generateContract(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const rawContract = c.notes ? c.notes.split('Contract(s): ')[1] : null;
+  const contractNum = rawContract ? rawContract.split('|')[0].split(',')[0].trim()
+    : 'MG-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0');
+
+  const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
+  const varietyRows = varieties.map(v =>
+    '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td></tr>'
+  ).join('');
+
+  const trees = c.trees || 0;
+  const price = c.price || 12.50;
+  const total = trees * price;
+  const deposit = Math.round(total * 0.40 * 100)/100;
+  const balance = Math.round((total - deposit)*100)/100;
+  const deliveryDate = c.date
+    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+    : 'To be determined';
+  const buyerBlock = esc(c.name) +
+    (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
+    (c.phone ? '<br>'+esc(c.phone) : '') +
+    (c.email ? '<br>'+esc(c.email) : '');
+  const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
+
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .cn { text-align: right; font-size: 12px; color: #555; } .cn-num { font-size: 15px; font-weight: 700; color: #1B4332; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #F0FDF4; font-weight: 700; } .tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; } .tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; } .tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; } .tb ol { padding-left: 18px; } .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; } .sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; } .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+
+  const parts = [
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+    '<title>Purchase Agreement — ' + esc(c.name) + '</title>',
+    '<style>' + css + '</style></head><body>',
+    '<div class="no-print pbar">',
+      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
+      '<div>',
+        '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
+        '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
+        '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715; Close</button>',
+      '</div>',
+    '</div>',
+    '<div class="page">',
+    '<div class="hdr">',
+      '<div>',
+        '<div class="co-name">M&amp;G Nursery</div>',
+        '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
+        '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
+        '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div>',
+      '</div>',
+      '<div class="cn">',
+        '<div class="cn-num">CONTRACT #' + contractNum + '</div>',
+        '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
+        '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div>',
+      '</div>',
+    '</div>',
+    '<h2>Parties</h2>',
+    '<div class="two">',
+      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Raffi Minassian<br>39390 Rd 116, Cutler CA 93615</div></div>',
+      '<div><div class="fl">Buyer</div><div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
+    '</div>',
+    '<h2>Order Details</h2>',
+    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
+    '<div class="two">',
+      '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
+      '<div><div class="fl">Estimated Delivery</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+    '</div>',
+    '<h2>Pricing &amp; Payment</h2>',
+    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+    '</tbody></table>',
+    '<h2>Terms &amp; Conditions</h2>',
+    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
+      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
+      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
+      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
+      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
+      '<li>Delivery date is estimated. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
+      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
+      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
+      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
+      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> due to natural production variation.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
+      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
+      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
+      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
+      '<li>M&amp;G Nursery may cancel due to crop failure, disease, or force majeure — all deposits refunded in full.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
+      '<li>M&amp;G Nursery warrants trees are grown from certified budwood and free from known diseases per CDFA regulations.</li>',
+      '<li>No warranty is made as to performance after delivery.</li>',
+      '<li>Quality claims must be made within <strong>48 hours of delivery</strong>.</li>',
+    '</ol></div>',
+    '<div class="tb"><h3>5. General</h3><ol>',
+      '<li>This agreement constitutes the entire understanding between parties.</li>',
+      '<li>Governed by California law. Disputes resolved in Tulare County, California.</li>',
+    '</ol></div>',
+    '<h2>Signatures</h2>',
+    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms of this Nursery Purchase Agreement.</p>',
+    '<div class="sg">',
+      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">Raffi Minassian, Owner</div>',
+      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+      '<div><div class="fl">Buyer</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
+      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+    '</div>',
+    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
+      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
+    '</div>',
+    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
+      'M&amp;G Nursery · Contract #' + contractNum + ' · ' + dateStr + ' · AgCommand CRM',
+    '</div>',
+    '</div>',
+    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
+    '</body></html>'
+  ];
+
+  const html = parts.join('');
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) {
+    const a = document.createElement('a');
+    a.href = url; a.download = dlName; a.click();
+  }
+}
 
 function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
 
