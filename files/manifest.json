@@ -1,0 +1,45 @@
+{
+  "name": "M&G Nursery CRM",
+  "short_name": "M&G Nursery",
+  "description": "AgCommand CRM & Pipeline Manager — M&G Nursery",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1B4332",
+  "theme_color": "#1B4332",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Contacts",
+      "short_name": "Contacts",
+      "url": "/?tab=contacts",
+      "description": "View all contacts"
+    },
+    {
+      "name": "Timeline",
+      "short_name": "Timeline",
+      "url": "/?tab=timeline",
+      "description": "Weekly activity timeline"
+    },
+    {
+      "name": "Reminders",
+      "short_name": "Reminders",
+      "url": "/?tab=reminders",
+      "description": "View reminders"
+    }
+  ]
+}
