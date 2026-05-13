@@ -4335,7 +4335,18 @@ async function saveContact(){
           contact_log:row.contact_log||[],
           created_at:row.created_at
         };
+        // DEBUG: Show what we're about to send for variety/rootstock
+        console.log('[saveContact] Sending to Supabase:', JSON.stringify({
+          variety: sbRow.variety, rootstock: sbRow.rootstock, varieties: sbRow.varieties
+        }));
+        alert('Sending to Supabase:\nvariety: '+sbRow.variety+'\nrootstock: '+sbRow.rootstock+'\nvarieties: '+JSON.stringify(sbRow.varieties));
         const res = await sb.from(CFG.table).insert(sbRow);
+        // DEBUG: Show what Supabase returned
+        if(res.error){
+          alert('Supabase ERROR response:\n'+JSON.stringify(res.error,null,2));
+        } else {
+          alert('Supabase OK response:\n'+JSON.stringify(res.data||res,null,2).substring(0,500));
+        }
         if(res.error){
           console.warn('[saveContact] Insert failed:', JSON.stringify(res.error));
           const errMsg = res.error.message + (res.error.code ? ' ('+res.error.code+')' : '');
