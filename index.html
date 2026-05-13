@@ -37,6 +37,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   document.head.appendChild(e);
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="loadSupabaseFallback()"></script>
 <script>
 function loadSupabaseFallback(){
@@ -3997,21 +3998,54 @@ function clearForm(){
   const logInp=document.getElementById('f-new-log-entry');if(logInp)logInp.value='';
 }
 function openAdd(){editingId=null;document.getElementById('form-title').textContent='Add customer';clearForm();openModal('modal-form');}
-function addVarietyRow(variety='', rootstock='', qty=''){
+function addVarietyRow(variety, rootstock, qty){
+  variety = variety || '';
+  rootstock = rootstock || '';
+  qty = qty || '';
   const list = document.getElementById('f-varieties-list');
   if(!list) return;
+
+  const VARIETIES  = ['Tango','Olinda','P. Wash','Shiranui','A. Gold','Gillette','Fukumoto','L. Lane','P. S. Lime','Powell','A. F. Lime','Cara Cara','M14','Page','W. Murcott','Nules Clementine','Other'];
+  const ROOTSTOCKS = ['Rich 16','Rubi','C35','Carrizo','Rubidoux','Other'];
+
   const row = document.createElement('div');
   row.className = 'variety-row';
-  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
-  const varieties = ['Tango','Olinda','P. Wash','Shiranui','A. Gold','Gillette','Fukumoto','L. Lane','P. S. Lime','Powell','A. F. Lime','Cara Cara','M14','Page','W. Murcott','Nules Clementine','Other'];
-  const rootstocks = ['Rich 16','Rubi','C35','Carrizo','Rubidoux','Other'];
-  const vOpts = varieties.map(v=>'<option value="'+v+'"'+(v===variety?' selected':'')+'>'+v+'</option>').join('');
-  const rOpts = rootstocks.map(r=>'<option value="'+r+'"'+(r===rootstock?' selected':'')+'>'+r+'</option>').join('');
-  row.innerHTML =
-    '<select class="finput vr-variety" style="flex:2;margin:0;min-width:120px"><option value="">Variety...</option>'+vOpts+'</select>'+
-    '<select class="finput vr-rootstock" style="flex:1.2;margin:0;min-width:90px"><option value="">Rootstock...</option>'+rOpts+'</select>'+
-    '<input class="finput vr-qty" type="number" min="1" placeholder="Qty" value="'+qty+'" style="flex:0.6;margin:0;text-align:center;min-width:60px" oninput="recalcVarietyTotal()">'+
-    '<button type="button" onclick="this.parentElement.remove();recalcVarietyTotal()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap';
+
+  // Build selects using createElement so .value is reliable on iOS Safari
+  const vSel = document.createElement('select');
+  vSel.className = 'finput vr-variety';
+  vSel.style.cssText = 'flex:2;margin:0;min-width:120px;font-size:15px';
+  vSel.innerHTML = '<option value="">Variety...</option>' +
+    VARIETIES.map(v => '<option value="'+v+'">'+v+'</option>').join('');
+  if(variety) vSel.value = variety;
+
+  const rSel = document.createElement('select');
+  rSel.className = 'finput vr-rootstock';
+  rSel.style.cssText = 'flex:1.5;margin:0;min-width:100px;font-size:15px';
+  rSel.innerHTML = '<option value="">Rootstock...</option>' +
+    ROOTSTOCKS.map(r => '<option value="'+r+'">'+r+'</option>').join('');
+  if(rootstock) rSel.value = rootstock;
+
+  const qInp = document.createElement('input');
+  qInp.className = 'finput vr-qty';
+  qInp.type = 'number';
+  qInp.min = '1';
+  qInp.placeholder = 'Qty';
+  qInp.style.cssText = 'flex:0.8;margin:0;text-align:center;min-width:64px;font-size:15px';
+  qInp.value = qty;
+  qInp.addEventListener('input', recalcVarietyTotal);
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.textContent = '✕';
+  delBtn.style.cssText = 'background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:16px;flex-shrink:0;-webkit-tap-highlight-color:transparent';
+  delBtn.addEventListener('click', function(){ row.remove(); recalcVarietyTotal(); });
+
+  row.appendChild(vSel);
+  row.appendChild(rSel);
+  row.appendChild(qInp);
+  row.appendChild(delBtn);
   list.appendChild(row);
   recalcVarietyTotal();
 }
@@ -4101,13 +4135,11 @@ async function getVarietiesFromForm(){
     const vEl = r.querySelector('.vr-variety');
     const rsEl = r.querySelector('.vr-rootstock');
     const qEl = r.querySelector('.vr-qty');
-    const v  = (vEl ? vEl.value : '') || '';
-    const rs = (rsEl ? rsEl.value : '') || '';
+    const v  = (vEl ? vEl.value : '').trim();
+    const rs = (rsEl ? rsEl.value : '').trim();
     const qty = parseInt((qEl ? qEl.value : '') || 0) || 0;
-    console.log('[varieties] row: variety='+v+' rootstock='+rs+' qty='+qty);
-    if(v.trim()) list.push({variety:v.trim(), rootstock:rs.trim(), qty});
+    if(v) list.push({variety:v, rootstock:rs, qty});
   });
-  console.log('[varieties] total collected:', list.length, JSON.stringify(list));
   return list;
 }
 async function saveContact(){
