@@ -899,8 +899,16 @@ function showMain(){
   renderAll();
   setTimeout(updateNotifBtn, 300);
   setTimeout(checkInstallPrompt, 1000);
-  initSB().then(function(){
+  initSB().then(async function(){
     console.log('Supabase cloudOk='+cloudOk);
+    if(cloudOk){
+      // Silent connection check — just verify we can read
+      try{
+        const ck = await sb.from(CFG.table).select('id').limit(1);
+        if(ck.error){ console.warn('[Supabase check] read failed:', ck.error.message); }
+        else{ console.log('[Supabase check] connected OK'); }
+      }catch(e){ console.warn('[Supabase check] exception:',e); }
+    }
     loadAll();
   });
 }
@@ -1057,16 +1065,28 @@ let _silentReloadTimer = null;
 
 function subscribeRT(){
   if(!cloudOk||!sb)return;
-  flushSyncQueue(); // push any pending offline saves
+  flushSyncQueue();
+
+  // Real-time WebSocket subscription
   try{
-    sb.channel('mg-v3').on('postgres_changes',{event:'*',schema:'public'},()=>{
-      // Skip reload if we triggered the change ourselves (prevents wiping new saves)
-      if(_skipNextReload){ _skipNextReload=false; return; }
-      // Debounce — wait 2 seconds before reloading to let our insert commit
-      clearTimeout(_silentReloadTimer);
-      _silentReloadTimer = setTimeout(silentReload, 2000);
-    }).subscribe();
-  }catch(e){}
+    sb.channel('mg-v3-contacts')
+      .on('postgres_changes',{event:'*',schema:'public',table:'contacts'},()=>{
+        console.log('[RT] change received');
+        if(_skipNextReload){ _skipNextReload=false; return; }
+        clearTimeout(_silentReloadTimer);
+        _silentReloadTimer = setTimeout(silentReload, 1500);
+      })
+      .subscribe((status)=>{
+        console.log('[RT] status:', status);
+      });
+  }catch(e){ console.warn('[RT] error:',e); }
+
+  // Polling fallback — 10s on mobile (iOS kills WebSockets), 20s on desktop
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  clearInterval(_pollTimer);
+  _pollTimer = setInterval(()=>{
+    if(cloudOk && !_skipNextReload) silentReload();
+  }, isMobile ? 10000 : 20000);
 }
 
 async function silentReload(){
@@ -4016,10 +4036,12 @@ async function saveContact(){
           name:data.name, company:data.company||null,
           phone:data.phone||null, email:data.email||null,
           status:data.status, variety:data.variety||null,
+          varieties:data.varieties||null,
           trees:data.trees||null, price:data.price||null,
           date:data.date||null, followup:data.followup||null,
           notes:data.notes||null, contract_num:data.contract_num||null,
-          lot_num:data.lot_num||null, source:data.source||null
+          lot_num:data.lot_num||null, source:data.source||null,
+          contact_log:data.contact_log||[]
         };
         const res2 = await sb.from(CFG.table).update(sbUpd).eq('id',editingId);
         if(res2.error){
@@ -4046,24 +4068,29 @@ async function saveContact(){
           id:row.id, name:row.name, company:row.company||null,
           phone:row.phone||null, email:row.email||null,
           status:row.status, variety:row.variety||null,
+          varieties:row.varieties||null,
           trees:row.trees||null, price:row.price||null,
           date:row.date||null, followup:row.followup||null,
           notes:row.notes||null, contract_num:row.contract_num||null,
           lot_num:row.lot_num||null, source:row.source||null,
+          contact_log:row.contact_log||[],
           created_at:row.created_at
         };
         const res = await sb.from(CFG.table).insert(sbRow);
         if(res.error){
           console.warn('[saveContact] Insert failed:', JSON.stringify(res.error));
-          toast('⚠ Saved locally — cloud sync pending');
+          toast('⚠ Saved locally — sync failed: '+res.error.message);
           _skipNextReload=false;
           queueSync('insert', sbRow);
         } else {
           console.log('[saveContact] Insert OK, id='+row.id);
+          toast('Customer added ✓ — synced to cloud');
+          // Pull fresh from cloud to confirm and update local state
+          setTimeout(silentReload, 2000);
         }
       }catch(e){
         console.warn('[saveContact] Insert exception:', e);
-        toast('⚠ Saved locally — cloud sync pending');
+        toast('⚠ Saved locally — connection error');
         _skipNextReload=false;
         queueSync('insert', {
           id:row.id, name:row.name, company:row.company||null,
@@ -4077,20 +4104,26 @@ async function saveContact(){
         });
       }
     } else {
-      toast('💾 Saved locally — will sync when connected');
+      toast('💾 Saved locally — Supabase offline');
       queueSync('insert', {
         id:row.id, name:row.name, company:row.company||null,
         phone:row.phone||null, email:row.email||null,
         status:row.status, variety:row.variety||null,
+        varieties:row.varieties||null,
         trees:row.trees||null, price:row.price||null,
         date:row.date||null, followup:row.followup||null,
         notes:row.notes||null, contract_num:row.contract_num||null,
         lot_num:row.lot_num||null, source:row.source||null,
+        contact_log:row.contact_log||[],
         created_at:row.created_at
       });
     }
   }
-  saveLocal();closeModal('modal-form');renderAll();toast(editingId?'Customer updated ✓':'Customer added ✓');
+  saveLocal();
+  closeModal('modal-form');
+  renderAll();
+  // Toast already shown inside insert/update blocks with cloud status
+  // But ensure we always show something
 }
 
 async function deleteContact(){
@@ -4179,11 +4212,26 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 document.addEventListener('DOMContentLoaded', function(){
   var authed=false;
   try{authed=sessionStorage.getItem('mg_auth')==='1';}catch(e){
-    // sessionStorage blocked (iOS private mode) — fall back to localStorage
     try{authed=localStorage.getItem('mg_auth_fb')==='1';}catch(e2){}
   }
   if(authed)showMain();
   initNotifications();
+});
+
+// Re-sync when tab/app comes back into focus (critical for iOS Safari)
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && cloudOk){
+    console.log('[visibility] page visible — refreshing');
+    silentReload();
+    // Re-subscribe in case iOS killed the WebSocket
+    clearInterval(_pollTimer);
+    subscribeRT();
+  }
+});
+
+// Also refresh on window focus (covers desktop tab switching)
+window.addEventListener('focus', function(){
+  if(cloudOk) silentReload();
 });
 </script>
 
