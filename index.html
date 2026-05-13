@@ -18,7 +18,16 @@
 <title>M&G Nursery CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="loadSupabaseFallback()"></script>
+<script>
+function loadSupabaseFallback(){
+  console.warn('jsdelivr failed, trying unpkg...');
+  var s=document.createElement('script');
+  s.src='https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js';
+  document.head.appendChild(s);
+}
+</script>
 <style>
 :root{
   --g900:#1B4332;--g800:#2D6A4F;--g600:#40916C;--g400:#52B788;
@@ -845,8 +854,8 @@ function initSB(){
           cloudOk=true;
           console.log('Supabase ready after '+attempts+' attempt(s)');
           resolve();
-        }else if(attempts<20){
-          // Retry every 250ms for up to 5 seconds
+        }else if(attempts<40){
+          // Retry every 250ms for up to 10 seconds (mobile needs longer)
           setTimeout(tryInit,250);
         }else{
           console.warn('Supabase never loaded after '+attempts+' attempts');
@@ -901,6 +910,10 @@ function showMain(){
   setTimeout(checkInstallPrompt, 1000);
   initSB().then(async function(){
     console.log('Supabase cloudOk='+cloudOk);
+    // Show connection status briefly on mobile so it's visible without console
+    if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
+      toast(cloudOk ? '☁ Supabase connected' : '💾 Supabase offline — local only');
+    }
     if(cloudOk){
       // Silent connection check — just verify we can read
       try{
@@ -1050,11 +1063,20 @@ function setSyncBadge(ok){
   const el=document.getElementById('sync-badge');
   const txt=contacts.length+' contact'+(contacts.length!==1?'s':'')+' · '+(ok?'☁ Live':'💾 Local');
   if(el){
-    el.textContent=ok?'☁ Live':'💾 Local';
+    el.textContent=ok?'☁ Live':'💾 Offline';
     el.className='sync-badge'+(ok?' on':'');
-    el.title='Click to refresh now';
+    el.title=ok?'Live — click to refresh':'Offline — tap to retry connection';
     el.style.cursor='pointer';
-    el.onclick=()=>{ silentReload(); toast('Refreshing...'); };
+    el.onclick=()=>{
+      if(cloudOk){ silentReload(); toast('Refreshing...'); }
+      else{
+        toast('Retrying Supabase connection...');
+        initSB().then(()=>{
+          if(cloudOk){ loadAll(); toast('Connected ✓'); }
+          else{ toast('Still offline — check connection'); }
+        });
+      }
+    };
   }
   const ms=document.getElementById('m-sub'),ss=document.getElementById('sb-sub');
   if(ms)ms.textContent=txt;if(ss)ss.textContent=txt;
