@@ -929,40 +929,53 @@ async function loadAll(){
     const cr=await sb.from(CFG.table).select('*').order('created_at',{ascending:false});
     if(cr.error)throw cr.error;
     const cloudContacts=cr.data||[];
-    // Migrate contract numbers from notes field for existing contacts
-  function migrateContractNums(clist) {
-    clist.forEach(c => {
-      if (!c.contract_num && c.notes) {
-        const m = c.notes.match(/Contract\(s\): ([^|]+)/);
-        if (m) c.contract_num = m[1].trim().split(',')[0].trim();
-      }
-    });
-    return clist;
-  }
-  // Get local storage for merge safety
-  let localStored=[];
-  try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
 
-  if(cloudContacts.length < preLoaded.length && localStored.length <= preLoaded.length){
-    // Cloud missing base data — push preLoaded up
-    contacts=preLoaded;
-    try{
-      await sb.from(CFG.table).delete().neq('id','__none__');
-      for(var i=0;i<preLoaded.length;i++){ await sb.from(CFG.table).upsert(preLoaded[i]); }
-    }catch(e3){console.warn('Sync failed:',e3);}
-  } else {
-    // Cloud is source of truth — but merge local-only contacts not yet synced
+    // Pull localStorage — may have user-added contacts not yet in cloud
+    let localStored=[];
+    try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
+
+    // Three-way merge: cloud + preLoaded + localStorage
+    // Priority: cloud > localStorage > preLoaded (cloud wins for shared IDs)
+    const seen=new Set();
+    const merged=[];
+
+    // 1. Cloud contacts first (source of truth for existing)
+    cloudContacts.forEach(c=>{ seen.add(c.id); merged.push(c); });
+
+    // 2. localStorage contacts not in cloud (user-added on this device)
+    localStored.forEach(c=>{
+      if(!seen.has(c.id)){ seen.add(c.id); merged.push(c); }
+    });
+
+    // 3. preLoaded contacts not in cloud or localStorage (new hardcoded additions)
+    preLoaded.forEach(c=>{
+      if(!seen.has(c.id)){ seen.add(c.id); merged.push(c); }
+    });
+
+    contacts=merged;
+
+    // Push anything missing from cloud up to Supabase
     const cloudIds=new Set(cloudContacts.map(c=>c.id));
-    const localOnly=localStored.filter(c=>!cloudIds.has(c.id));
-    contacts=[...cloudContacts,...localOnly];
-    // Push local-only contacts up to cloud
-    if(localOnly.length>0){
-      try{ for(const c of localOnly){ await sb.from(CFG.table).upsert(c); } }catch(e4){console.warn(e4);}
+    const needsSync=merged.filter(c=>!cloudIds.has(c.id));
+    if(needsSync.length>0){
+      console.log('Syncing '+needsSync.length+' contacts to cloud...');
+      try{ for(const c of needsSync){ await sb.from(CFG.table).upsert(c); } }catch(e3){console.warn('Sync failed:',e3);}
     }
-  }
-    }catch(e){
+
+    // Always persist merged result to localStorage
+    saveLocal();
+
+  }catch(e){
     console.warn('Contacts load failed:',e);
-    try{const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored2&&stored2.length>0)contacts=stored2;else contacts=preLoaded;}catch(e2){contacts=preLoaded;}
+    // Fall back: merge localStorage + preLoaded
+    try{
+      const stored2=JSON.parse(localStorage.getItem('mg_v3')||'null')||[];
+      if(stored2.length>0){
+        const fb=preLoaded.map(p=>{const s=stored2.find(x=>x.id===p.id);return s?Object.assign({},p,s):p;});
+        stored2.forEach(s=>{if(!fb.find(m=>m.id===s.id))fb.push(s);});
+        contacts=fb;
+      } else { contacts=preLoaded; }
+    }catch(e2){contacts=preLoaded;}
   }
 
   try{
