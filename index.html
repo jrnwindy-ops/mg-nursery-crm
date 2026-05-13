@@ -1145,7 +1145,7 @@ function subscribeRT(){
   clearInterval(_pollTimer);
   _pollTimer = setInterval(()=>{
     if(cloudOk && !_skipNextReload) silentReload();
-  }, isMobile ? 10000 : 20000);
+  }, isMobile ? 8000 : 15000);
 }
 
 async function silentReload(){
@@ -4113,6 +4113,8 @@ async function saveContact(){
           console.warn('[saveContact] Update failed:', JSON.stringify(res2.error));
           _skipNextReload=false;
           queueSync('update',{...sbUpd,id:editingId});
+        } else {
+          setTimeout(()=>{ _skipNextReload=false; }, 3000);
         }
       }catch(e){
         _skipNextReload=false;
@@ -4151,9 +4153,9 @@ async function saveContact(){
           queueSync('insert', sbRow);
         } else {
           console.log('[saveContact] Insert OK, id='+row.id);
-          toast('Customer added ✓ — synced to cloud');
-          // Pull fresh from cloud to confirm and update local state
-          setTimeout(silentReload, 2000);
+          toast('Customer added ✓ — synced');
+          // Reset skip flag after 3s so poll resumes even if RT event doesn't fire
+          setTimeout(()=>{ _skipNextReload=false; }, 3000);
         }
       }catch(e){
         console.warn('[saveContact] Insert exception:', e);
