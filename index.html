@@ -982,14 +982,21 @@ async function loadAll(){
       if(stored&&stored.length>0){
         // Merge: start with preLoaded as base, overlay stored edits,
         // then append any stored contacts not in preLoaded (user-added leads)
+        const offNames = new Set(preLoaded.map(p=>(p.name||'').toLowerCase().trim()));
         const merged = preLoaded.map(p => {
           const s = stored.find(x => x.id === p.id);
-          return s ? {...p, ...s} : p; // stored version wins for known contacts
+          return s ? {...p, ...s} : p;
         });
         stored.forEach(s => {
-          if(!merged.find(m => m.id === s.id)) merged.push(s); // add user-added contacts
+          const nm = (s.name||'').toLowerCase().trim();
+          if(!merged.find(m=>m.id===s.id) && !offNames.has(nm)){
+            merged.push(s);
+            offNames.add(nm);
+          }
         });
-        contacts = merged;
+        // Final dedup by id
+        const offSeen=new Set();
+        contacts = merged.filter(c=>{ if(offSeen.has(c.id)) return false; offSeen.add(c.id); return true; });
       } else {
         contacts = preLoaded;
       }
@@ -1008,22 +1015,34 @@ async function loadAll(){
     let localStored=[];
     try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
 
-    // Three-way merge: cloud + preLoaded + localStorage
-    // Priority: cloud > localStorage > preLoaded (cloud wins for shared IDs)
-    const seen=new Set();
-    const merged=[];
+    // Three-way merge: cloud wins, then localStorage additions, then hardcoded
+    const seenIds  = new Set();
+    const seenNames= new Set();
+    const merged   = [];
 
-    // 1. Cloud contacts first (source of truth for existing)
-    cloudContacts.forEach(c=>{ seen.add(c.id); merged.push(c); });
-
-    // 2. localStorage contacts not in cloud (user-added on this device)
-    localStored.forEach(c=>{
-      if(!seen.has(c.id)){ seen.add(c.id); merged.push(c); }
+    // 1. Cloud contacts — source of truth
+    cloudContacts.forEach(c=>{
+      seenIds.add(c.id);
+      seenNames.add((c.name||'').toLowerCase().trim());
+      // Restore localStorage-only fields
+      const loc = localStored.find(x=>x.id===c.id);
+      merged.push(loc ? {...c, contact_log:loc.contact_log||[], varieties:loc.varieties||null} : c);
     });
 
-    // 3. preLoaded contacts not in cloud or localStorage (new hardcoded additions)
+    // 2. localStorage contacts not in cloud (user-added, not yet pushed)
+    localStored.forEach(c=>{
+      if(!seenIds.has(c.id) && !seenNames.has((c.name||'').toLowerCase().trim())){
+        seenIds.add(c.id); seenNames.add((c.name||'').toLowerCase().trim());
+        merged.push(c);
+      }
+    });
+
+    // 3. Hardcoded contacts not in cloud or local (new additions from deploys)
     preLoaded.forEach(c=>{
-      if(!seen.has(c.id)){ seen.add(c.id); merged.push(c); }
+      if(!seenIds.has(c.id) && !seenNames.has((c.name||'').toLowerCase().trim())){
+        seenIds.add(c.id); seenNames.add((c.name||'').toLowerCase().trim());
+        merged.push(c);
+      }
     });
 
     contacts=merged;
@@ -1079,7 +1098,7 @@ async function loadAll(){
 
 function setSyncBadge(ok){
   const el=document.getElementById('sync-badge');
-  const txt=contacts.length+' contact'+(contacts.length!==1?'s':'')+' · '+(ok?'☁ Live':'💾 Local');
+  const txt=contacts.length+' contact'+(contacts.length!==1?'s':'')+' · '+(ok?'☁ Live':'💾 Offline');
   if(el){
     el.textContent=ok?'☁ Live':'💾 Offline';
     el.className='sync-badge'+(ok?' on':'');
@@ -1149,10 +1168,16 @@ async function silentReload(){
       if(local) return {...c, contact_log:local.contact_log||[], varieties:local.varieties||null};
       return c;
     });
-    // Add any local-only contacts not yet in cloud
-    const cloudIds = new Set(cloudData.map(c=>c.id));
-    contacts.filter(c=>!cloudIds.has(c.id)).forEach(c=>merged.push(c));
-    contacts = merged;
+    // Add local-only contacts not yet in cloud
+    const cloudIds  = new Set(cloudData.map(c=>c.id));
+    const cloudNames= new Set(cloudData.map(c=>(c.name||'').toLowerCase().trim()));
+    contacts.filter(c=>!cloudIds.has(c.id)).forEach(c=>{
+      // Skip if same name already exists in cloud (prevents hardcoded duplicates)
+      if(!cloudNames.has((c.name||'').toLowerCase().trim())) merged.push(c);
+    });
+    // Final dedup by id — safety net
+    const seen=new Set();
+    contacts = merged.filter(c=>{ if(seen.has(c.id)) return false; seen.add(c.id); return true; });
     activities=ar.data||[];
     orders=or.data||[];
     saveLocal();
