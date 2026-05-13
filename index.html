@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1123,6 +1126,7 @@ function setSyncBadge(ok){
 
 let _skipNextReload = false;
 let _silentReloadTimer = null;
+let _pollTimer = null;
 
 function subscribeRT(){
   if(!cloudOk||!sb)return;
@@ -4263,7 +4267,7 @@ async function saveContact(){
   if(newLogEntry.trim()){
     contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Isidro'},...contactLog];
   }
-  console.log('[saveContact] varieties from form:', JSON.stringify(varieties));
+  console.log('[saveContact] BUILD-2026-05-13c | varieties from form:', JSON.stringify(varieties), 'isArray=', Array.isArray(varieties), 'length=', varieties.length, 'first=', varieties[0] ? JSON.stringify(varieties[0]) : 'none');
   const _builtVariety = varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null;
   const _builtRootstock = varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null;
   console.log('[saveContact] built variety:', _builtVariety, 'rootstock:', _builtRootstock);
