@@ -365,7 +365,6 @@ textarea.finput{height:70px;resize:none}
     <nav class="sb-nav">
       <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
       <button class="sn-btn" id="snav-deliveries" onclick="switchTab('deliveries')"><span class="sn-icon">&#128666;</span> Deliveries</button>
-      <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
       <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
@@ -399,7 +398,6 @@ textarea.finput{height:70px;resize:none}
     <div class="d-tabs">
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
       <button class="d-tab" id="dtab-deliveries" onclick="switchTab('deliveries')">&#128666; Deliveries</button>
-      <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
@@ -418,7 +416,6 @@ textarea.finput{height:70px;resize:none}
       </div>
     </div>
     <div id="dv-deliveries" class="d-pipe" style="display:none"></div>
-    <div id="dv-reminders" class="d-rem" style="display:none"></div>
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
@@ -441,7 +438,6 @@ textarea.finput{height:70px;resize:none}
   <div class="m-tabs mobile-only">
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
     <button class="m-tab" id="mtab-deliveries" onclick="switchTab('deliveries')">Deliveries</button>
-    <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
@@ -455,7 +451,6 @@ textarea.finput{height:70px;resize:none}
     <div class="m-scroll" id="m-list"></div>
   </div>
   <div id="mv-deliveries" class="m-pipe mobile-only" style="display:none"></div>
-  <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
@@ -463,7 +458,6 @@ textarea.finput{height:70px;resize:none}
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
     <button class="bnav-btn" id="mnav-deliveries" onclick="switchTab('deliveries')"><span class="bnav-icon">&#128666;</span><span class="bnav-label">Deliveries</span></button>
-    <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
@@ -2243,7 +2237,7 @@ function buildTimelineHTML(){
   const horizon = new Date(today); horizon.setDate(today.getDate()+30);
   const horizonISO = horizon.toISOString().split('T')[0];
 
-  contacts.filter(c => c.followup && c.followup >= cutoffISO && c.followup <= horizonISO).forEach(c => {
+  contacts.filter(c => c.followup && c.followup >= cutoffISO && c.followup <= horizonISO && !c.followup_done).forEach(c => {
     events.push({
       date: c.followup,
       ts: c.followup + 'T09:00:00',
@@ -2254,6 +2248,8 @@ function buildTimelineHTML(){
       subtitle: c.status + (c.variety ? ' · ' + c.variety : '') + (c.trees ? ' · ' + c.trees.toLocaleString() + ' trees' : ''),
       contactId: c.id,
       status: c.status,
+      rid: 'fu-' + c.id,
+      priority: c.followup < todayISO ? 'high' : 'normal',
     });
   });
 
@@ -2295,12 +2291,26 @@ function buildTimelineHTML(){
   const sortedWeeks = Object.keys(weeks).sort((a,b)=>b.localeCompare(a));
 
   if(sortedWeeks.length === 0){
-    return '<div style="padding:32px 20px;text-align:center;color:var(--muted)">' +
-      '<div style="font-size:32px;margin-bottom:12px">&#128198;</div>' +
-      '<div style="font-size:15px;font-weight:600;margin-bottom:6px">No activity yet</div>' +
-      '<div style="font-size:13px">Log a contact note, add a reminder, or set a follow-up date to start building your timeline.</div>' +
+    return '<div style="width:100%;overflow-y:auto">' +
+      '<div style="display:flex;gap:8px;align-items:center;padding:12px 16px 16px;border-bottom:1px solid var(--bd)">' +
+        '<button onclick="openReminderModal()" style="display:flex;align-items:center;gap:6px;background:var(--g900);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">&#43; Add to timeline</button>' +
+        '<div style="font-size:12px;color:var(--muted)">Log a call, set a reminder, or schedule a follow-up</div>' +
+      '</div>' +
+      '<div style="padding:32px 20px;text-align:center;color:var(--muted)">' +
+        '<div style="font-size:32px;margin-bottom:12px">&#128198;</div>' +
+        '<div style="font-size:15px;font-weight:600;margin-bottom:6px">No activity yet</div>' +
+        '<div style="font-size:13px">Log a contact note, add a reminder, or set a follow-up date to start building your timeline.</div>' +
+      '</div>' +
     '</div>';
   }
+
+  // ── Overdue banner ───────────────────────────────────────────────────
+  const overdueCount = events.filter(e =>
+    !e.done && (e.type==='followup-overdue' || (e.type==='reminder' && e.date < todayISO))
+  ).length;
+  const overdueBanner = overdueCount > 0
+    ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin:12px 16px 0;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+overdueCount+' overdue item'+(overdueCount>1?'s':'')+' need your attention</div>'
+    : '';
 
   // ── Quick-add reminder bar ───────────────────────────────────────────
   const quickAdd =
@@ -2315,6 +2325,7 @@ function buildTimelineHTML(){
     const isFut = e.date > todayISO;
     const isToday = e.date === todayISO;
     const isOverdue = (e.type==='followup-overdue' || (e.type==='reminder' && e.date < todayISO));
+    const isActionable = (e.type==='reminder' || e.type==='followup' || e.type==='followup-overdue') && !e.done && e.rid;
 
     let accentColor = 'var(--bd)';
     let labelColor = 'var(--muted)';
@@ -2330,6 +2341,12 @@ function buildTimelineHTML(){
 
     let overdueTag = isOverdue ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700">OVERDUE</span>' : '';
     let todayTag = isToday ? '<span style="font-size:10px;background:#FEF3C7;color:#92400E;border-radius:8px;padding:1px 6px;font-weight:700">TODAY</span>' : '';
+    let urgentTag = (e.priority==='high' && !e.done && !isOverdue) ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700">URGENT</span>' : '';
+    let fyiTag = (e.priority==='low' && !e.done) ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;font-weight:600">FYI</span>' : '';
+
+    const doneBtn = isActionable
+      ? '<button data-rid="'+e.rid+'" onclick="event.stopPropagation();completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">&#10003; Done</button>'
+      : '';
 
     return (
       '<div class="tl-event-row'+hoverClass+'"'+clickAttr+'>' +
@@ -2339,11 +2356,12 @@ function buildTimelineHTML(){
             '<span style="font-size:14px">'+e.icon+'</span>' +
             '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:'+labelColor+'">'+e.label+'</span>' +
             '<span style="font-size:11px;color:var(--muted)">· '+dayStr+'</span>' +
-            overdueTag + todayTag +
+            overdueTag + todayTag + urgentTag + fyiTag +
           '</div>' +
           '<div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;margin-bottom:2px;'+doneStyle+'">'+esc(e.title)+'</div>' +
           (e.subtitle ? '<div style="font-size:11px;color:var(--muted)">'+esc(e.subtitle)+'</div>' : '') +
         '</div>' +
+        (doneBtn ? '<div style="padding:10px 14px 10px 0;display:flex;align-items:flex-start">'+doneBtn+'</div>' : '') +
       '</div>'
     );
   }
@@ -2375,6 +2393,7 @@ function buildTimelineHTML(){
   }).join('');
 
   return '<div style="width:100%;overflow-y:auto">'+
+    overdueBanner+
     quickAdd+
     '<div style="padding:12px 12px 24px">'+sections+'</div>'+
   '</div>';
@@ -3456,7 +3475,7 @@ function saveReminder(){
   });
   saveReminders();
   closeModal('modal-reminder');
-  renderReminders();
+  if(currentTab==='timeline') renderTimeline();
   toast('Reminder saved ✓');
 }
 
@@ -3470,7 +3489,7 @@ function completeReminder(rid){
     const r = reminders.find(x=>x.id===rid);
     if(r){ r.done=true; saveReminders(); }
   }
-  renderReminders();
+  if(currentTab==='timeline') renderTimeline();
   renderAll();
   toast('Marked as done ✓');
 }
@@ -3484,111 +3503,7 @@ function deleteReminder(rid){
     reminders = reminders.filter(x=>x.id!==rid);
     saveReminders();
   }
-  renderReminders();
-}
-
-function renderReminders(){
-  const today = new Date().toISOString().split('T')[0];
-  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-
-  // Combine standalone reminders + contact follow-ups
-  const allReminders = [];
-
-  // Standalone reminders
-  (reminders||[]).forEach(r => {
-    const daysUntilDue = Math.ceil((new Date(r.date) - todayDate) / 86400000);
-    allReminders.push({
-      id: r.id,
-      type: 'reminder',
-      note: r.note,
-      date: r.date,
-      priority: r.priority||'normal',
-      contactId: r.contactId||null,
-      contactName: r.contactId ? (contacts.find(c=>c.id===r.contactId)||{}).name||'' : '',
-      days: daysUntilDue,
-      done: r.done||false,
-    });
-  });
-
-  // Contact follow-ups (only if they have a reason/note)
-  contacts.filter(c=>c.followup&&!c.followup_done).forEach(c => {
-    const daysUntilDue = Math.ceil((new Date(c.followup) - todayDate) / 86400000);
-    // Only show follow-ups within next 14 days or overdue
-    if(daysUntilDue <= 14) {
-      allReminders.push({
-        id: 'fu-'+c.id,
-        type: 'followup',
-        note: c.followup_note || ('Follow up with ' + c.name + (c.status?' — '+c.status:'')),
-        date: c.followup,
-        priority: daysUntilDue < 0 ? 'high' : 'normal',
-        contactId: c.id,
-        contactName: c.name,
-        days: daysUntilDue,
-        done: false,
-      });
-    }
-  });
-
-  // Sort: overdue first, then by date, done at bottom
-  const active = allReminders.filter(r=>!r.done).sort((a,b)=>a.days-b.days);
-  const done = allReminders.filter(r=>r.done).slice(0,5);
-
-  function mkCard(r, cls) {
-    let status, statusCls;
-    if(r.done){ status='Done'; statusCls='upcoming'; }
-    else if(r.days<0){ status='Overdue '+Math.abs(r.days)+'d'; statusCls='overdue'; }
-    else if(r.days===0){ status='Due today'; statusCls='today'; }
-    else if(r.days===1){ status='Tomorrow'; statusCls='upcoming'; }
-    else { status='In '+r.days+' days'; statusCls='upcoming'; }
-
-    const priorityBadge = r.priority==='high'
-      ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:6px">URGENT</span>'
-      : r.priority==='low' ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;margin-left:6px">FYI</span>' : '';
-
-    const typeIcon = r.type==='followup' ? '&#128222;' : '&#128276;';
-
-    return '<div class="'+cls+'" style="border-left:3px solid '+(statusCls==='overdue'?'#EF4444':statusCls==='today'?'#D97706':'#D1FAE5')+'">'+
-      '<div style="display:flex;align-items:flex-start;gap:10px">'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-            '<span style="font-size:14px">'+typeIcon+'</span>'+
-            '<span style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.note)+'</span>'+
-            priorityBadge+
-          '</div>'+
-          (r.contactName?'<div style="font-size:12px;color:var(--tx3);margin-bottom:3px">&#128101; '+esc(r.contactName)+'</div>':'')+
-          '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
-            '<span class="r-when '+statusCls+'" style="font-size:11px">'+status+'</span>'+
-            '<span style="font-size:11px;color:var(--muted)">'+new Date(r.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</span>'+
-          '</div>'+
-        '</div>'+
-        '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
-          (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">&#10003; Done</button>':'') +
-          (r.contactId?'<button data-cid="'+r.contactId+'" onclick="openDetail(this.dataset.cid)" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">View contact</button>':'')+
-          '<button data-rid="'+r.id+'" onclick="deleteReminder(this.dataset.rid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px">&#x2715;</button>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }
-
-  const addBtn = '<button onclick="openReminderModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-bottom:16px">&#43; Add Reminder</button>';
-
-  const overdueBanner = active.filter(r=>r.days<0).length > 0
-    ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+active.filter(r=>r.days<0).length+' overdue reminder'+(active.filter(r=>r.days<0).length>1?'s':'')+' need your attention</div>'
-    : '';
-
-  const emptyState = active.length===0
-    ? '<div class="empty"><div class="empty-icon">&#128276;</div><p>No upcoming reminders.</p><p style="font-size:12px;color:var(--muted);margin-top:4px">Add a reminder or set follow-up dates on contacts.</p></div>'
-    : '';
-
-  const doneSection = done.length > 0
-    ? '<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">&#10003; Completed ('+done.length+')</div>'+done.map(r=>mkCard(r,'rrow')).join('')+'</div>'
-    : '';
-
-  const html = addBtn + overdueBanner + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
-  const dr=document.getElementById('dv-reminders'), mr=document.getElementById('mv-reminders');
-  const isD=window.innerWidth>=768;
-  if(isD){ if(dr)dr.innerHTML=html; if(mr)mr.innerHTML=''; }
-  else { if(mr)mr.innerHTML=html; if(dr)dr.innerHTML=''; }
+  if(currentTab==='timeline') renderTimeline();
 }
 
 
@@ -4240,9 +4155,9 @@ function retryCloud(){
 
 function switchTab(tab){
   currentTab=tab;
-  const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
+  const titles={contacts:'Contacts',deliveries:'Deliveries',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','deliveries','reminders','admin','timeline','inventory'].forEach(t=>{
+  ['contacts','deliveries','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -4251,14 +4166,12 @@ function switchTab(tab){
   document.getElementById('dv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('dv-deliveries').style.display=(tab==='deliveries'&&window.innerWidth>=768)?'flex':'none';
   const mvDel2=document.getElementById('mv-deliveries');if(mvDel2)mvDel2.style.display=(tab==='deliveries'&&window.innerWidth<768)?'block':'none';
-  document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=(tab==='inventory'&&window.innerWidth>=768)?'flex':'none';
   const mvInv2=document.getElementById('mv-inventory');if(mvInv2)mvInv2.style.display=(tab==='inventory'&&window.innerWidth<768)?'block':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
-  document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
