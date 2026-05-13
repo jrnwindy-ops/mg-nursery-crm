@@ -3714,7 +3714,15 @@ function renderDetInfo(c){
     '<div class="dgrid">'+
     '<div class="ditem"><label>Phone</label><p>'+(c.phone?'<a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a>':'—')+'</p></div>'+
     '<div class="ditem"><label>Email</label><p>'+(c.email?'<a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a>':'—')+'</p></div>'+
-    '<div class="ditem"><label>Variety</label><p>'+esc(c.variety||'—')+'</p></div>'+
+    '<div class="ditem"><label>Variety / Rootstock</label>'+
+    (c.varieties&&c.varieties.filter(v=>v.variety).length
+      ? '<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+
+          c.varieties.filter(v=>v.variety).map(v=>
+            '<span style="font-size:13px">'+esc(v.variety)+(v.rootstock?' <span style="color:var(--tx2)">/ '+esc(v.rootstock)+'</span>':'')+(v.qty?'<span style="color:var(--tx2);font-size:12px"> · '+Number(v.qty).toLocaleString()+' trees</span>':'')+'</span>'
+          ).join('')+
+        '</div>'
+      : '<p>'+esc(c.variety||'—')+'</p>')+
+    '</div>'+
     '<div class="ditem"><label>Trees</label><p>'+(c.trees?Number(c.trees).toLocaleString():'—')+'</p></div>'+
     '<div class="ditem"><label>Price / tree</label><p>'+(c.price?'$'+Number(c.price).toFixed(2):'—')+'</p></div>'+
     '<div class="ditem"><label>Total value</label><p>'+(val?'$'+val.toLocaleString():'—')+'</p></div>'+
@@ -3987,12 +3995,16 @@ function addVarietyRow(variety='', rootstock='', qty=''){
   if(!list) return;
   const row = document.createElement('div');
   row.className = 'variety-row';
-  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+  const varieties = ['Tango','Olinda','P. Wash','Shiranui','A. Gold','Gillette','Fukumoto','L. Lane','P. S. Lime','Powell','A. F. Lime','Cara Cara','M14','Page','W. Murcott','Nules Clementine','Other'];
+  const rootstocks = ['Rich 16','Rubi','C35','Carrizo','Rubidoux','Other'];
+  const vOpts = varieties.map(v=>'<option value="'+v+'"'+(v===variety?' selected':'')+'>'+v+'</option>').join('');
+  const rOpts = rootstocks.map(r=>'<option value="'+r+'"'+(r===rootstock?' selected':'')+'>'+r+'</option>').join('');
   row.innerHTML =
-    '<input class="finput vr-variety" placeholder="Variety e.g. Tango Mandarin" value="'+variety+'" style="flex:2;margin:0">'+
-    '<input class="finput vr-rootstock" placeholder="Rootstock e.g. Carrizo" value="'+rootstock+'" style="flex:1.2;margin:0">'+
-    '<input class="finput vr-qty" type="number" min="1" placeholder="Qty" value="'+qty+'" style="flex:0.6;margin:0;text-align:center" oninput="recalcVarietyTotal()">'+
-    '<button type="button" onclick="this.parentElement.remove();recalcVarietyTotal()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>';
+    '<select class="finput vr-variety" style="flex:2;margin:0;min-width:120px"><option value="">Variety...</option>'+vOpts+'</select>'+
+    '<select class="finput vr-rootstock" style="flex:1.2;margin:0;min-width:90px"><option value="">Rootstock...</option>'+rOpts+'</select>'+
+    '<input class="finput vr-qty" type="number" min="1" placeholder="Qty" value="'+qty+'" style="flex:0.6;margin:0;text-align:center;min-width:60px" oninput="recalcVarietyTotal()">'+
+    '<button type="button" onclick="this.parentElement.remove();recalcVarietyTotal()" style="background:#FEE2E2;color:#991B1B;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>';
   list.appendChild(row);
   recalcVarietyTotal();
 }
@@ -4104,7 +4116,7 @@ async function saveContact(){
     email:document.getElementById('f-email').value.trim()||null,
     status:document.getElementById('f-status').value,
     varieties:varieties.length?varieties:null,
-    variety:varieties.length?varieties.map(v=>v.variety).join(', '):null,
+    variety:varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null,
     trees:parseInt(document.getElementById('f-trees').value)||null,
     price:parseFloat(document.getElementById('f-price').value)||null,
     date:document.getElementById('f-date').value||null,
