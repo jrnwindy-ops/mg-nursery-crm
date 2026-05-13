@@ -1071,15 +1071,28 @@ async function silentReload(){
       sb.from(CFG.actTable).select('*').order('created_at',{ascending:false}),
       sb.from(CFG.orderTable).select('*').order('created_at',{ascending:false}),
     ]);
-    // Merge cloud data with any contacts only in local (e.g. just saved, not yet returned)
-    const cloudIds = new Set((cr.data||[]).map(c=>c.id));
-    const localOnly = contacts.filter(c=>!cloudIds.has(c.id));
-    contacts=[...(cr.data||[]),...localOnly];
+    const cloudData = cr.data||[];
+    // Restore localStorage-only fields (contact_log, varieties) into cloud contacts
+    const localMap = {};
+    try{
+      const ls = JSON.parse(localStorage.getItem('mg_v3')||'[]');
+      ls.forEach(c=>{ localMap[c.id]=c; });
+    }catch(e2){}
+    const merged = cloudData.map(c => {
+      const local = localMap[c.id];
+      if(local) return {...c, contact_log:local.contact_log||[], varieties:local.varieties||null};
+      return c;
+    });
+    // Add any local-only contacts not yet in cloud
+    const cloudIds = new Set(cloudData.map(c=>c.id));
+    contacts.filter(c=>!cloudIds.has(c.id)).forEach(c=>merged.push(c));
+    contacts = merged;
     activities=ar.data||[];
     orders=or.data||[];
     saveLocal();
     renderAll();
-  }catch(e){}
+    console.log('[silentReload] contacts='+contacts.length);
+  }catch(e){ console.warn('[silentReload] error:',e); }
 }
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -3959,6 +3972,8 @@ async function getVarietiesFromForm(){
   return list;
 }
 async function saveContact(){
+  // Debug: show cloudOk state briefly
+  console.log('[saveContact] cloudOk='+cloudOk+' sb='+(sb?'yes':'no'));
   const name=document.getElementById('f-name').value.trim();if(!name){alert('Customer name is required.');return;}
   const varieties=getVarietiesFromForm();
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
@@ -3991,9 +4006,25 @@ async function saveContact(){
     if(cloudOk){
       try{
         _skipNextReload=true;
-        const res2 = await sb.from(CFG.table).update(data).eq('id',editingId);
-        if(res2.error){ _skipNextReload=false; queueSync('update',{...data,id:editingId}); }
-      }catch(e){ _skipNextReload=false; queueSync('update',{...data,id:editingId}); }
+        const sbUpd={
+          name:data.name, company:data.company||null,
+          phone:data.phone||null, email:data.email||null,
+          status:data.status, variety:data.variety||null,
+          trees:data.trees||null, price:data.price||null,
+          date:data.date||null, followup:data.followup||null,
+          notes:data.notes||null, contract_num:data.contract_num||null,
+          lot_num:data.lot_num||null, source:data.source||null
+        };
+        const res2 = await sb.from(CFG.table).update(sbUpd).eq('id',editingId);
+        if(res2.error){
+          console.warn('[saveContact] Update failed:', JSON.stringify(res2.error));
+          _skipNextReload=false;
+          queueSync('update',{...sbUpd,id:editingId});
+        }
+      }catch(e){
+        _skipNextReload=false;
+        queueSync('update',{...data,id:editingId});
+      }
     } else {
       queueSync('update',{...data,id:editingId});
     }
@@ -4004,19 +4035,53 @@ async function saveContact(){
     if(cloudOk){
       try{
         _skipNextReload=true;
-        const res = await sb.from(CFG.table).insert(row);
+        // Supabase payload: flat fields only — JSON arrays stay in localStorage
+        const sbRow={
+          id:row.id, name:row.name, company:row.company||null,
+          phone:row.phone||null, email:row.email||null,
+          status:row.status, variety:row.variety||null,
+          trees:row.trees||null, price:row.price||null,
+          date:row.date||null, followup:row.followup||null,
+          notes:row.notes||null, contract_num:row.contract_num||null,
+          lot_num:row.lot_num||null, source:row.source||null,
+          created_at:row.created_at
+        };
+        const res = await sb.from(CFG.table).insert(sbRow);
         if(res.error){
-          console.warn('Insert failed, queuing for retry:', res.error);
+          console.warn('[saveContact] Insert failed:', JSON.stringify(res.error));
+          toast('⚠ Saved locally — cloud sync pending');
           _skipNextReload=false;
-          queueSync('insert', row);
+          queueSync('insert', sbRow);
+        } else {
+          console.log('[saveContact] Insert OK, id='+row.id);
         }
       }catch(e){
-        console.warn('Insert exception, queuing for retry:', e);
+        console.warn('[saveContact] Insert exception:', e);
+        toast('⚠ Saved locally — cloud sync pending');
         _skipNextReload=false;
-        queueSync('insert', row);
+        queueSync('insert', {
+          id:row.id, name:row.name, company:row.company||null,
+          phone:row.phone||null, email:row.email||null,
+          status:row.status, variety:row.variety||null,
+          trees:row.trees||null, price:row.price||null,
+          date:row.date||null, followup:row.followup||null,
+          notes:row.notes||null, contract_num:row.contract_num||null,
+          lot_num:row.lot_num||null, source:row.source||null,
+          created_at:row.created_at
+        });
       }
     } else {
-      queueSync('insert', row); // offline — queue for when connection returns
+      toast('💾 Saved locally — will sync when connected');
+      queueSync('insert', {
+        id:row.id, name:row.name, company:row.company||null,
+        phone:row.phone||null, email:row.email||null,
+        status:row.status, variety:row.variety||null,
+        trees:row.trees||null, price:row.price||null,
+        date:row.date||null, followup:row.followup||null,
+        notes:row.notes||null, contract_num:row.contract_num||null,
+        lot_num:row.lot_num||null, source:row.source||null,
+        created_at:row.created_at
+      });
     }
   }
   saveLocal();closeModal('modal-form');renderAll();toast(editingId?'Customer updated ✓':'Customer added ✓');
