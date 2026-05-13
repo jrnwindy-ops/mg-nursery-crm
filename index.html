@@ -862,7 +862,18 @@ function showMain(){
 const LK='mg_v3',LKA='mg_act_v3',LKO='mg_ord_v3';
 function saveLocal(){localStorage.setItem(LK,JSON.stringify(contacts));localStorage.setItem(LKA,JSON.stringify(activities));localStorage.setItem(LKO,JSON.stringify(orders));}
 function loadLocalAll(){
-  try{const stored=JSON.parse(localStorage.getItem(LK)||'null');if(stored&&stored.length>0){contacts=stored;}else{/* keep pre-loaded contacts */}}catch(e){/* keep pre-loaded contacts */}
+  try{
+    const stored=JSON.parse(localStorage.getItem(LK)||'null');
+    if(stored&&stored.length>0){
+      const preLoaded = contacts.slice();
+      const merged = preLoaded.map(p => {
+        const s = stored.find(x => x.id === p.id);
+        return s ? {...p, ...s} : p;
+      });
+      stored.forEach(s => { if(!merged.find(m => m.id === s.id)) merged.push(s); });
+      contacts = merged;
+    }
+  }catch(e){ /* keep pre-loaded contacts */ }
   try{activities=JSON.parse(localStorage.getItem(LKA)||'[]');}catch(e){activities=[];}
   try{orders=JSON.parse(localStorage.getItem(LKO)||'[]');}catch(e){orders=[];}
 }
@@ -881,7 +892,24 @@ async function loadAll(){
     }
   });
   if(!cloudOk){
-    try{const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');if(stored&&stored.length>0)contacts=stored;else contacts=preLoaded;}catch(e){contacts=preLoaded;}
+    try{
+      const stored=JSON.parse(localStorage.getItem('mg_v3')||'null');
+      if(stored&&stored.length>0){
+        // Merge: start with preLoaded as base, overlay stored edits,
+        // then append any stored contacts not in preLoaded (user-added leads)
+        const merged = preLoaded.map(p => {
+          const s = stored.find(x => x.id === p.id);
+          return s ? {...p, ...s} : p; // stored version wins for known contacts
+        });
+        stored.forEach(s => {
+          if(!merged.find(m => m.id === s.id)) merged.push(s); // add user-added contacts
+        });
+        contacts = merged;
+      } else {
+        contacts = preLoaded;
+      }
+    }catch(e){ contacts=preLoaded; }
+    saveLocal(); // persist the merged result immediately
     setSyncBadge(false);
     renderAll();
     return;
