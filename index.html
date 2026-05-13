@@ -4079,7 +4079,9 @@ async function saveContact(){
         const res = await sb.from(CFG.table).insert(sbRow);
         if(res.error){
           console.warn('[saveContact] Insert failed:', JSON.stringify(res.error));
-          toast('⚠ Saved locally — sync failed: '+res.error.message);
+          const errMsg = res.error.message + (res.error.code ? ' ('+res.error.code+')' : '');
+          alert('Supabase error: '+errMsg);
+          toast('⚠ Saved locally — '+errMsg);
           _skipNextReload=false;
           queueSync('insert', sbRow);
         } else {
@@ -4090,6 +4092,7 @@ async function saveContact(){
         }
       }catch(e){
         console.warn('[saveContact] Insert exception:', e);
+        alert('Supabase exception: '+(e.message||JSON.stringify(e)));
         toast('⚠ Saved locally — connection error');
         _skipNextReload=false;
         queueSync('insert', {
