@@ -288,10 +288,6 @@ textarea.finput{height:70px;resize:none}
 .ditem p{font-size:14px;color:var(--tx);font-weight:500}
 .nbox{background:var(--bg);border-radius:var(--rsm);padding:11px;font-size:13px;color:var(--tx2);line-height:1.7;white-space:pre-wrap;margin-bottom:13px;border:1px solid var(--bd)}
 /* TASKS */
-.task-banner{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 16px;margin:0 14px 6px;box-shadow:var(--sh)}
-.task-banner-d{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 18px;margin:0 24px 12px;box-shadow:var(--sh);flex-shrink:0}
-.task-banner-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.task-banner-title{font-size:13px;font-weight:700;color:var(--blue)}
 .task-card{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;margin-bottom:9px;box-shadow:var(--sh);cursor:pointer;transition:box-shadow .15s}
 .task-card:hover{box-shadow:var(--shmd)}
 .task-card.done{opacity:0.5;border-style:dashed}
@@ -304,7 +300,6 @@ textarea.finput{height:70px;resize:none}
 .task-meta{font-size:11px;color:var(--tx4);margin-top:3px}
 .task-hint{font-size:12px;color:var(--g800);background:var(--g50);border-radius:var(--rsm);padding:7px 10px;margin-top:7px;border:1px solid var(--g100)}
 .task-section-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);padding:10px 0 5px;border-bottom:1px solid var(--bd);margin-bottom:8px}
-.mic-pulse{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(27,67,50,.4)}50%{box-shadow:0 0 0 12px rgba(27,67,50,0)}}
 .msg-ch-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--surf);font-size:13px;font-weight:600;color:var(--tx2);transition:all .15s;cursor:pointer}
 .msg-ch-btn:hover{border-color:var(--g400);color:var(--g800);background:var(--g50)}
@@ -380,7 +375,6 @@ textarea.finput{height:70px;resize:none}
         <button class="sn-btn" id="notif-btn" onclick="handleNotifBtn()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128276;</span> <span id="notif-btn-label">Enable Notifications</span></button>
         <button class="sn-btn" id="install-btn" onclick="handleInstallBtn()" style="font-size:11px;opacity:.85;display:none"><span class="sn-icon">&#128247;</span> <span>Install App</span></button>
       </div>
-      <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
     </nav>
     <div class="sb-foot">
       <div style="display:flex;gap:6px;margin-bottom:8px">
@@ -397,13 +391,11 @@ textarea.finput{height:70px;resize:none}
       <h2 id="d-tab-title">Contacts</h2>
       <div class="d-hdr-r">
         <span class="sync-badge" id="sync-badge" onclick="retryCloud()" title="Click to retry cloud connection" style="cursor:pointer">&#128190; Local</span>
-        <button class="fab-d" id="mic-btn-d" onclick="openDictate()" style="background:var(--g800);margin-right:6px">&#127908; Dictate task</button>
         <button class="fab-d" onclick="openAdd()">+ Add customer</button>
       </div>
     </div>
     <div class="d-metrics" id="d-metrics"></div>
     <div id="d-digest"></div>
-    <div id="d-task-banner"></div>
     <div class="d-tabs">
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
       <button class="d-tab" id="dtab-deliveries" onclick="switchTab('deliveries')">&#128666; Deliveries</button>
@@ -411,7 +403,6 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
-      <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
     <div id="dv-contacts" class="d-body">
       <div class="d-toolbar">
@@ -428,7 +419,6 @@ textarea.finput{height:70px;resize:none}
     </div>
     <div id="dv-deliveries" class="d-pipe" style="display:none"></div>
     <div id="dv-reminders" class="d-rem" style="display:none"></div>
-    <div id="dv-tasks" class="d-rem" style="display:none"></div>
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
@@ -442,14 +432,12 @@ textarea.finput{height:70px;resize:none}
         <div class="m-brand"><h1>M&amp;G Nursery</h1><p id="m-sub">CRM &amp; Pipeline</p></div>
       </div>
       <div style="display:flex;gap:7px;align-items:center">
-        <button class="m-logout" id="mic-btn-m" onclick="openDictate()" style="background:var(--g800);border-color:var(--g600)">&#127908;</button>
         <button class="m-logout" onclick="doLogout()">Sign out</button>
       </div>
     </div>
   </div>
   <div class="m-met mobile-only" id="m-metrics"></div>
   <div id="m-digest" class="mobile-only"></div>
-  <div id="m-task-banner" class="mobile-only"></div>
   <div class="m-tabs mobile-only">
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
     <button class="m-tab" id="mtab-deliveries" onclick="switchTab('deliveries')">Deliveries</button>
@@ -457,7 +445,6 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
-    <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
   <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="m-srch">
@@ -469,7 +456,6 @@ textarea.finput{height:70px;resize:none}
   </div>
   <div id="mv-deliveries" class="m-pipe mobile-only" style="display:none"></div>
   <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
-  <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
@@ -481,7 +467,6 @@ textarea.finput{height:70px;resize:none}
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
-    <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
 </div>
 
@@ -765,60 +750,6 @@ textarea.finput{height:70px;resize:none}
 
 <div class="toast" id="toast"></div>
 
-<!-- MODAL: DICTATE TASK -->
-<div class="modal-bg" id="modal-dictate">
-<div class="modal">
-  <div class="mhandle"></div>
-  <h2>&#127908; Dictate a task</h2>
-  <div id="dictate-browser-warn" style="display:none;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:10px">
-    &#9888; Your browser has limited voice support. Use <strong>Chrome</strong> or <strong>Safari</strong> for best results, or type your task below instead.
-  </div>
-  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div>
-  <div id="dictate-stop-hint" style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div>
-  <div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
-  <div style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;align-items:center">
-    <button id="mic-record-btn" onclick="toggleRecording()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
-  </div>
-  <div id="dictate-type-toggle" style="text-align:center;margin-bottom:10px">
-    <button onclick="toggleDictateMode()" style="font-size:12px;background:none;border:1px solid var(--bd);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--tx3);font-family:inherit" id="dictate-mode-btn">&#9000; Switch to typing instead</button>
-  </div>
-  <div id="dictate-preview" style="display:none">
-    <label class="flabel">Task (edit before saving)</label>
-    <textarea class="finput" id="dictate-text" style="height:90px" placeholder="Type your task here..."></textarea>
-    <label class="flabel">Created by</label>
-    <input class="finput" id="dictate-by" placeholder="e.g. Raffi, Isidro">
-    <div id="dictate-assignee-box" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#1B4332">
-      <strong>&#128119; Assign to:</strong> <span id="dictate-assignee-name" style="font-weight:700"></span>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px" id="dictate-assignee-btns"></div>
-    </div>
-    <div id="dictate-suggestion" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--g800)">
-      <strong>&#128161; Suggested CRM action:</strong><br>
-      <span id="dictate-hint"></span>
-    </div>
-  </div>
-  <div class="mact">
-    <button class="btn-cancel" onclick="closeModal('modal-dictate');stopRecording()">Cancel</button>
-    <button class="btn-save" id="dictate-save-btn" onclick="saveTask()" style="display:none">Save task</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: TASK DETAIL -->
-<div class="modal-bg" id="modal-task-detail">
-<div class="modal">
-  <div class="mhandle"></div>
-  <h2 id="td-title" style="font-size:16px;margin-bottom:4px"></h2>
-  <p id="td-meta" style="font-size:12px;color:var(--tx3);margin-bottom:14px"></p>
-  <div id="td-hint-wrap" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--g800)">
-    <strong>&#128161; How to action this in the CRM:</strong><br>
-    <span id="td-hint"></span>
-  </div>
-  <div class="mact">
-    <button class="btn-cancel" onclick="closeModal('modal-task-detail')">Close</button>
-    <button class="btn-save" onclick="completeTask()">Mark complete ✓</button>
-    <button class="btn-danger" onclick="deleteTask()">Delete</button>
-  </div>
-</div>
 </div>
 
 <script>
@@ -931,7 +862,7 @@ function showMain(){
       contacts=filterDeleted(merged).map(ensureVarieties);
     }
   }catch(e){}
-  activities=[];orders=[];tasks=[];
+  activities=[];orders=[];
   renderAll();
   setTimeout(updateNotifBtn, 300);
   setTimeout(checkInstallPrompt, 1000);
@@ -1089,11 +1020,6 @@ async function loadAll(){
     console.log('Orders loaded:', orders.length);
   }catch(e){console.warn('Orders:',e);orders=[];}
 
-  try{
-    const tr=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
-    tasks=tr.data||[];
-    console.log('Tasks loaded:', tasks.length);
-  }catch(e){console.warn('Tasks:',e);tasks=[];}
 
   await flushSyncQueue(); // push any contacts saved while offline
   setSyncBadge(true);
@@ -1201,7 +1127,6 @@ function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.toLocaleDateStr
 function fuTag(d){const days=daysUntil(d);if(days===null)return'<span class="fu" style="color:var(--tx4)">No follow-up</span>';if(days<0)return'<span class="fu fu-due">Overdue '+Math.abs(days)+'d</span>';if(days===0)return'<span class="fu fu-soon">Due today</span>';if(days<=5)return'<span class="fu fu-soon">In '+days+'d</span>';return'<span class="fu fu-ok">In '+days+'d</span>';}
 function fuTxt(d){const days=daysUntil(d);if(days===null)return'—';if(days<0)return'Overdue '+Math.abs(days)+'d';if(days===0)return'Today';return'In '+days+'d';}
 
-function goToTasks(){switchTab("tasks");}
 function closeDigest(id){const el=document.getElementById(id);if(el)el.innerHTML='';}
 function renderDigest(){
   const due=contacts.filter(c=>c.followup&&daysUntil(c.followup)<=0)
@@ -1230,439 +1155,6 @@ function renderDigest(){
   const mm=document.getElementById('m-digest');
   if(dm)dm.innerHTML=html('digest-banner-d','d-digest');
   if(mm)mm.innerHTML=html('digest-banner','m-digest');
-}
-
-// ═══════════════ TASKS ═══════════════
-let tasks = [];
-let currentTaskId = null;
-const LKT = 'mg_tasks_v3';
-const TASK_TABLE = 'tasks';
-
-const CRM_HINTS = [
-  {keywords:['follow up','followup','call back','reach out','contact'],
-   hint:'Open the customer in Contacts → Activity tab → Log activity → Select "Call / voicemail" or "Email sent" → Add your notes.'},
-  {keywords:['quote','estimate','price','pricing'],
-   hint:'Open the customer in Contacts → Activity tab → Log activity → Select "Quote sent" → Note the details.'},
-  {keywords:['deposit','payment','invoice'],
-   hint:'Open the customer in Contacts → Update stage to "Deposit received" → Activity tab → Log "Deposit received" with amount.'},
-  {keywords:['order','confirm','lot','production'],
-   hint:'Open the customer in Contacts → Order docs tab → Create or update order docs with lot number and pickup details.'},
-  {keywords:['pickup','delivery','schedule','ready'],
-   hint:'Open the customer in Contacts → Update stage to "Ready" → Order docs tab → Confirm pickup date and time → Log "Pickup scheduled" in Activity.'},
-  {keywords:['add','new customer','new lead','new client','enter'],
-   hint:'Tap "+ Add customer" → Fill in name, phone, company, stage, variety and trees → Set a follow-up date → Save.'},
-  {keywords:['update','change','edit'],
-   hint:'Find the customer in Contacts → Tap their name to open → Tap "Edit" → Make changes → Save.'},
-  {keywords:['log','note','record','write'],
-   hint:'Open the customer in Contacts → Activity tab → Tap "+ Log activity" → Select type → Add notes → Save.'},
-  {keywords:['reconcile','quickbooks','expense','receipt'],
-   hint:'This is an accounting task — set aside receipts/documents for the QuickBooks entry session. Flag for Isidro if urgent.'},
-];
-
-function getCRMHint(text){
-  const lower = text.toLowerCase();
-  for(const rule of CRM_HINTS){
-    if(rule.keywords.some(k=>lower.includes(k))) return rule.hint;
-  }
-  return null;
-}
-
-function fmtTs2(ts){
-  if(!ts)return'';
-  const d=new Date(ts);
-  const now=new Date();
-  const diff=Math.round((now-d)/60000);
-  if(diff<1)return'Just now';
-  if(diff<60)return diff+'m ago';
-  if(diff<1440)return Math.round(diff/60)+'h ago';
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-}
-
-async function loadTasks(){
-  try{
-    if(cloudOk){
-      const{data,error}=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
-      if(error)throw error;
-      tasks=data||[];
-    }else{
-      tasks=JSON.parse(localStorage.getItem(LKT)||'[]');
-    }
-  }catch(e){
-    console.warn('Tasks load failed',e);
-    try{tasks=JSON.parse(localStorage.getItem(LKT)||'[]');}catch(e2){tasks=[];}
-  }
-}
-
-function saveTasksLocal(){localStorage.setItem(LKT,JSON.stringify(tasks));}
-
-// Dictation
-let recognition=null;
-let isRecording=false;
-
-function openDictate(){
-  document.getElementById('dictate-status').textContent='Tap the mic to start speaking';
-  document.getElementById('dictate-preview').style.display='none';
-  document.getElementById('dictate-save-btn').style.display='none';
-  document.getElementById('dictate-text').value='';
-  document.getElementById('dictate-by').value='';
-  document.getElementById('dictate-hint').textContent='';
-  document.getElementById('dictate-suggestion').style.display='none';
-  const btn=document.getElementById('mic-record-btn');
-  btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-  isRecording=false;
-  openModal('modal-dictate');
-}
-
-function detectAssigneeFromSpeech(transcript){
-  const t = transcript.toLowerCase();
-  const box = document.getElementById('dictate-assignee-box');
-  const nameEl = document.getElementById('dictate-assignee-name');
-  const btnsEl = document.getElementById('dictate-assignee-btns');
-  if(!box) return;
-
-  let matched = null;
-  const staff = adminStaff || ['Isidro','Admin Juan','Admin Julie'];
-  for(const s of staff){
-    const parts = s.toLowerCase().split(' ');
-    if(parts.some(p => t.includes(p)) || t.includes(s.toLowerCase())){
-      matched = s; break;
-    }
-  }
-
-  if(matched){
-    window._dictateAssignee = matched;
-    nameEl.textContent = matched;
-    const others = staff.filter(s => s !== matched);
-    let html = '<span style="font-size:11px;color:#1B4332;margin-right:4px">Reassign:</span>';
-    others.forEach(function(s){
-      html += '<button data-sname="'+s+'" onclick="reassignDictate(this.dataset.sname)" style="background:#fff;border:1px solid #BBF7D0;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#1B4332;font-family:inherit;margin-right:4px">'+s+'</button>';
-    });
-    html += '<button onclick="cancelDictateAssign()" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#991B1B;font-family:inherit">&#x2715; General task</button>';
-    btnsEl.innerHTML = html;
-    box.style.display = 'block';
-  } else {
-    window._dictateAssignee = null;
-    box.style.display = 'none';
-  }
-}
-
-function reassignDictate(name){
-  window._dictateAssignee = name;
-  const el = document.getElementById('dictate-assignee-name');
-  if(el) el.textContent = name;
-}
-function cancelDictateAssign(){
-  window._dictateAssignee = null;
-  const box = document.getElementById('dictate-assignee-box');
-  if(box) box.style.display = 'none';
-}
-function openDictateModal(){
-  // Reset state
-  const warn = document.getElementById('dictate-browser-warn');
-  if(warn) warn.style.display = 'none';
-  const mic = document.getElementById('mic-record-btn');
-  if(mic) mic.style.display = '';
-  const hint = document.getElementById('dictate-stop-hint');
-  if(hint) hint.style.display = '';
-  const preview = document.getElementById('dictate-preview');
-  if(preview) preview.style.display = 'none';
-  const saveBtn = document.getElementById('dictate-save-btn');
-  if(saveBtn) saveBtn.style.display = 'none';
-  const status = document.getElementById('dictate-status');
-  if(status) status.textContent = 'Tap the mic to start speaking';
-  const mb = document.getElementById('dictate-mode-btn');
-  if(mb) mb.textContent = '\u232b Switch to typing instead';
-  openModal('modal-dictate');
-  // Auto-detect browser
-  setTimeout(function(){
-    const b = detectBrowserSupport();
-    if(b.limited && warn) warn.style.display = 'block';
-    if(!b.supported){
-      if(warn) warn.style.display = 'block';
-      toggleDictateMode();
-    }
-  }, 150);
-}
-
-function toggleRecording(){
-  if(isRecording){stopRecording();}
-  else{startRecording();}
-}
-
-function detectBrowserSupport(){
-  const ua = navigator.userAgent.toLowerCase();
-  const isDuckDuckGo = ua.includes('ddg') || ua.includes('duckduckgo') || document.referrer.includes('duckduckgo');
-  const isFirefox = ua.includes('firefox');
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  return { supported: !!SR, limited: isDuckDuckGo || isFirefox, isDDG: isDuckDuckGo };
-}
-
-function toggleDictateMode(){
-  const isVoice = document.getElementById('mic-record-btn').style.display !== 'none';
-  const micBtn = document.getElementById('mic-record-btn');
-  const modeBtn = document.getElementById('dictate-mode-btn');
-  const stopHint = document.getElementById('dictate-stop-hint');
-  const preview = document.getElementById('dictate-preview');
-  if(isVoice){
-    // Switch to type mode
-    micBtn.style.display = 'none';
-    if(stopHint) stopHint.style.display = 'none';
-    modeBtn.textContent = '\u1f3a4 Switch to voice instead';
-    preview.style.display = 'block';
-    document.getElementById('dictate-text').focus();
-    document.getElementById('dictate-save-btn').style.display = 'block';
-    document.getElementById('dictate-status').textContent = 'Type your task below';
-  } else {
-    // Switch back to voice
-    micBtn.style.display = '';
-    if(stopHint) stopHint.style.display = '';
-    modeBtn.textContent = '\u232b Switch to typing instead';
-    document.getElementById('dictate-status').textContent = 'Tap the mic to start speaking';
-  }
-}
-
-function startRecording(){
-  const browser = detectBrowserSupport();
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    // No speech support — auto-switch to type mode
-    const warn = document.getElementById('dictate-browser-warn');
-    if(warn) warn.style.display = 'block';
-    toggleDictateMode();
-    return;
-  }
-  if(browser.limited){
-    // Show warning but still try
-    const warn = document.getElementById('dictate-browser-warn');
-    if(warn) warn.style.display = 'block';
-  }
-  recognition=new SpeechRecognition();
-  recognition.continuous=true;      // stays on until manually stopped
-  recognition.interimResults=true;
-  recognition.lang='en-US';
-  recognition.maxAlternatives=1;
-  isRecording=true;
-  let finalTranscript='';
-  let interimTranscript='';
-
-  const btn=document.getElementById('mic-record-btn');
-  btn.textContent='⏹';btn.style.background='var(--red)';btn.classList.add('mic-pulse');
-  document.getElementById('dictate-status').textContent='Listening... say STOP when done';
-
-  recognition.onresult=function(e){
-    interimTranscript='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      if(e.results[i].isFinal){
-        // Check for stop word
-        if(/stop/i.test(t.trim())){
-          stopRecording();
-          return;
-        }
-        finalTranscript+=t+' ';
-      } else {
-        interimTranscript+=t;
-      }
-    }
-    const full=(finalTranscript+interimTranscript).trim();
-    const textEl=document.getElementById('dictate-text');
-    if(textEl) textEl.value=full;
-    document.getElementById('dictate-preview').style.display='block';
-    document.getElementById('dictate-save-btn').style.display='block';
-    const hint=getCRMHint(full);
-    if(hint){
-      document.getElementById('dictate-hint').textContent=hint;
-      document.getElementById('dictate-suggestion').style.display='block';
-    }else{
-      document.getElementById('dictate-suggestion').style.display='none';
-    }
-    detectAssigneeFromSpeech(full);
-    // Update character counter
-    const ctr=document.getElementById('dictate-char-count');
-    if(ctr) ctr.textContent=full.length+' chars';
-  };
-
-  recognition.onend=function(){
-    // If still recording (browser cut it off after silence), restart automatically
-    if(isRecording){
-      try{ recognition.start(); }catch(e){ /* already started */ }
-    } else {
-      btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-      document.getElementById('dictate-status').textContent='Done — review and save, or tap mic to record more';
-    }
-  };
-
-  recognition.onerror=function(e){
-    if(e.error==='no-speech'&&isRecording){
-      // No speech detected but still recording — just restart quietly
-      try{ recognition.start(); }catch(err){}
-      return;
-    }
-    if(e.error==='aborted') return; // we aborted it intentionally
-    isRecording=false;
-    btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-    document.getElementById('dictate-status').textContent='Microphone error — check permissions and try again';
-  };
-
-  recognition.start();
-}
-
-function stopRecording(){
-  isRecording=false; // set false BEFORE calling stop so onend doesn't restart
-  if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
-  const btn=document.getElementById('mic-record-btn');
-  if(btn){ btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse'); }
-  const statusEl=document.getElementById('dictate-status');
-  if(statusEl) statusEl.textContent='Done — review and save, or tap mic to record more';
-}
-
-async function saveTask(){
-  const text=document.getElementById('dictate-text').value.trim();
-  const by=document.getElementById('dictate-by').value.trim();
-  if(!text){alert('Please add a task description.');return;}
-
-  // Check if routed to admin staff member
-  const detectedAssignee = window._dictateAssignee || null;
-  if(detectedAssignee){
-    // Save to admin task board
-    adminTasks.unshift({id:uid(),task:text,assignee:detectedAssignee,due:'',done:false,created_at:now()});
-    saveAdminTasks();
-    window._dictateAssignee = null;
-    const ab=document.getElementById('dictate-assignee-box');if(ab)ab.style.display='none';
-    closeModal('modal-dictate');
-    stopRecording();
-    toast('Task assigned to '+detectedAssignee+' ✓');
-    if(currentTab==='admin') renderAdmin();
-    else { switchTab('admin'); }
-    return;
-  }
-
-  // Otherwise save as general task
-  const hint=getCRMHint(text);
-  const task={
-    id:uid(),
-    text,
-    created_by:by||'Team',
-    hint:hint||null,
-    status:'pending',
-    created_at:now(),
-    completed_at:null,
-  };
-  tasks.unshift(task);
-  if(cloudOk){try{await sb.from(TASK_TABLE).insert(task);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-dictate');
-  stopRecording();
-  renderTasks();
-  renderTaskBanner();
-  toast('Task saved ✓');
-}
-
-function openTaskDetail(id){
-  const t=tasks.find(x=>x.id===id);if(!t)return;
-  currentTaskId=id;
-  document.getElementById('td-title').textContent=t.text;
-  document.getElementById('td-meta').textContent=
-    'Created by '+t.created_by+' · '+fmtTs2(t.created_at)+
-    (t.status==='done'?' · Completed '+fmtTs2(t.completed_at):'');
-  if(t.hint){
-    document.getElementById('td-hint').textContent=t.hint;
-    document.getElementById('td-hint-wrap').style.display='block';
-  }else{
-    document.getElementById('td-hint-wrap').style.display='none';
-  }
-  openModal('modal-task-detail');
-}
-
-async function completeTask(){
-  const t=tasks.find(x=>x.id===currentTaskId);if(!t)return;
-  t.status='done';t.completed_at=now();
-  if(cloudOk){try{await sb.from(TASK_TABLE).update({status:'done',completed_at:t.completed_at}).eq('id',currentTaskId);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-task-detail');
-  renderTasks();renderTaskBanner();
-  toast('Task completed ✓');
-}
-
-async function deleteTask(){
-  if(!confirm('Delete this task?'))return;
-  tasks=tasks.filter(x=>x.id!==currentTaskId);
-  if(cloudOk){try{await sb.from(TASK_TABLE).delete().eq('id',currentTaskId);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-task-detail');
-  renderTasks();renderTaskBanner();
-  toast('Task deleted');
-}
-
-function renderTaskBanner(){
-  const pending=tasks.filter(t=>t.status==='pending');
-  if(!pending.length){
-    const db=document.getElementById('d-task-banner');
-    const mb=document.getElementById('m-task-banner');
-    if(db)db.innerHTML='';if(mb)mb.innerHTML='';return;
-  }
-  const items=pending.slice(0,3).map(t=>
-    '<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
-    '<div class="digest-dot" style="background:var(--blue)"></div>'+
-    '<span class="digest-item-name">'+esc(t.text.length>60?t.text.substring(0,60)+'...':t.text)+'</span>'+
-    '<span class="digest-item-when" style="color:var(--blue)">'+fmtTs2(t.created_at)+'</span>'+
-    '</div>'
-  ).join('');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks →</div>':'';
-  const mkBanner=(cls,closeId)=>
-    '<div class="'+cls+'">'+
-    '<div class="task-banner-hd">'+
-    '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
-    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
-    '</div>'+items+more+'</div>';
-  const db=document.getElementById('d-task-banner');
-  const mb=document.getElementById('m-task-banner');
-  if(db)db.innerHTML=mkBanner('task-banner-d','d-task-banner');
-  if(mb)mb.innerHTML=mkBanner('task-banner','m-task-banner');
-}
-
-function renderTasks(){
-  const filter=currentTaskFilter||'all';
-  const filtered=filter==='all'?tasks:filter==='done'?tasks.filter(t=>t.status==='done'):tasks.filter(t=>t.status!=='done'&&t.assignee===filter);
-  const pending=tasks.filter(t=>t.status!=='done');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks \u2192</div>':'';
-  const mkBanner=(cls,closeId)=>
-    '<div class="'+cls+'">' +
-    '<div class="task-banner-hd">' +
-    '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
-    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
-    '</div>'+
-    filtered.slice(0,3).map(t=>'<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
-      '<div class="task-card-to">'+
-      '<span class="tc-name">'+esc(t.title||t.task||'')+'</span>'+
-      '<span class="tc-assign">'+esc(t.assignee||'')+'</span>'+
-      '</div></div>').join('')+
-    more+'</div>';
-  const db=document.getElementById('d-task-banner');
-  const mb=document.getElementById('m-task-banner');
-  if(db)db.innerHTML=pending.length>0?mkBanner('task-banner-d','d-task-banner'):'';
-  if(mb)mb.innerHTML=pending.length>0?mkBanner('task-banner','m-task-banner'):'';
-
-  const html=filtered.length===0
-    ?'<div style="text-align:center;padding:40px 20px;color:var(--muted)">No tasks yet. Add one below.</div>'
-    :filtered.map(t=>{
-      return '<div class="task-card'+(t.status==='done'?' done':'')+'" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)">'+
-        '<div class="task-card-top">'+
-        '<div class="task-status-dot '+(t.status==='done'?'done':t.priority==='high'?'high':'normal')+'"></div>'+
-        '<div class="task-card-main">'+
-          '<div class="task-title">'+esc(t.title||t.task||'')+'</div>'+
-          '<div class="task-meta">'+(t.assignee?esc(t.assignee)+' · ':'')+
-          (t.due?new Date(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · ':'')+
-          (t.contact_id?(contacts.find(c=>c.id===t.contact_id)||{}).name||'':'')+'</div>'+
-        '</div>'+
-        '</div>'+
-      '</div>';
-    }).join('');
-
-  const dv=document.getElementById('dv-tasks');
-  const mv=document.getElementById('mv-tasks');
-  if(dv)dv.innerHTML='<div style="padding:16px;overflow-y:auto;width:100%">'+html+'</div>';
-  if(mv)mv.innerHTML=html;
 }
 
 let adminTasks = JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
@@ -4750,7 +4242,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','deliveries','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
+  ['contacts','deliveries','reminders','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -4760,7 +4252,6 @@ function switchTab(tab){
   document.getElementById('dv-deliveries').style.display=(tab==='deliveries'&&window.innerWidth>=768)?'flex':'none';
   const mvDel2=document.getElementById('mv-deliveries');if(mvDel2)mvDel2.style.display=(tab==='deliveries'&&window.innerWidth<768)?'block':'none';
   document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
-  document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=(tab==='inventory'&&window.innerWidth>=768)?'flex':'none';
@@ -4768,11 +4259,9 @@ function switchTab(tab){
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
-  document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
-  if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
@@ -4786,8 +4275,8 @@ document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>
   if(e.target!==m) return; // only trigger if clicking the backdrop itself
   // These modals contain data entry — never close on outside click
   const safe=['modal-form','modal-voice-journal','modal-reminder',
-    'modal-activity','modal-order','modal-dictate','modal-inv-row','modal-inv-lot',
-    'modal-inv-log','modal-task-detail'];
+    'modal-activity','modal-order','modal-inv-row','modal-inv-lot',
+    'modal-inv-log'];
   if(safe.includes(m.id)) return;
   m.classList.remove('open');
 }));
