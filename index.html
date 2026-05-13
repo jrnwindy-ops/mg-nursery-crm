@@ -344,7 +344,6 @@ textarea.finput{height:70px;resize:none}
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
       <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
-      <button class="sn-btn" id="snav-journal" onclick="switchTab('journal')"><span class="sn-icon">&#128221;</span> Journal</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
       <div style="margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)">
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
@@ -376,7 +375,6 @@ textarea.finput{height:70px;resize:none}
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
-      <button class="d-tab" id="dtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
       <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
@@ -399,7 +397,6 @@ textarea.finput{height:70px;resize:none}
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
-  <div id="dv-journal" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   </div>
 
   <!-- MOBILE HEADER -->
@@ -424,7 +421,6 @@ textarea.finput{height:70px;resize:none}
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
-    <button class="m-tab" id="mtab-journal" onclick="switchTab('journal')">&#128221; Journal</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
     <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
@@ -441,7 +437,6 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
-  <div id="mv-journal" class="m-rem mobile-only" style="display:none"></div>
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
@@ -449,7 +444,6 @@ textarea.finput{height:70px;resize:none}
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
-    <button class="bnav-btn" id="mnav-journal" onclick="switchTab('journal')"><span class="bnav-icon">&#128221;</span><span class="bnav-label">Journal</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
     <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
@@ -544,64 +538,6 @@ textarea.finput{height:70px;resize:none}
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#1B4332;color:#fff" onclick="generateContract(currentId)">&#9997; Contract</button>
     <button class="btn-xs" style="padding:11px 13px;font-size:13px;background:#7C3AED;color:#fff" onclick="openReminderModal(currentId)">&#128276; Remind</button>
     <button class="btn-danger" onclick="deleteContact()">Delete</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: VOICE JOURNAL -->
-<div class="modal-bg" id="modal-voice-journal">
-<div class="modal">
-  <div class="mhandle"></div>
-  <h2>&#127908; Voice Journal Entry</h2>
-  <div style="background:#F5F3FF;border-radius:8px;padding:10px 14px;font-size:12px;color:#5B21B6;margin-bottom:14px">
-    Speak naturally about your day — mention client names and the AI will sort everything automatically. Say <strong>STOP</strong> when done.
-  </div>
-  <div id="vj-status" style="text-align:center;padding:10px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start</div>
-  <div style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:10px">Say <strong>STOP</strong> to finish recording</div>
-  <div style="display:flex;justify-content:center;margin-bottom:14px">
-    <button id="vj-mic-btn" onclick="toggleVoiceJournal()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
-  </div>
-  <div id="vj-preview" style="display:none">
-    <label class="flabel">What you said (edit if needed)</label>
-    <textarea class="finput" id="vj-raw" style="height:100px;resize:vertical"></textarea>
-    <button onclick="processVoiceJournal()" style="width:100%;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">&#9889; Sort Notes by Client</button>
-  </div>
-  <div id="vj-result" style="display:none;margin-top:14px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">AI sorted your notes</div>
-    <div id="vj-result-content"></div>
-    <div style="display:flex;gap:6px;margin-top:10px">
-      <button onclick="applyVoiceJournalResult()" style="flex:1;background:#1B4332;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; Save to Journal &amp; Contacts</button>
-      <button onclick="document.getElementById('vj-result').style.display='none';document.getElementById('vj-preview').style.display='block'" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--tx3)">Re-record</button>
-    </div>
-  </div>
-  <div class="mact" style="margin-top:8px">
-    <button class="btn-cancel" onclick="stopVoiceJournal();closeModal('modal-voice-journal')">Cancel</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: JOURNAL ENTRY -->
-<div class="modal-bg" id="modal-journal">
-<div class="modal" style="max-height:90vh;overflow-y:auto">
-  <div class="mhandle"></div>
-  <h2 id="jnl-modal-title">New Journal Entry</h2>
-  <div class="fgrid">
-    <div class="ffull">
-      <label class="flabel">Date</label>
-      <input class="finput" id="jnl-date" type="date">
-    </div>
-    <div class="ffull">
-      <label class="flabel">Entry — What happened today? Who did you talk to?</label>
-      <textarea class="finput" id="jnl-body" style="height:200px;resize:vertical" placeholder="Write about your calls, meetings, follow-ups, and anything worth remembering...&#10;&#10;Example:&#10;Called Jireh — they confirmed Summer pickup window is June 15-30. Want exact delivery dates by end of May.&#10;&#10;Spoke with Robert LoBue — Shiranui trees looking good, he asked about adding 500 more. Said I'd check availability.&#10;&#10;New lead from Oscar at Valley AG — looking for 3,000 Tango Carrizo Spring 2027. Sending him a quote this week."></textarea>
-    </div>
-    <div class="ffull">
-      <label class="flabel">Clients mentioned (tap to tag)</label>
-      <div id="jnl-contacts-wrap" style="display:flex;flex-wrap:wrap;gap:2px;padding:6px 0;max-height:140px;overflow-y:auto"></div>
-    </div>
-  </div>
-  <div class="mact">
-    <button class="btn-cancel" onclick="closeModal('modal-journal');journalEditId=null">Cancel</button>
-    <button class="btn-xs" onclick="openVoiceJournal()" style="background:#7C3AED;color:#fff;padding:11px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-family:inherit">&#127908; Dictate</button><button class="btn-save" onclick="saveJournalEntry()">Save Entry</button>
   </div>
 </div>
 </div>
@@ -3212,13 +3148,7 @@ function buildDeliveriesHTML(){
 }
 
 
-function renderJournal(){
-  const dvj=document.getElementById('dv-journal');
-  const mvj=document.getElementById('mv-journal');
-  const html=buildJournalHTML();
-  if(dvj)dvj.innerHTML=html;
-  if(mvj)mvj.innerHTML=html;
-}
+function renderJournal(){ /* journal moved to personal device */ }
 
 function renderAll(){
   renderMetrics();
@@ -3874,7 +3804,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','deliveries','reminders','tasks','admin','timeline','inventory','journal'].forEach(t=>{
+  ['contacts','deliveries','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -3887,7 +3817,6 @@ function switchTab(tab){
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=tab==='inventory'?'flex':'none';
-  const dvJnl=document.getElementById('dv-journal');if(dvJnl)dvJnl.style.display=tab==='journal'?'flex':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
@@ -3895,12 +3824,10 @@ function switchTab(tab){
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
-  const mvJnl=document.getElementById('mv-journal');if(mvJnl)mvJnl.style.display=tab==='journal'?'block':'none';
   if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
-  if(tab==='journal')renderJournal();
   if(tab==='deliveries')renderDeliveries();
   renderAll();
 }
@@ -3910,7 +3837,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{
   if(e.target!==m) return; // only trigger if clicking the backdrop itself
   // These modals contain data entry — never close on outside click
-  const safe=['modal-form','modal-journal','modal-voice-journal','modal-reminder',
+  const safe=['modal-form','modal-voice-journal','modal-reminder',
     'modal-activity','modal-order','modal-dictate','modal-inv-row','modal-inv-lot',
     'modal-inv-log','modal-task-detail'];
   if(safe.includes(m.id)) return;
