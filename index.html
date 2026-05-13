@@ -1682,6 +1682,13 @@ function renderAdmin(){
 }
 
 function buildAdminHTML(){
+  // Backup button at top
+  const backupHtml = '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:12px 14px;margin:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+    '<div><div style="font-size:13px;font-weight:600;color:#92400E">💾 Export Data Backup</div>' +
+    '<div style="font-size:11px;color:#92400E;margin-top:2px">Downloads all contacts and CRM data as a JSON file</div></div>' +
+    '<button onclick="exportBackup()" style="background:#92400E;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">↓ Backup Now</button>' +
+  '</div>';
+
   const pending = adminTasks.filter(t => !t.done);
   const done = adminTasks.filter(t => t.done);
 
@@ -1710,7 +1717,7 @@ function buildAdminHTML(){
       ? tasks.map(t => {
           const idx = adminTasks.indexOf(t);
           const isOverdue = t.due && t.due < new Date().toISOString().split('T')[0];
-          return '<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
+          return ''+backupHtml+'<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
             '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
               '<div style="flex:1">' +
                 '<div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.4">' + esc(t.task) + '</div>' +
@@ -3245,6 +3252,35 @@ function renderMetrics(){
 }
 
 // ── Reconstruct varieties array from flat variety string if missing ──────────
+
+// ── BACKUP / EXPORT ──────────────────────────────────────────────────────────
+function exportBackup(){
+  try{
+    const data = {
+      contacts: JSON.parse(localStorage.getItem('mg_v3')||'[]'),
+      activities: JSON.parse(localStorage.getItem('mg_act_v3')||'[]'),
+      orders: JSON.parse(localStorage.getItem('mg_ord_v3')||'[]'),
+      tasks: JSON.parse(localStorage.getItem('mg_tasks_v1')||'[]'),
+      reminders: JSON.parse(localStorage.getItem('mg_reminders')||'[]'),
+      deleted: JSON.parse(localStorage.getItem('mg_deleted_v1')||'[]'),
+      exported_at: new Date().toISOString(),
+      device: navigator.userAgent
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mg_crm_backup_' + new Date().toISOString().split('T')[0] + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    toast('Backup downloaded · '+data.contacts.length+' contacts');
+  }catch(e){
+    alert('Backup failed: '+e.message);
+  }
+}
+
 // ── DELETED CONTACTS TRACKING ─────────────────────────────────────────────────
 const DEL_KEY = 'mg_deleted_v1';
 function getDeletedIds(){ try{ return new Set(JSON.parse(localStorage.getItem(DEL_KEY)||'[]')); }catch(e){ return new Set(); } }
