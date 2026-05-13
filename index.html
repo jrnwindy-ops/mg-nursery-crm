@@ -2,6 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="M&G Nursery">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1B4332">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -48,6 +56,7 @@ a{color:var(--g600);text-decoration:none}
 
 /* MAIN */
 #screen-main{display:none;height:100%;flex-direction:column}
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 #screen-main.visible{display:flex}
 
 /* DESKTOP */
@@ -300,6 +309,9 @@ textarea.finput{height:70px;resize:none}
 .spinner{width:16px;height:16px;border:2px solid var(--bd);border-top-color:var(--g600);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 .tl-event-row{display:flex;gap:10px;padding:6px 16px;border-bottom:.5px solid var(--bd)} .tl-clickable:hover{background:var(--g50);cursor:pointer}
+
+  .inv-tab-btn{padding:10px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;font-family:inherit;color:var(--tx2);border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+  .inv-tab-btn:hover{color:var(--g900)}
 </style>
 </head>
 <body>
@@ -338,6 +350,7 @@ textarea.finput{height:70px;resize:none}
         <button class="sn-btn" onclick="generateCRMDailyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128196;</span> Daily Report</button>
         <button class="sn-btn" onclick="generateCRMWeeklyReport()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128202;</span> Weekly Report</button>
         <button class="sn-btn" id="notif-btn" onclick="handleNotifBtn()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128276;</span> <span id="notif-btn-label">Enable Notifications</span></button>
+        <button class="sn-btn" id="install-btn" onclick="handleInstallBtn()" style="font-size:11px;opacity:.85;display:none"><span class="sn-icon">&#128247;</span> <span>Install App</span></button>
       </div>
       <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
     </nav>
@@ -903,6 +916,7 @@ function showMain(){
   activities=[];orders=[];tasks=[];
   renderAll();
   setTimeout(updateNotifBtn, 300);
+  setTimeout(checkInstallPrompt, 1000);
   initSB().then(function(){
     console.log('Supabase cloudOk='+cloudOk);
     loadAll();
@@ -2421,1148 +2435,519 @@ function buildTimelineHTML(){
 
 
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
-let inventoryRows = JSON.parse(localStorage.getItem('mg_inventory') || '[]');
-let inventoryLots = JSON.parse(localStorage.getItem('mg_inv_lots') || '[]');
-let editingInvId = null;
-let invModalMode = null; // 'row' | 'lot' | null
+// Pre-loaded inventory from House #2 spreadsheet (May 2026)
+// Adjusted totals = raw × 0.70 (30% cull factor)
+// Orders pulled from contact records in CRM
 
-function saveInventory(){
-  localStorage.setItem('mg_inventory', JSON.stringify(inventoryRows));
-  localStorage.setItem('mg_inv_lots', JSON.stringify(inventoryLots));
+const INV_CULL = 0.70; // yield after cull
+
+// Master inventory data — raw counts from House #2 physical layout
+const INV_MASTER_2026 = [
+  {variety:'Tango',       rootstock:'Rich 16', raw:50816, category:'Mandarin'},
+  {variety:'Tango',       rootstock:'Rubi',    raw:20788, category:'Mandarin'},
+  {variety:'Tango',       rootstock:'C35',     raw:20752, category:'Mandarin'},
+  {variety:'Tango',       rootstock:'Carrizo', raw:27792, category:'Mandarin'},
+  {variety:'Olinda',      rootstock:'Rich 16', raw:10628, category:'Valencia'},
+  {variety:'Olinda',      rootstock:'Carrizo', raw:2888,  category:'Valencia'},
+  {variety:'P. Wash',     rootstock:'Rich 16', raw:3480,  category:'Navel'},
+  {variety:'P. Wash',     rootstock:'Rubi',    raw:3056,  category:'Navel'},
+  {variety:'Shiranui',    rootstock:'Rich 16', raw:9574,  category:'Mandarin'},
+  {variety:'A. Gold',     rootstock:'Rich 16', raw:7328,  category:'Navel'},
+  {variety:'Gillette',    rootstock:'Carrizo', raw:5112,  category:'Navel'},
+  {variety:'Fukumoto',    rootstock:'Carrizo', raw:1144,  category:'Navel'},
+  {variety:'L. Lane',     rootstock:'Carrizo', raw:1308,  category:'Navel'},
+  {variety:'P. S. Lime',  rootstock:'Carrizo', raw:3996,  category:'Specialty'},
+  {variety:'Powell',      rootstock:'Carrizo', raw:5080,  category:'Navel'},
+  {variety:'A. F. Lime',  rootstock:'Carrizo', raw:684,   category:'Specialty'},
+];
+
+const INV_MASTER_2027 = [
+  {variety:'Tango', rootstock:'Rubi', raw:29020, category:'Mandarin'},
+];
+
+// Hardcoded orders from spreadsheet (matched to CRM contacts)
+// These mirror the order sheets exactly for reliable totals
+const INV_ORDERS_2026 = [
+  // Tango / Carrizo
+  {variety:'Tango',rootstock:'Carrizo',client:'Crystal Cove Farms (Gary)',qty:25,price:16.50,contract:'1002',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Carrizo',client:'MilMar Ranches (Dennis Veeh)',qty:1980,price:12.50,contract:'1003',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Carrizo',client:'Vito Deleonardis',qty:5425,price:12.50,contract:'1008',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Carrizo',client:'John Yohannes',qty:3830,price:12.50,contract:'1009',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Carrizo',client:'Gurtirath Sanghera',qty:4000,price:12.50,contract:'1033',shipment:'Summer/Fall'},
+  {variety:'Tango',rootstock:'Carrizo',client:'Jireh Nurseries',qty:6050,price:12.50,contract:'26004',shipment:'Summer'},
+  {variety:'Tango',rootstock:'Carrizo',client:'Jireh Nurseries',qty:6516,price:12.50,contract:'26001',shipment:'Summer'},
+  // Tango / C35
+  {variety:'Tango',rootstock:'C35',client:'Jaime Avila',qty:2800,price:12.50,contract:'1023',shipment:'Summer'},
+  {variety:'Tango',rootstock:'C35',client:'John Kalender',qty:2000,price:12.50,contract:'N/A',shipment:'Summer'},
+  {variety:'Tango',rootstock:'C35',client:'Jireh Nurseries',qty:7000,price:12.50,contract:'26005',shipment:'Summer'},
+  // Tango / Rich 16
+  {variety:'Tango',rootstock:'Rich 16',client:'Wells Farms (Charlie Dip)',qty:6510,price:12.50,contract:'N/A',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Jireh Nurseries',qty:6516,price:12.50,contract:'26001',shipment:'Summer'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Rigo Cedeno',qty:1340,price:12.00,contract:'1024',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Rupi Sandhu',qty:2800,price:12.50,contract:'N/A',shipment:'Spring'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Jireh Nurseries',qty:2178,price:12.50,contract:'26002',shipment:'Summer'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Jireh Nurseries',qty:6050,price:12.50,contract:'26003',shipment:'Summer'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Turlock Citrus',qty:2400,price:12.50,contract:'1029',shipment:'Summer'},
+  {variety:'Tango',rootstock:'Rich 16',client:'Tad Edwards',qty:8500,price:12.50,contract:'1028',shipment:'Spring'},
+  // Shiranui
+  {variety:'Shiranui',rootstock:'Rich 16',client:'LoBue Ranches (Robert LoBue)',qty:8000,price:12.50,contract:'1010',shipment:'Spring'},
+  // P. Wash
+  {variety:'P. Wash',rootstock:'Rich 16',client:'Crystal Cove Farms (Gary)',qty:120,price:16.50,contract:'1002',shipment:'Spring'},
+  {variety:'P. Wash',rootstock:'Rich 16',client:'Goehring Custom Farming (George)',qty:3924,price:12.50,contract:'1021',shipment:'Fall'},
+  {variety:'P. Wash',rootstock:'Rubi',client:'Larson Ranch (Ken Larson)',qty:1000,price:12.50,contract:'1018',shipment:'Spring'},
+  {variety:'P. Wash',rootstock:'Carrizo',client:'R&N Citrus (Maribel)',qty:140,price:12.50,contract:'N/A',shipment:'Spring'},
+  // Fukumoto
+  {variety:'Fukumoto',rootstock:'Carrizo',client:'Crystal Cove Farms (Gary)',qty:20,price:16.50,contract:'1002',shipment:'Spring'},
+  // Autumn Gold
+  {variety:'A. Gold',rootstock:'Rich 16',client:'Crystal Cove Farms (Gary)',qty:50,price:16.50,contract:'1002',shipment:'Spring'},
+  {variety:'A. Gold',rootstock:'Rich 16',client:'Kevin Howard',qty:2825,price:12.50,contract:'1012',shipment:'Spring'},
+  // Powell
+  {variety:'Powell',rootstock:'Carrizo',client:'Luis Avalos',qty:2300,price:12.50,contract:'1015',shipment:'Spring'},
+  // Late Lane
+  {variety:'L. Lane',rootstock:'Carrizo',client:'Johnny Jameson',qty:780,price:12.50,contract:'1005',shipment:'Spring'},
+  // Gillette
+  {variety:'Gillette',rootstock:'Carrizo',client:'Johnny Jameson',qty:1092,price:12.50,contract:'1005',shipment:'Spring'},
+  // Olinda
+  {variety:'Olinda',rootstock:'Carrizo',client:'Sanchez Farms',qty:810,price:12.50,contract:'1007',shipment:'Spring'},
+  {variety:'Olinda',rootstock:'Carrizo',client:'Luis Avalos',qty:1500,price:12.50,contract:'1015',shipment:'Spring'},
+  {variety:'Olinda',rootstock:'Carrizo',client:'Rick Croker',qty:800,price:12.50,contract:'1016',shipment:'Spring'},
+  {variety:'Olinda',rootstock:'Rich 16',client:'Merryman Ranch (Glen Weerheim)',qty:3200,price:12.50,contract:'1006',shipment:'Spring'},
+  {variety:'Olinda',rootstock:'Rich 16',client:'Antonio Villapando',qty:2300,price:12.50,contract:'1014',shipment:'Spring'},
+  {variety:'Olinda',rootstock:'Rich 16',client:'Hillview Groves',qty:3680,price:12.50,contract:'1020',shipment:'Spring'},
+  // Specialty
+  {variety:'A. F. Lime',rootstock:'Carrizo',client:'G&M Farms (Greg Willems)',qty:375,price:16.50,contract:'1001',shipment:'Spring'},
+  // Page
+  {variety:'Page',rootstock:'Carrizo',client:'Turlock Citrus',qty:1200,price:12.50,contract:'1029',shipment:'Summer'},
+];
+
+// State
+let invYear = '2026';
+let invView = 'cards'; // 'cards' | 'spot' | 'orders'
+let invCategoryFilter = 'All';
+
+function saveInventory(){ /* no-op — inventory is now from master data, orders from INV_ORDERS_2026 */ }
+
+function getInvKey(variety, rootstock){ return variety + '||' + rootstock; }
+
+function getInvAdj(item){ return Math.round(item.raw * INV_CULL); }
+
+function getInvOrders(variety, rootstock, year){
+  const src = year === '2027' ? [] : INV_ORDERS_2026;
+  return src.filter(o => o.variety === variety && o.rootstock === rootstock);
 }
 
-// ── Promised = pulled live from CRM contacts ──────────────────────────────────
-function getPromised(){
-  const promised = {};
-  contacts.forEach(c => {
-    if((c.notes||'').includes('INTERNAL')) return;
-    const varieties = c.varieties || [];
-    const totalTrees = parseInt(c.trees)||0;
-    if(!totalTrees) return;
-    if(varieties.length){
-      const hasQty = varieties.some(v=>parseInt(v.qty||0)>0);
-      if(hasQty){
-        // Use explicit qty per variety
-        varieties.forEach(v=>{
-          const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
-          const qty=parseInt(v.qty||0);
-          if(vr&&qty){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+qty; }
-        });
-      } else if(varieties.length===1){
-        // Single variety — assign all trees to it
-        const v=varieties[0];
-        const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
-        if(vr){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+totalTrees; }
-      } else {
-        // Multiple varieties, no qty — split evenly, remainder to first
-        const each=Math.floor(totalTrees/varieties.length);
-        const rem=totalTrees%varieties.length;
-        varieties.forEach((v,idx)=>{
-          const vr=(v.variety||'').trim(), rs=(v.rootstock||'').trim()||'—';
-          const qty=each+(idx===0?rem:0);
-          if(vr&&qty){ const k=vr+'||'+rs; promised[k]=(promised[k]||0)+qty; }
-        });
-      }
-    } else {
-      // No varieties array — use variety string field
-      const vr=(c.variety||'Unknown').trim();
-      if(vr){ const k=vr+'||—'; promised[k]=(promised[k]||0)+totalTrees; }
-    }
-  });
-  return promised;
+function getInvOrderQty(variety, rootstock, year){
+  return getInvOrders(variety, rootstock, year).reduce((s,o) => s + o.qty, 0);
 }
 
-function calcReadyDate(budDate, months){
-  if(!budDate) return null;
-  const d=new Date(budDate+'T12:00:00');
-  d.setMonth(d.getMonth()+parseInt(months||9));
-  return d.toISOString().split('T')[0];
+function getInvAvail(item, year){
+  const adj = getInvAdj(item);
+  const ordered = getInvOrderQty(item.variety, item.rootstock, year);
+  return adj - ordered;
 }
 
-// ── RENDER — builds static skeleton once, then updates data zones ─────────────
+// ── RENDER ───────────────────────────────────────────────────────────────────
 function renderInventory(){
-  const dv=document.getElementById('dv-inventory');
-  const mv=document.getElementById('mv-inventory');
-  const shell = buildInvShell();
-  if(dv){ dv.innerHTML=shell; }
-  if(mv){ mv.innerHTML=shell; }
+  const dv = document.getElementById('dv-inventory');
+  const mv = document.getElementById('mv-inventory');
+  const html = buildInvShell();
+  if(dv) dv.innerHTML = html;
+  if(mv) mv.innerHTML = html;
   refreshInvMetrics();
-  refreshInvTable();
-  refreshInvLots();
+  renderInvContent();
 }
 
 function buildInvShell(){
   return (
-    '<div style="width:100%;overflow-y:auto;padding:0">'+
-      '<div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
-        '<h2 style="font-size:18px;font-weight:700;color:var(--g900);margin:0">&#127807; Nursery Inventory</h2>'+
-        '<div style="display:flex;gap:6px">'+
-          '<button onclick="openInvRowModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; Update Growing Count</button>'+
-          '<button onclick="openInvLotModal()" style="background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; New Lot</button>'+
-        '</div>'+
-      '</div>'+
-      '<div style="padding:0 20px 24px">'+
-        '<div id="inv-metrics" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px"></div>'+
-        '<div id="inv-table-wrap" style="margin-bottom:20px"></div>'+
-        '<div id="inv-lots-wrap"></div>'+
-      '</div>'+
-    '</div>'
-  );
-}
-
-function buildInvRowForm(){
-  const vars=['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
-  const roots=['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
-  return (
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
-      '<div><label class="flabel">Variety *</label>'+
-        '<select class="finput" id="inv-variety" style="margin:0">'+vars.map(v=>'<option>'+v+'</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Rootstock *</label>'+
-        '<select class="finput" id="inv-rootstock" style="margin:0">'+roots.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Total Trees Growing *</label><input class="finput" id="inv-total" type="number" min="0" placeholder="25000" style="margin:0"></div>'+
-      '<div><label class="flabel">Bud / Graft Date</label><input class="finput" id="inv-bud-date" type="date" style="margin:0"></div>'+
-      '<div><label class="flabel">Months to Ready</label>'+
-        '<select class="finput" id="inv-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Notes</label><input class="finput" id="inv-notes" placeholder="House 2 North section" style="margin:0"></div>'+
-    '</div>'
-  );
-}
-
-function buildInvLotForm(){
-  const vars=['Tango','Olinda','Shiranui','Parent Washington','Autumn Gold','Powell','Gillette','Late Lane','Australian Finger Lime','Fukumoto'];
-  const roots=['Carrizo','C35','Rich 16-6','Rubidoux','Trifoliata'];
-  const autoNum='MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
-  const contactOpts=contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
-  return (
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
-      '<div><label class="flabel">Lot Number</label><input class="finput" id="lot-num" value="'+autoNum+'" style="margin:0"></div>'+
-      '<div><label class="flabel">Location (House / Row)</label><input class="finput" id="lot-location" placeholder="e.g. N3 Row 2" style="margin:0"></div>'+
-      '<div><label class="flabel">Variety *</label>'+
-        '<select class="finput" id="lot-variety" style="margin:0">'+vars.map(v=>'<option>'+v+'</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Rootstock</label>'+
-        '<select class="finput" id="lot-rootstock" style="margin:0">'+roots.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Trees at Transplant *</label><input class="finput" id="lot-qty" type="number" min="1" placeholder="2500" style="margin:0"></div>'+
-      '<div><label class="flabel">Bud Date</label><input class="finput" id="lot-bud-date" type="date" style="margin:0"></div>'+
-      '<div><label class="flabel">Months to Ready</label>'+
-        '<select class="finput" id="lot-months" style="margin:0">'+[6,7,8,9,10,11,12].map(m=>'<option value="'+m+'"'+(m===9?' selected':'')+'>'+m+' months</option>').join('')+'</select></div>'+
-      '<div><label class="flabel">Assign to Buyer (optional)</label>'+
-        '<select class="finput" id="lot-contact" style="margin:0"><option value="">Unassigned</option>'+contactOpts+'</select></div>'+
-    '</div>'
-  );
-}
-
-// ── Refresh just data zones without rebuilding shell ──────────────────────────
-function refreshInvMetrics(){
-  const el=document.getElementById('inv-metrics'); if(!el) return;
-  const promised=getPromised();
-  const allKeys=new Set();
-  inventoryRows.forEach(r=>allKeys.add(r.variety+'||'+(r.rootstock||'—')));
-  Object.keys(promised).forEach(k=>allKeys.add(k));
-  let totalG=0,totalP=0;
-  allKeys.forEach(k=>{
-    const [vr,rs]=k.split('||');
-    const ir=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
-    totalG+=ir?parseInt(ir.total||0):0;
-    totalP+=promised[k]||0;
-  });
-  const totalA=totalG-totalP;
-  el.innerHTML=
-    mkMetCard('Growing',totalG.toLocaleString(),'#1B4332')+
-    mkMetCard('Promised',totalP.toLocaleString(),'#0369A1')+
-    mkMetCard(totalA<0?'OVER-PROMISED':'Available',
-      totalA<0?'▲'+Math.abs(totalA).toLocaleString():totalA.toLocaleString(),
-      totalA<0?'#991B1B':'#7C3AED');
-}
-function mkMetCard(label,val,col){
-  return '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center">'+
-    '<div style="font-size:24px;font-weight:800;color:'+col+'">'+val+'</div>'+
-    '<div style="font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">'+label+'</div>'+
-  '</div>';
-}
-
-function refreshInvTable(){
-  const el=document.getElementById('inv-table-wrap'); if(!el) return;
-  const promised=getPromised();
-  const allKeys=new Set();
-  inventoryRows.forEach(r=>allKeys.add(r.variety+'||'+(r.rootstock||'—')));
-  Object.keys(promised).forEach(k=>allKeys.add(k));
-  const rows=Array.from(allKeys).map(k=>{
-    const [vr,rs]=k.split('||');
-    const ir=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
-    const growing=ir?parseInt(ir.total||0):0;
-    const prom=promised[k]||0;
-    const avail=growing-prom;
-    const readyDate=ir&&ir.bud_date?calcReadyDate(ir.bud_date,ir.months||9):null;
-    const readyStr=readyDate?new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—';
-    const isReady=readyDate&&readyDate<=new Date().toISOString().split('T')[0];
-    const availCol=avail<0?'#991B1B':avail===0?'#6B7280':'#1B4332';
-    const availBg=avail<0?'#FEF2F2':avail===0?'#F9FAFB':'#F0FDF4';
-    return {vr,rs,growing,prom,avail,ir,readyStr,isReady,availCol,availBg};
-  }).sort((a,b)=>b.growing-a.growing||b.prom-a.prom);
-
-  if(!rows.length){
-    el.innerHTML='<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:32px;text-align:center;color:var(--muted)">'+
-      '<div style="font-size:32px;margin-bottom:8px">&#127807;</div>'+
-      '<div style="font-size:14px;font-weight:600;margin-bottom:4px">No inventory data yet</div>'+
-      '<div style="font-size:12px">Tap + Update Growing Count to add how many trees you have growing. Promised column will auto-fill from CRM contacts.</div>'+
-    '</div>';
-    return;
-  }
-
-  // Filter out rows with zero growing AND zero promised (nothing to show)
-  const visibleRows = rows.filter(r => r.growing > 0 || r.prom > 0);
-  if(!visibleRows.length) return;
-
-  const trs=visibleRows.map(r=>(
-    '<tr style="border-bottom:1px solid var(--bd)">'+
-      '<td style="padding:10px 12px">'+
-        '<div style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.vr)+'</div>'+
-        '<div style="font-size:11px;color:var(--muted)">'+esc(r.rs)+'</div>'+
-      '</td>'+
-      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:var(--tx)">'+
-        (r.growing?r.growing.toLocaleString():'<span style="color:var(--muted);font-size:11px">Not entered</span>')+
-      '</td>'+
-      '<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;color:#0369A1">'+r.prom.toLocaleString()+'</td>'+
-      '<td style="padding:10px 12px;text-align:right">'+
-        (r.growing===0?
-          '<span style="font-size:12px;color:var(--muted)">Enter count</span>':
-          '<span style="font-size:13px;font-weight:700;color:'+r.availCol+';background:'+r.availBg+';border-radius:6px;padding:3px 8px">'+
-            (r.avail>=0?r.avail.toLocaleString():'▲'+Math.abs(r.avail).toLocaleString())+
-          '</span>')+
-      '</td>'+
-      '<td style="padding:10px 12px;text-align:center">'+
-        (r.readyStr!=='—'?
-          '<span style="font-size:11px;background:'+(r.isReady?'#D1FAE5':'#EFF6FF')+';color:'+(r.isReady?'#065F46':'#1E40AF')+';border-radius:6px;padding:2px 8px;font-weight:600">'+
-            (r.isReady?'&#10003; Ready':r.readyStr)+
-          '</span>':
-          '<span style="font-size:11px;color:var(--muted)">—</span>')+
-      '</td>'+
-      '<td style="padding:10px 12px;text-align:center">'+
-        '<button data-vr="'+esc(r.vr)+'" data-rs="'+esc(r.rs)+'" onclick="openEditInvRow(this.dataset.vr,this.dataset.rs)" '+
-          'style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>'+
-      '</td>'+
-    '</tr>'
-  )).join('');
-
-  el.innerHTML=
-    '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;overflow:hidden">'+
-      '<table style="width:100%;border-collapse:collapse">'+
-        '<thead><tr style="background:#F0FDF4">'+
-          '<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Variety / Rootstock</th>'+
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Growing</th>'+
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#0369A1;letter-spacing:.05em">Promised</th>'+
-          '<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;color:#7C3AED;letter-spacing:.05em">Available</th>'+
-          '<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;color:#1B4332;letter-spacing:.05em">Ready</th>'+
-          '<th style="padding:10px 12px"></th>'+
-        '</tr></thead>'+
-        '<tbody>'+trs+'</tbody>'+
-      '</table>'+
-    '</div>';
-}
-
-function refreshInvLots(){
-  const el=document.getElementById('inv-lots-wrap'); if(!el) return;
-  if(!inventoryLots.length){
-    el.innerHTML=
-      '<div style="border:1px dashed var(--bd);border-radius:10px;padding:24px;text-align:center;color:var(--muted)">'+
-        '<div style="font-size:20px;margin-bottom:8px">&#128218;</div>'+
-        '<div style="font-size:13px;font-weight:600;margin-bottom:4px">No lots yet</div>'+
-        '<div style="font-size:12px">Lots are created at transplant. Tap + New Lot when seedlings move to grow-out rows.</div>'+
-      '</div>';
-    return;
-  }
-
-  const cards=inventoryLots.map(lot=>{
-    const totalOut=(lot.movements||[]).filter(m=>m.type==='out').reduce((s,m)=>s+(m.qty||0),0);
-    const remaining=(lot.qty||0)-totalOut;
-    const buyer=lot.contact_id?(contacts.find(c=>c.id===lot.contact_id)||{}).name||'Unassigned':'Unassigned';
-    const unassigned=!lot.contact_id;
-    const readyDate=lot.bud_date?calcReadyDate(lot.bud_date,lot.months||9):null;
-    const readyStr=readyDate?new Date(readyDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—';
-    const isReady=readyDate&&readyDate<=new Date().toISOString().split('T')[0];
-    const recentMovements=(lot.movements||[]).slice().reverse().slice(0,3);
-
-    return (
-      '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:8px">'+
-        '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
-          '<div style="flex:1;min-width:200px">'+
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">'+
-              '<span style="font-size:14px;font-weight:700;color:var(--g900)">'+esc(lot.lot_num)+'</span>'+
-              '<span style="font-size:11px;background:'+(unassigned?'#F3F4F6':'#EFF6FF')+';color:'+(unassigned?'#6B7280':'#1D4ED8')+';border-radius:8px;padding:1px 8px;font-weight:600">'+esc(buyer)+'</span>'+
-              (isReady?'<span style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:1px 8px;font-weight:600">&#10003; Ready</span>':'')+
-            '</div>'+
-            '<div style="display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap">'+
-              '<span>'+esc(lot.variety)+(lot.rootstock?' &middot; '+esc(lot.rootstock):'')+'</span>'+
-              (lot.location?'<span>&#127968; '+esc(lot.location)+'</span>':'')+
-              '<span style="font-weight:600;color:var(--tx)">'+remaining.toLocaleString()+' / '+(lot.qty||0).toLocaleString()+' trees remaining</span>'+
-              (readyStr!=='—'?'<span>Ready: '+readyStr+'</span>':'')+
-            '</div>'+
-          '</div>'+
-          '<div style="display:flex;gap:5px;flex-shrink:0">'+
-            '<button data-lid="'+lot.id+'" onclick="openLogModal(this.dataset.lid)" '+
-              'style="font-size:12px;background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600;font-family:inherit">&#43; Log</button>'+
-            '<button data-lid="'+lot.id+'" onclick="openAssignLot(this.dataset.lid)" '+
-              'style="font-size:12px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600;font-family:inherit">Assign</button>'+
-          '</div>'+
-        '</div>'+
-        (recentMovements.length?
-          '<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px">'+
-            recentMovements.map(m=>
-              '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0">'+
-                '<span>'+(m.type==='out'?'&#8595;':'&#8593;')+' '+m.qty.toLocaleString()+' trees — '+esc(m.note||m.type)+'</span>'+
-                '<span>'+new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</span>'+
-              '</div>'
-            ).join('')+
-          '</div>':'')+
-      '</div>'
-    );
-  }).join('');
-
-  el.innerHTML=
-    '<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:10px">&#128218; Active Lots ('+inventoryLots.length+')</div>'+
-    cards;
-}
-
-// ── Modal open/close ──────────────────────────────────────────────────────────
-function openInvRowModal(){
-  editingInvId=null;
-  document.getElementById('inv-row-modal-title').textContent='Update Growing Count';
-  const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value='Tango';
-  const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value='Carrizo';
-  const tEl=document.getElementById('inv-total'); if(tEl) tEl.value='';
-  const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value='';
-  const mEl=document.getElementById('inv-months'); if(mEl) mEl.value='9';
-  const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value='';
-  openModal('modal-inv-row');
-}
-
-function openEditInvRow(vr,rs){
-  const row=inventoryRows.find(r=>r.variety===vr&&(r.rootstock||'—')===rs);
-  editingInvId=row?row.id:null;
-  if(!row) return;
-  document.getElementById('inv-row-modal-title').textContent='Edit — '+vr+' / '+rs;
-  const vEl=document.getElementById('inv-variety'); if(vEl) vEl.value=row.variety||'';
-  const rEl=document.getElementById('inv-rootstock'); if(rEl) rEl.value=row.rootstock||'';
-  const tEl=document.getElementById('inv-total'); if(tEl) tEl.value=row.total||'';
-  const bEl=document.getElementById('inv-bud-date'); if(bEl) bEl.value=row.bud_date||'';
-  const mEl=document.getElementById('inv-months'); if(mEl) mEl.value=row.months||9;
-  const nEl=document.getElementById('inv-notes'); if(nEl) nEl.value=row.notes||'';
-  openModal('modal-inv-row');
-}
-
-function openInvLotModal(){
-  // Auto-generate lot number
-  const autoNum='MG-LOT-'+new Date().getFullYear()+'-'+String(inventoryLots.length+1).padStart(3,'0');
-  const numEl=document.getElementById('lot-num'); if(numEl) numEl.value=autoNum;
-  const locEl=document.getElementById('lot-location'); if(locEl) locEl.value='';
-  const qEl=document.getElementById('lot-qty'); if(qEl) qEl.value='';
-  const bdEl=document.getElementById('lot-bud-date'); if(bdEl) bdEl.value='';
-  const mEl=document.getElementById('lot-months'); if(mEl) mEl.value='9';
-  // Populate buyer dropdown fresh from contacts
-  const sel=document.getElementById('lot-contact');
-  if(sel){
-    sel.innerHTML='<option value="">Unassigned</option>'+
-      contacts.filter(c=>!c.name.includes('M&R')).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
-  }
-  openModal('modal-inv-lot');
-}
-
-let _currentLogLotId=null;
-function openLogModal(lotId){
-  _currentLogLotId=lotId;
-  const lot=inventoryLots.find(l=>l.id===lotId);
-  if(!lot) return;
-  const title=document.getElementById('inv-log-title');
-  if(title) title.textContent='Log Movement — '+lot.lot_num;
-  const d=document.getElementById('log-date');
-  if(d) d.value=new Date().toISOString().split('T')[0];
-  const iEl=document.getElementById('log-in'); if(iEl) iEl.value='';
-  const oEl=document.getElementById('log-out'); if(oEl) oEl.value='';
-  const nEl=document.getElementById('log-note'); if(nEl) nEl.value='';
-  openModal('modal-inv-log');
-}
-
-function openAssignLot(lotId){
-  const lot=inventoryLots.find(l=>l.id===lotId);
-  if(!lot) return;
-  const buyers=contacts.filter(c=>!c.name.includes('M&R'));
-  const opts=buyers.map((c,i)=>(i+1)+'. '+c.name).join('\n');
-  const choice=prompt('Assign lot '+lot.lot_num+' to which buyer?\n\n'+opts+'\n\nEnter number:');
-  if(!choice||isNaN(choice)) return;
-  const c=buyers[parseInt(choice)-1];
-  if(!c){ alert('Invalid selection.'); return; }
-  lot.contact_id=c.id;
-  saveInventory();
-  if(!c.lot_num) c.lot_num=lot.lot_num;
-  else if(!c.lot_num.includes(lot.lot_num)) c.lot_num+=', '+lot.lot_num;
-  saveLocal();
-  refreshInvLots();
-  toast('Lot assigned to '+c.name+' ✓');
-}
-
-function closeInvModal(){
-  ['modal-inv-row','modal-inv-lot','modal-inv-log'].forEach(id=>closeModal(id));
-  editingInvId=null; _currentLogLotId=null;
-}
-
-// ── Save functions ────────────────────────────────────────────────────────────
-function saveInvRow(){
-  const variety=(document.getElementById('inv-variety')||{}).value||'';
-  const rootstock=(document.getElementById('inv-rootstock')||{}).value||'';
-  const total=parseInt((document.getElementById('inv-total')||{}).value||0);
-  const bud_date=(document.getElementById('inv-bud-date')||{}).value||'';
-  const months=parseInt((document.getElementById('inv-months')||{}).value||9);
-  const notes=(document.getElementById('inv-notes')||{}).value||'';
-  if(!variety||!total){ alert('Variety and tree count are required.'); return; }
-  if(editingInvId){
-    const i=inventoryRows.findIndex(r=>r.id===editingInvId);
-    if(i>-1) inventoryRows[i]={...inventoryRows[i],variety,rootstock,total,bud_date,months,notes,updated_at:now()};
-  } else {
-    const existing=inventoryRows.findIndex(r=>r.variety===variety&&(r.rootstock||'')===rootstock);
-    if(existing>-1) inventoryRows[existing]={...inventoryRows[existing],total,bud_date,months,notes,updated_at:now()};
-    else inventoryRows.unshift({id:uid(),variety,rootstock,total,bud_date,months,notes,created_at:now()});
-  }
-  saveInventory();
-  closeInvModal();
-  refreshInvMetrics();
-  refreshInvTable();
-  toast('Inventory updated ✓');
-}
-
-function saveLot(){
-  const lot_num=(document.getElementById('lot-num')||{}).value||'';
-  const location=(document.getElementById('lot-location')||{}).value||'';
-  const variety=(document.getElementById('lot-variety')||{}).value||'';
-  const rootstock=(document.getElementById('lot-rootstock')||{}).value||'';
-  const qty=parseInt((document.getElementById('lot-qty')||{}).value||0);
-  const bud_date=(document.getElementById('lot-bud-date')||{}).value||'';
-  const months=parseInt((document.getElementById('lot-months')||{}).value||9);
-  const contact_id=(document.getElementById('lot-contact')||{}).value||null;
-  if(!variety||!qty){ alert('Variety and quantity are required.'); return; }
-  const lot={
-    id:uid(),lot_num:lot_num||('MG-LOT-'+Date.now()),
-    location,variety,rootstock,qty,bud_date,months,
-    contact_id:contact_id||null,movements:[],created_at:now()
-  };
-  inventoryLots.unshift(lot);
-  saveInventory();
-  if(contact_id){
-    const c=contacts.find(x=>x.id===contact_id);
-    if(c){ c.lot_num=c.lot_num?c.lot_num+', '+lot.lot_num:lot.lot_num; saveLocal(); }
-  }
-  closeInvModal();
-  refreshInvMetrics();
-  refreshInvLots();
-  toast('Lot '+lot.lot_num+' created ✓');
-}
-
-function saveLogMovement(){
-  const lot=inventoryLots.find(l=>l.id===_currentLogLotId); if(!lot) return;
-  const date=(document.getElementById('log-date')||{}).value||new Date().toISOString().split('T')[0];
-  const inQty=parseInt((document.getElementById('log-in')||{}).value||0);
-  const outQty=parseInt((document.getElementById('log-out')||{}).value||0);
-  const note=(document.getElementById('log-note')||{}).value||'';
-  if(!inQty&&!outQty){ alert('Enter trees in or out.'); return; }
-  if(!lot.movements) lot.movements=[];
-  if(inQty>0) lot.movements.push({id:uid(),qty:inQty,type:'in',note,date,ts:now()});
-  if(outQty>0) lot.movements.push({id:uid(),qty:outQty,type:'out',note,date,ts:now()});
-  saveInventory();
-  closeInvModal();
-  refreshInvLots();
-  toast('Movement logged ✓');
-}
-
-
-
-
-// ── DAILY JOURNAL ─────────────────────────────────────────────────────────────
-let journalEntries = JSON.parse(localStorage.getItem('mg_journal') || '[]');
-let journalEditId = null;
-
-function saveJournalLocal(){
-  localStorage.setItem('mg_journal', JSON.stringify(journalEntries));
-}
-
-function renderJournal(){
-  const dv = document.getElementById('dv-journal');
-  const mv = document.getElementById('mv-journal');
-  const html = buildJournalHTML();
-  const isDesktop = window.innerWidth >= 768;
-  if(isDesktop){ if(dv) dv.innerHTML=html; if(mv) mv.innerHTML=''; }
-  else { if(mv) mv.innerHTML=html; if(dv) dv.innerHTML=''; }
-}
-
-function buildJournalHTML(){
-  const today = new Date().toISOString().split('T')[0];
-  const todayEntry = journalEntries.find(e => e.date === today);
-
-  // Group entries by month
-  const byMonth = {};
-  journalEntries.forEach(e => {
-    const m = e.date.substring(0,7);
-    if(!byMonth[m]) byMonth[m] = [];
-    byMonth[m].push(e);
-  });
-  const sortedMonths = Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
-
-  // Today's entry box
-  const todayBox =
-    '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:16px 18px;margin-bottom:20px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-        '<div>' +
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1B4332;margin-bottom:2px">Today</div>' +
-          '<div style="font-size:14px;font-weight:700;color:#1B4332">' +
-            new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) +
+    '<div style="width:100%;overflow-y:auto;padding:0;font-family:inherit">' +
+      // Header
+      '<div style="background:var(--g900);padding:16px 20px 14px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
+          '<div>' +
+            '<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px">&#127807; Nursery Inventory</div>' +
+            '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">House #2 — Active production  |  30% cull adjustment applied</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center">' +
+            // Year toggle
+            '<div style="display:flex;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden">' +
+              '<button onclick="switchInvYear(\'2026\')" id="inv-yr-2026" style="padding:6px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:.15s">2026</button>' +
+              '<button onclick="switchInvYear(\'2027\')" id="inv-yr-2027" style="padding:6px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:.15s">2027</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
-        (todayEntry ?
-          '<button data-jid="'+todayEntry.id+'" onclick="openJournalEdit(this.dataset.jid)" style="font-size:12px;background:#fff;border:1px solid #BBF7D0;border-radius:8px;padding:6px 12px;cursor:pointer;color:#1B4332;font-weight:600;font-family:inherit">Edit</button>' :
-          '') +
+        // Metrics row
+        '<div id="inv-metrics" style="display:flex;gap:8px;flex-wrap:wrap"></div>' +
       '</div>' +
-      (todayEntry ?
-        '<div style="font-size:14px;color:#1B4332;line-height:1.7;white-space:pre-wrap">'+esc(todayEntry.body)+'</div>' +
-        (todayEntry.contacts_mentioned && todayEntry.contacts_mentioned.length ?
-          '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
-          todayEntry.contacts_mentioned.map(cid=>{
-            const c=contacts.find(x=>x.id===cid);
-            return c?'<span data-cid="'+c.id+'" onclick="openDetail(this.dataset.cid)" style="font-size:11px;background:#D1FAE5;color:#065F46;border-radius:8px;padding:2px 9px;cursor:pointer;font-weight:600">'+esc(c.name)+'</span>':'';
-          }).join('')+
-          '</div>' : '') :
-        '<div style="color:#1B4332;opacity:.6;font-size:13px;margin-bottom:10px">No entry yet today. Write about your calls, meetings, and follow-ups.</div>') +
-      (!todayEntry ? '<button onclick="openJournalModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ Write Entry</button>' : '') +
-
-
-    '</div>';
-
-  // Past entries
-  const pastHTML = sortedMonths.map(m => {
-    const label = new Date(m+'-15').toLocaleDateString('en-US',{month:'long',year:'numeric'});
-    const entries = byMonth[m].filter(e=>e.date!==today).sort((a,b)=>b.date.localeCompare(a.date));
-    if(!entries.length) return '';
-    return (
-      '<div style="margin-bottom:20px">' +
-        '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bd)">' + label + '</div>' +
-        entries.map(e => {
-          const dayLabel = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-          const preview = e.body.length > 140 ? e.body.substring(0,140)+'...' : e.body;
-          return (
-            '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:13px 15px;margin-bottom:8px">' +
-              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">' +
-                '<div style="flex:1;min-width:0">' +
-                  '<div style="font-size:12px;font-weight:700;color:var(--g900);margin-bottom:5px">' + dayLabel + '</div>' +
-                  '<div style="font-size:13px;color:var(--tx);line-height:1.6;white-space:pre-wrap">' + esc(preview) + '</div>' +
-                  (e.contacts_mentioned && e.contacts_mentioned.length ?
-                    '<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">' +
-                    e.contacts_mentioned.map(cid=>{
-                      const c=contacts.find(x=>x.id===cid);
-                      return c?'<span data-cid="'+c.id+'" onclick="openDetail(this.dataset.cid)" style="font-size:11px;background:#EFF6FF;color:#1D4ED8;border-radius:8px;padding:1px 8px;cursor:pointer;font-weight:600">'+esc(c.name)+'</span>':'';
-                    }).join('')+'</div>' : '') +
-                '</div>' +
-                '<div style="display:flex;gap:4px;flex-shrink:0">' +
-                  '<button data-jid="'+e.id+'" onclick="openJournalEdit(this.dataset.jid)" style="font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;color:var(--tx3)">Edit</button>' +
-                  '<button data-jid="'+e.id+'" onclick="deleteJournalEntry(this.dataset.jid)" style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px">&#x2715;</button>' +
-                '</div>' +
-              '</div>' +
-            '</div>'
-          );
-        }).join('') +
-      '</div>'
-    );
-  }).join('');
-
-  const emptyPast = journalEntries.filter(e=>e.date!==today).length === 0
-    ? '<div style="text-align:center;padding:32px;color:var(--muted)">' +
-        '<div style="font-size:32px;margin-bottom:8px">&#128221;</div>' +
-        '<div style="font-size:14px;font-weight:600;margin-bottom:4px">Your journal starts here</div>' +
-        '<div style="font-size:12px">Write today entry and it will appear here tomorrow as history.</div>' +
-      '</div>'
-    : '';
-
-  return (
-    '<div style="width:100%;overflow-y:auto">' +
-      '<div style="padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between">' +
-        '<h2 style="font-size:18px;font-weight:700;color:var(--g900);margin:0">&#128221; Daily Journal</h2>' +
-        '<button onclick="openJournalModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#43; New Entry</button>' +
+      // View tabs
+      '<div style="display:flex;border-bottom:2px solid var(--bd);background:var(--surf);overflow-x:auto">' +
+        '<button onclick="switchInvView(\'cards\')" id="invtab-cards" class="inv-tab-btn">&#127807; By Variety</button>' +
+        '<button onclick="switchInvView(\'spot\')" id="invtab-spot" class="inv-tab-btn">&#128200; Spot Sale</button>' +
+        '<button onclick="switchInvView(\'orders\')" id="invtab-orders" class="inv-tab-btn">&#128203; Orders</button>' +
       '</div>' +
-      '<div style="padding:0 20px 32px">' +
-        todayBox +
-        (pastHTML || emptyPast) +
-      '</div>' +
+      // Category filter (hidden for spot/orders)
+      '<div id="inv-cat-filter" style="padding:10px 16px 0;display:flex;gap:6px;flex-wrap:wrap"></div>' +
+      // Content
+      '<div id="inv-content" style="padding:14px 16px 80px"></div>' +
     '</div>'
   );
 }
 
-function openJournalModal(date){
-  journalEditId = null;
-  const d = document.getElementById('jnl-date');
-  if(d) d.value = date || new Date().toISOString().split('T')[0];
-  const b = document.getElementById('jnl-body');
-  if(b) b.value = '';
-  refreshJournalContactPills([]);
-  document.getElementById('jnl-modal-title').textContent = 'New Journal Entry';
-  openModal('modal-journal');
-  setTimeout(()=>{ if(b) b.focus(); }, 300);
+function switchInvYear(yr){
+  invYear = yr;
+  ['2026','2027'].forEach(y => {
+    const b = document.getElementById('inv-yr-'+y);
+    if(!b) return;
+    b.style.background = y === yr ? '#fff' : 'transparent';
+    b.style.color = y === yr ? 'var(--g900)' : 'rgba(255,255,255,.7)';
+  });
+  refreshInvMetrics();
+  renderInvContent();
 }
 
-function openJournalEdit(id){
-  const e = journalEntries.find(x=>x.id===id);
-  if(!e) return;
-  journalEditId = id;
-  const d = document.getElementById('jnl-date');
-  if(d) d.value = e.date;
-  const b = document.getElementById('jnl-body');
-  if(b) b.value = e.body;
-  refreshJournalContactPills(e.contacts_mentioned||[]);
-  document.getElementById('jnl-modal-title').textContent = 'Edit Entry';
-  openModal('modal-journal');
+function switchInvView(view){
+  invView = view;
+  ['cards','spot','orders'].forEach(v => {
+    const b = document.getElementById('invtab-'+v);
+    if(!b) return;
+    b.style.borderBottom = v === view ? '2px solid var(--g700)' : '2px solid transparent';
+    b.style.color = v === view ? 'var(--g900)' : 'var(--tx2)';
+    b.style.fontWeight = v === view ? '700' : '500';
+  });
+  const cf = document.getElementById('inv-cat-filter');
+  if(cf) cf.style.display = view === 'cards' ? 'flex' : 'none';
+  renderInvContent();
 }
 
-function refreshJournalContactPills(selectedIds){
-  const wrap = document.getElementById('jnl-contacts-wrap');
-  if(!wrap) return;
-  const pills = contacts.filter(c=>!c.name.includes('M&R')).map(c=>{
-    const sel = selectedIds.includes(c.id);
-    return '<span data-cid="'+c.id+'" onclick="toggleJournalContact(this)" '+
-      'style="display:inline-block;font-size:12px;padding:4px 10px;border-radius:12px;cursor:pointer;margin:3px;font-weight:600;'+
-      (sel ?
-        'background:#1B4332;color:#fff;border:1px solid #1B4332' :
-        'background:var(--bg);color:var(--tx3);border:1px solid var(--bd)')+
-      '">'+esc(c.name)+'</span>';
-  }).join('');
-  wrap.innerHTML = pills;
+function switchInvCategory(cat){
+  invCategoryFilter = cat;
+  document.querySelectorAll('.inv-cat-btn').forEach(b => {
+    const active = b.dataset.cat === cat;
+    b.style.background = active ? 'var(--g900)' : 'var(--surf)';
+    b.style.color = active ? '#fff' : 'var(--tx2)';
+    b.style.border = active ? '1px solid var(--g900)' : '1px solid var(--bd)';
+  });
+  renderInvContent();
 }
 
-function toggleJournalContact(el){
-  const isSel = el.style.background.includes('1B4332') || el.style.background === 'rgb(27, 67, 50)';
-  if(isSel){
-    el.style.background='var(--bg)'; el.style.color='var(--tx3)'; el.style.borderColor='var(--bd)';
+function refreshInvMetrics(){
+  const el = document.getElementById('inv-metrics'); if(!el) return;
+  const master = invYear === '2027' ? INV_MASTER_2027 : INV_MASTER_2026;
+  let totalRaw = 0, totalAdj = 0, totalOrd = 0;
+  master.forEach(item => {
+    totalRaw += item.raw;
+    totalAdj += getInvAdj(item);
+    totalOrd += getInvOrderQty(item.variety, item.rootstock, invYear);
+  });
+  const avail = totalAdj - totalOrd;
+  const shortfalls = master.filter(item => getInvAvail(item, invYear) < 0).length;
+
+  const mk = (label, val, color, sub) =>
+    '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;min-width:90px">' +
+      '<div style="font-size:20px;font-weight:800;color:' + color + '">' + val + '</div>' +
+      '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:1px">' + label + '</div>' +
+      (sub ? '<div style="font-size:10px;color:rgba(255,255,255,.5)">' + sub + '</div>' : '') +
+    '</div>';
+
+  el.innerHTML =
+    mk('RAW INVENTORY', totalRaw.toLocaleString(), '#fff') +
+    mk('ADJUSTED (70%)', totalAdj.toLocaleString(), '#6EE7B7') +
+    mk('COMMITTED ORDERS', totalOrd.toLocaleString(), '#93C5FD') +
+    mk(avail < 0 ? 'OVERSOLD' : 'AVAILABLE', Math.abs(avail).toLocaleString(), avail < 0 ? '#FCA5A5' : '#A7F3D0', avail < 0 ? '⚠ check counts' : 'for spot sale') +
+    (shortfalls > 0 ? mk('SHORTFALLS', shortfalls, '#FCA5A5', 'varieties oversold') : '');
+}
+
+function renderInvContent(){
+  const el = document.getElementById('inv-content'); if(!el) return;
+  const cf = document.getElementById('inv-cat-filter');
+
+  if(invView === 'cards'){
+    const cats = ['All','Mandarin','Navel','Valencia','Specialty'];
+    if(cf) cf.innerHTML = cats.map(c =>
+      '<button class="inv-cat-btn" data-cat="' + c + '" onclick="switchInvCategory(\'' + c + '\')" ' +
+      'style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:20px;cursor:pointer;font-family:inherit;' +
+      'background:' + (c === invCategoryFilter ? 'var(--g900)' : 'var(--surf)') + ';' +
+      'color:' + (c === invCategoryFilter ? '#fff' : 'var(--tx2)') + ';' +
+      'border:1px solid ' + (c === invCategoryFilter ? 'var(--g900)' : 'var(--bd)') + '">' + c + '</button>'
+    ).join('');
+    el.innerHTML = renderInvCards();
+  } else if(invView === 'spot'){
+    if(cf) cf.innerHTML = '';
+    el.innerHTML = renderInvSpot();
   } else {
-    el.style.background='#1B4332'; el.style.color='#fff'; el.style.borderColor='#1B4332';
+    if(cf) cf.innerHTML = '';
+    el.innerHTML = renderInvOrdersView();
   }
 }
 
-function getSelectedJournalContacts(){
-  const wrap = document.getElementById('jnl-contacts-wrap');
-  if(!wrap) return [];
-  return Array.from(wrap.querySelectorAll('span')).filter(el=>{
-    const bg = el.style.background;
-    return bg.includes('1B4332') || bg === 'rgb(27, 67, 50)';
-  }).map(el=>el.dataset.cid);
-}
+// ── VARIETY CARDS VIEW ────────────────────────────────────────────────────────
+function renderInvCards(){
+  const master = invYear === '2027' ? INV_MASTER_2027 : INV_MASTER_2026;
+  const filtered = master.filter(item =>
+    invCategoryFilter === 'All' || item.category === invCategoryFilter
+  );
 
-function saveJournalEntry(){
-  const date = (document.getElementById('jnl-date')||{}).value||new Date().toISOString().split('T')[0];
-  const body = ((document.getElementById('jnl-body')||{}).value||'').trim();
-  if(!body){ alert('Please write something before saving.'); return; }
-  const contacts_mentioned = getSelectedJournalContacts();
+  if(!filtered.length)
+    return '<div style="text-align:center;padding:40px;color:var(--tx2);font-size:14px">No inventory for this category / year.</div>';
 
-  if(journalEditId){
-    const i = journalEntries.findIndex(e=>e.id===journalEditId);
-    if(i>-1) journalEntries[i] = {...journalEntries[i], date, body, contacts_mentioned, updated_at:now()};
-  } else {
-    // If entry exists for this date, update it
-    const existing = journalEntries.findIndex(e=>e.date===date);
-    if(existing>-1){
-      if(!confirm('An entry already exists for '+date+'. Replace it?')) return;
-      journalEntries[existing] = {...journalEntries[existing], date, body, contacts_mentioned, updated_at:now()};
-    } else {
-      journalEntries.unshift({id:uid(), date, body, contacts_mentioned, created_at:now()});
-    }
+  // Group by variety
+  const byVariety = {};
+  filtered.forEach(item => {
+    if(!byVariety[item.variety]) byVariety[item.variety] = [];
+    byVariety[item.variety].push(item);
+  });
+
+  let html = '';
+  for(const variety in byVariety){
+    const items = byVariety[variety];
+    const catColor = {Mandarin:'#D97706',Navel:'#2563EB',Valencia:'#7C3AED',Specialty:'#0F766E'}[items[0].category] || '#1B4332';
+    const catBg = {Mandarin:'#FEF3C7',Navel:'#DBEAFE',Valencia:'#EDE9FE',Specialty:'#CCFBF1'}[items[0].category] || '#D8F3DC';
+
+    // Variety totals
+    const totalRaw = items.reduce((s,i) => s + i.raw, 0);
+    const totalAdj = items.reduce((s,i) => s + getInvAdj(i), 0);
+    const totalOrd = items.reduce((s,i) => s + getInvOrderQty(i.variety, i.rootstock, invYear), 0);
+    const totalAvail = totalAdj - totalOrd;
+    const pct = totalAdj > 0 ? Math.round((totalOrd / totalAdj) * 100) : 0;
+
+    html +=
+      '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden">' +
+        // Variety header
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--bd)">' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span style="background:' + catBg + ';color:' + catColor + ';font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">' + items[0].category + '</span>' +
+            '<span style="font-size:16px;font-weight:800;color:var(--g900)">' + variety + '</span>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-size:13px;font-weight:700;color:' + (totalAvail < 0 ? '#DC2626' : totalAvail === 0 ? '#9CA3AF' : '#059669') + '">' +
+              (totalAvail < 0 ? '⚠ ' + Math.abs(totalAvail).toLocaleString() + ' oversold' :
+               totalAvail === 0 ? 'Sold out' :
+               totalAvail.toLocaleString() + ' available') +
+            '</div>' +
+            // Progress bar
+            '<div style="width:120px;height:6px;background:var(--bd);border-radius:3px;margin-top:4px;overflow:hidden">' +
+              '<div style="height:100%;width:' + Math.min(pct,100) + '%;background:' + (pct >= 100 ? '#DC2626' : pct > 70 ? '#F59E0B' : '#059669') + ';border-radius:3px;transition:.3s"></div>' +
+            '</div>' +
+            '<div style="font-size:10px;color:var(--tx2);margin-top:2px">' + pct + '% committed</div>' +
+          '</div>' +
+        '</div>' +
+        // Rootstock breakdown
+        '<div style="padding:0 14px 4px">' +
+          items.map(item => {
+            const adj = getInvAdj(item);
+            const ord = getInvOrderQty(item.variety, item.rootstock, invYear);
+            const avail = adj - ord;
+            const orders = getInvOrders(item.variety, item.rootstock, invYear);
+            return (
+              '<div style="padding:10px 0;border-bottom:1px solid var(--bd);' + (items.indexOf(item) === items.length-1 ? 'border-bottom:none' : '') + '">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+                  '<div style="display:flex;gap:12px;align-items:center">' +
+                    '<span style="font-size:13px;font-weight:700;color:var(--g700);min-width:60px">' + item.rootstock + '</span>' +
+                    '<span style="font-size:12px;color:var(--tx2)">Raw: <b style="color:var(--tx)">' + item.raw.toLocaleString() + '</b></span>' +
+                    '<span style="font-size:12px;color:var(--tx2)">Adj: <b style="color:var(--g700)">' + adj.toLocaleString() + '</b></span>' +
+                  '</div>' +
+                  '<div style="font-size:13px;font-weight:700;color:' + (avail < 0 ? '#DC2626' : avail === 0 ? '#9CA3AF' : 'var(--g700)') + '">' +
+                    (avail < 0 ? '⚠ (' + Math.abs(avail).toLocaleString() + ')' : avail === 0 ? '—' : '+' + avail.toLocaleString()) +
+                  '</div>' +
+                '</div>' +
+                // Orders for this rootstock
+                (orders.length > 0 ?
+                  '<div style="margin-left:72px">' +
+                    orders.map(o =>
+                      '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--tx2);padding:2px 0">' +
+                        '<span style="color:var(--tx)">' + o.client + '</span>' +
+                        '<div style="display:flex;gap:8px">' +
+                          '<span style="font-weight:600;color:var(--g700)">' + o.qty.toLocaleString() + '</span>' +
+                          '<span style="color:var(--bd)">' + o.shipment + '</span>' +
+                          '<span style="color:var(--tx2)">#' + o.contract + '</span>' +
+                        '</div>' +
+                      '</div>'
+                    ).join('') +
+                    '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0 0;border-top:1px dashed var(--bd);margin-top:4px">' +
+                      '<span style="color:var(--tx2);font-weight:600">Total committed</span>' +
+                      '<span style="font-weight:700;color:#0369A1">' + ord.toLocaleString() + '</span>' +
+                    '</div>' +
+                  '</div>' :
+                  '<div style="margin-left:72px;font-size:11px;color:var(--tx2);padding:2px 0;font-style:italic">No orders — fully available for spot sale</div>'
+                ) +
+              '</div>'
+            );
+          }).join('') +
+        '</div>' +
+      '</div>';
   }
 
-  // Also log to contact timeline for each mentioned contact
-  contacts_mentioned.forEach(cid=>{
-    const c = contacts.find(x=>x.id===cid);
-    if(c){
-      if(!c.contact_log) c.contact_log=[];
-      const alreadyLogged = c.contact_log.some(l=>l.journal_date===date);
-      if(!alreadyLogged){
-        c.contact_log.unshift({
-          text:'Journal: '+body.substring(0,100)+(body.length>100?'...':''),
-          ts: date+'T12:00:00.000Z',
-          by:'Rafael',
-          journal_date: date
-        });
-      }
-    }
-  });
-
-  saveJournalLocal();
-  saveLocal();
-  closeModal('modal-journal');
-  journalEditId = null;
-  renderJournal();
-  if(contacts_mentioned.length) renderTimeline();
-  toast('Journal entry saved \u2713');
-}
-
-function deleteJournalEntry(id){
-  if(!confirm('Delete this journal entry?')) return;
-  journalEntries = journalEntries.filter(e=>e.id!==id);
-  saveJournalLocal();
-  renderJournal();
-  toast('Entry deleted');
-}
-
-
-// ── VOICE JOURNAL ─────────────────────────────────────────────────────────────
-let vjRecognition=null, vjIsRecording=false, vjFinalTranscript='';
-
-function openVoiceJournal(){
-  closeModal('modal-journal');
-  vjFinalTranscript='';
-  document.getElementById('vj-status').textContent='Tap the mic to start';
-  document.getElementById('vj-preview').style.display='none';
-  document.getElementById('vj-result').style.display='none';
-  const raw=document.getElementById('vj-raw'); if(raw) raw.value='';
-  const btn=document.getElementById('vj-mic-btn');
-  if(btn){btn.textContent='\u1f3a4';btn.style.background='var(--g900)';}
-  openModal('modal-voice-journal');
-}
-
-function toggleVoiceJournal(){
-  if(vjIsRecording) stopVoiceJournal();
-  else startVoiceJournal();
-}
-
-function startVoiceJournal(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ alert('Voice not supported — use Chrome or Safari.'); return; }
-  vjRecognition=new SR();
-  vjRecognition.continuous=true;
-  vjRecognition.interimResults=true;
-  vjRecognition.lang='en-US';
-  vjIsRecording=true;
-  vjFinalTranscript='';
-  const btn=document.getElementById('vj-mic-btn');
-  if(btn){btn.textContent='\u23f9';btn.style.background='var(--red)';btn.classList.add('mic-pulse');}
-  document.getElementById('vj-status').textContent='Listening... say STOP when done';
-
-  vjRecognition.onresult=function(e){
-    let interim='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      if(e.results[i].isFinal){
-        if(/\bstop\b/i.test(t.trim())){ stopVoiceJournal(); return; }
-        vjFinalTranscript+=t+' ';
-      } else { interim+=t; }
-    }
-    const full=(vjFinalTranscript+interim).trim();
-    document.getElementById('vj-status').textContent='Heard '+full.split(' ').length+' words...';
-    const raw=document.getElementById('vj-raw'); if(raw) raw.value=full;
-  };
-
-  vjRecognition.onend=function(){
-    if(vjIsRecording){ try{vjRecognition.start();}catch(e){} }
-  };
-  vjRecognition.onerror=function(e){
-    if(e.error==='no-speech'&&vjIsRecording){ try{vjRecognition.start();}catch(err){} return; }
-    if(e.error==='aborted') return;
-    vjIsRecording=false;
-  };
-  vjRecognition.start();
-}
-
-function stopVoiceJournal(){
-  vjIsRecording=false;
-  if(vjRecognition){ try{vjRecognition.stop();}catch(e){} vjRecognition=null; }
-  const btn=document.getElementById('vj-mic-btn');
-  if(btn){btn.textContent='\u1f3a4';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');}
-  document.getElementById('vj-status').textContent='Done — review your words below';
-  const text=vjFinalTranscript.trim();
-  if(text){
-    const raw=document.getElementById('vj-raw'); if(raw) raw.value=text;
-    document.getElementById('vj-preview').style.display='block';
+  // 2027 note
+  if(invYear === '2027'){
+    html += '<div style="background:#F0FDF4;border:1px solid var(--g300);border-radius:10px;padding:14px;margin-top:8px;font-size:13px;color:var(--g700)">' +
+      '<b>2027 note:</b> Only Tango / Rubi currently budded. Additional varieties and rootstocks to be planted from seed starting August 2026. Track this sheet from that date forward.' +
+    '</div>';
   }
+
+  return html;
 }
 
-let _vjParsedResult=null;
+// ── SPOT SALE VIEW ────────────────────────────────────────────────────────────
+function renderInvSpot(){
+  const master = invYear === '2027' ? INV_MASTER_2027 : INV_MASTER_2026;
+  const surplus = master
+    .map(item => ({
+      ...item,
+      adj: getInvAdj(item),
+      ordered: getInvOrderQty(item.variety, item.rootstock, invYear),
+      avail: getInvAvail(item, invYear)
+    }))
+    .filter(item => item.avail > 0)
+    .sort((a,b) => b.avail - a.avail);
 
-function processVoiceJournal(){
-  const raw = (document.getElementById('vj-raw')||{}).value||'';
-  if(!raw.trim()){ alert('Nothing to process.'); return; }
+  const shortfalls = master
+    .map(item => ({...item, avail: getInvAvail(item, invYear)}))
+    .filter(item => item.avail < 0);
 
-  document.getElementById('vj-result').style.display = 'block';
-  document.getElementById('vj-result-content').innerHTML =
-    '<div style="text-align:center;padding:16px;color:var(--muted)">&#9889; Sorting your notes...</div>';
-
-  // ── Local NLP parser ──────────────────────────────────────────────────────
-  // Build a map of client first names / last names / company words -> contact
-  const clientMap = [];
-  contacts.filter(c=>!c.name.includes('M&R')).forEach(c=>{
-    const words = c.name.toLowerCase().replace(/[().,]/g,' ').split(/\s+/).filter(w=>w.length>2);
-    clientMap.push({ contact: c, words });
-  });
-
-  // Split transcript into sentences
-  const sentences = raw.split(/(?<=[.!?])\s+|,\s*(?=[A-Z])|;\s*/).filter(s=>s.trim().length>3);
-
-  // Score each sentence against each client
-  const clientNotes = {};
-  const generalSentences = [];
-
-  sentences.forEach(sentence => {
-    const lower = sentence.toLowerCase();
-    let bestMatch = null;
-    let bestScore = 0;
-
-    clientMap.forEach(({contact, words}) => {
-      const score = words.reduce((s,w) => s + (lower.includes(w) ? 1 : 0), 0);
-      if(score > bestScore){ bestScore = score; bestMatch = contact; }
-    });
-
-    if(bestMatch && bestScore >= 1){
-      if(!clientNotes[bestMatch.id]) clientNotes[bestMatch.id] = { contact: bestMatch, sentences: [] };
-      clientNotes[bestMatch.id].sentences.push(sentence.trim());
-    } else {
-      generalSentences.push(sentence.trim());
-    }
-  });
-
-  // Build result object
-  const client_notes = Object.values(clientNotes).map(cn => {
-    const note = cn.sentences.join(' ');
-    // Look for action words
-    const actionWords = ['call','follow','send','email','check','confirm','schedule','remind','order','quote','contract','deliver'];
-    const actionSent = cn.sentences.find(s => actionWords.some(a => s.toLowerCase().includes(a)));
-    return {
-      client_name: cn.contact.name,
-      contact_id: cn.contact.id,
-      note,
-      action: actionSent || ''
-    };
-  });
-
-  _vjParsedResult = {
-    journal_summary: raw.trim(),
-    date: new Date().toISOString().split('T')[0],
-    client_notes,
-    general: generalSentences.join(' ')
-  };
-
-  // ── Render result ─────────────────────────────────────────────────────────
   let html = '';
 
-  // Summary box
-  html += '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;margin-bottom:10px">';
-  html += '<div style="font-size:11px;font-weight:700;color:#1B4332;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">&#128221; Full Journal Entry</div>';
-  html += '<div style="font-size:13px;color:var(--tx);line-height:1.6">' + esc(raw.trim()) + '</div>';
-  html += '</div>';
-
-  if(client_notes.length){
-    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Sorted by client (' + client_notes.length + ' found)</div>';
-    client_notes.forEach(cn => {
-      html += '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px">';
-      html += '<div style="font-size:12px;font-weight:700;color:#0369A1;margin-bottom:4px">&#128101; ' + esc(cn.client_name) + '</div>';
-      html += '<div style="font-size:13px;color:var(--tx);line-height:1.5' + (cn.action ? ';margin-bottom:5px' : '') + '">' + esc(cn.note) + '</div>';
-      if(cn.action) html += '<div style="font-size:11px;color:#D97706;font-weight:600">&#128204; Possible action: ' + esc(cn.action) + '</div>';
-      html += '</div>';
-    });
-  } else {
-    html += '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400E">';
-    html += '&#9888; No client names detected in your entry. The full text will be saved to your journal. You can manually tag clients when saving.';
-    html += '</div>';
+  // Shortfall alert if any
+  if(shortfalls.length){
+    html += '<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px;margin-bottom:14px">' +
+      '<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:6px">⚠ ' + shortfalls.length + ' variety' + (shortfalls.length>1?'s':'') + ' oversold vs adjusted inventory</div>' +
+      shortfalls.map(item =>
+        '<div style="font-size:12px;color:#991B1B;display:flex;justify-content:space-between;padding:2px 0">' +
+          '<span>' + item.variety + ' / ' + item.rootstock + '</span>' +
+          '<span style="font-weight:700">' + Math.abs(item.avail).toLocaleString() + ' short</span>' +
+        '</div>'
+      ).join('') +
+      '<div style="font-size:11px;color:#DC2626;margin-top:6px;font-style:italic">Physical count may cover gap — verify before calling additional buyers.</div>' +
+    '</div>';
   }
 
-  document.getElementById('vj-result-content').innerHTML = html;
-}
-
-
-async function applyVoiceJournalResult(){
-  if(!_vjParsedResult) return;
-  const today=_vjParsedResult.date||new Date().toISOString().split('T')[0];
-  const body=_vjParsedResult.journal_summary||((document.getElementById('vj-raw')||{}).value||'');
-  const mentioned_ids=[];
-
-  // Match client notes to CRM contacts and log each one
-  if(_vjParsedResult.client_notes){
-    _vjParsedResult.client_notes.forEach(cn=>{
-      const match=contacts.find(c=>
-        c.name.toLowerCase().includes(cn.client_name.toLowerCase())||
-        cn.client_name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0])
-      );
-      if(match){
-        mentioned_ids.push(match.id);
-        if(!match.contact_log) match.contact_log=[];
-        match.contact_log.unshift({
-          text:cn.note+(cn.action?' — Action: '+cn.action:''),
-          ts:today+'T12:00:00.000Z',
-          by:'Rafael',
-          journal_date:today
-        });
-      }
-    });
+  if(!surplus.length){
+    return html + '<div style="text-align:center;padding:40px;color:var(--tx2)">No surplus available for ' + invYear + '.</div>';
   }
 
-  // Save journal entry
-  const existing=journalEntries.findIndex(e=>e.date===today);
-  const entry={id:uid(),date:today,body,contacts_mentioned:mentioned_ids,created_at:now()};
-  if(existing>-1) journalEntries[existing]={...journalEntries[existing],...entry};
-  else journalEntries.unshift(entry);
+  // Summary header
+  const totalAvail = surplus.reduce((s,i) => s + i.avail, 0);
+  const totalRev = surplus.reduce((s,i) => s + i.avail * 12.50, 0);
+  html +=
+    '<div style="background:var(--g900);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+      '<div><div style="font-size:18px;font-weight:800">' + totalAvail.toLocaleString() + ' trees available</div>' +
+      '<div style="font-size:12px;color:rgba(255,255,255,.65)">' + surplus.length + ' varieties with surplus  |  ' + invYear + ' season</div></div>' +
+      '<div style="text-align:right"><div style="font-size:15px;font-weight:700;color:#6EE7B7">~$' + Math.round(totalRev).toLocaleString() + '</div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,.6)">est. revenue @ $12.50/tree</div></div>' +
+    '</div>';
 
-  saveJournalLocal();
-  saveLocal();
-  stopVoiceJournal();
-  closeModal('modal-voice-journal');
-  _vjParsedResult=null;
-  switchTab('journal');
-  renderJournal();
-  renderTimeline();
-  toast('Journal saved & '+mentioned_ids.length+' contacts updated \u2713');
-}
-
-
-// ── PUSH NOTIFICATION SYSTEM ──────────────────────────────────────────────────
-let swRegistration = null;
-
-async function initNotifications() {
-  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
-  try {
-    swRegistration = await navigator.serviceWorker.register('/sw.js');
-    console.log('SW registered:', swRegistration.scope);
-    if (Notification.permission === 'granted') setupNotificationSchedule();
-  } catch(e) { console.warn('SW failed:', e); }
-}
-
-async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    alert('Notifications not supported. Use Chrome or Safari.'); return false;
-  }
-  const permission = await Notification.requestPermission();
-  if (permission === 'granted') {
-    toast('Notifications enabled ✓');
-    setupNotificationSchedule();
-    checkAndNotify();
-    return true;
-  }
-  toast('Notifications blocked — enable in browser settings');
-  return false;
-}
-
-function setupNotificationSchedule() {
-  sendDataToSW();
-  setInterval(() => { checkAndNotify(); sendDataToSW(); }, 60 * 60 * 1000);
-  window.addEventListener('focus', checkAndNotify);
-}
-
-function sendDataToSW() {
-  if (!swRegistration || !swRegistration.active) return;
-  const today = new Date().toISOString().split('T')[0];
-  const payload = {
-    contacts: contacts.filter(c => c.date).map(c => ({name: c.name, date: c.date})),
-    reminders: (window.reminders || []).map(r => ({note: r.note, date: r.date, done: r.done})),
-    followups: contacts.filter(c => c.followup).map(c => ({name: c.name, date: c.followup, done: c.followup_done}))
-  };
-  swRegistration.active.postMessage({type: 'SCHEDULE_CHECK', payload});
-}
-
-async function checkAndNotify() {
-  if (Notification.permission !== 'granted') return;
-  const today = new Date().toISOString().split('T')[0];
-  const hour = new Date().getHours();
-  if (hour < 7 || hour > 20) return;
-
-  const notifiedKey = 'mg_notified_' + today;
-  const alreadyNotified = JSON.parse(localStorage.getItem(notifiedKey) || '[]');
-  const toNotify = [];
-
-  // Overdue follow-ups
-  const overdueFollowups = contacts.filter(c =>
-    c.followup && c.followup < today && !c.followup_done && c.status !== 'Ready'
-  );
-  if (overdueFollowups.length > 0 && !alreadyNotified.includes('followups')) {
-    toNotify.push({
-      title: overdueFollowups.length + ' overdue follow-up' + (overdueFollowups.length > 1 ? 's' : ''),
-      body: overdueFollowups.slice(0, 3).map(c => c.name).join(', '),
-      tag: 'mg-followups', urgent: true
-    });
-    alreadyNotified.push('followups');
-  }
-
-  // Reminders due today
-  const todayReminders = (window.reminders || []).filter(r => r.date === today && !r.done);
-  if (todayReminders.length > 0 && !alreadyNotified.includes('rem-' + today)) {
-    toNotify.push({
-      title: todayReminders.length + ' reminder' + (todayReminders.length > 1 ? 's' : '') + ' due today',
-      body: todayReminders.slice(0, 2).map(r => r.note).join(' - '),
-      tag: 'mg-reminders', urgent: false
-    });
-    alreadyNotified.push('rem-' + today);
-  }
-
-  // Deliveries in next 3 days
-  const soon = new Date(); soon.setDate(soon.getDate() + 3);
-  const soonISO = soon.toISOString().split('T')[0];
-  const upcoming = contacts.filter(c => c.date && c.date >= today && c.date <= soonISO);
-  if (upcoming.length > 0 && !alreadyNotified.includes('del-' + today)) {
-    toNotify.push({
-      title: upcoming.length + ' delivery date' + (upcoming.length > 1 ? 's' : '') + ' in 3 days',
-      body: upcoming.slice(0, 2).map(c => c.name).join(', '),
-      tag: 'mg-deliveries', urgent: false
-    });
-    alreadyNotified.push('del-' + today);
-  }
-
-  for (const n of toNotify) {
-    const opts = {body: n.body, tag: n.tag, requireInteraction: n.urgent,
-      icon: '/icon-192.png', data: 'https://mgnurserycrm.netlify.app'};
-    if (swRegistration) swRegistration.showNotification(n.title, opts);
-    else new Notification(n.title, opts);
-  }
-
-  localStorage.setItem(notifiedKey, JSON.stringify(alreadyNotified));
-  Object.keys(localStorage).filter(k => k.startsWith('mg_notified_') && k < 'mg_notified_' + today)
-    .forEach(k => localStorage.removeItem(k));
-}
-
-function getNotificationStatus() {
-  if (!('Notification' in window)) return 'unsupported';
-  return Notification.permission;
-}
-
-function updateNotifBtn() {
-  const btn = document.getElementById('notif-btn-label');
-  if (!btn) return;
-  const s = getNotificationStatus();
-  btn.textContent = s === 'granted' ? 'Notifications On ✓' :
-    s === 'denied' ? 'Notifications Blocked' : 'Enable Notifications';
-}
-
-function handleNotifBtn() {
-  const s = getNotificationStatus();
-  if (s === 'unsupported') { alert('Use Chrome or Safari for notifications.'); return; }
-  if (s === 'granted') { checkAndNotify(); toast('Checking for notifications...'); return; }
-  if (s === 'denied') { alert('Notifications blocked. Allow in browser settings for mgnurserycrm.netlify.app'); return; }
-  requestNotificationPermission().then(ok => updateNotifBtn());
-}
-
-function renderAll(){renderMetrics();renderDigest();renderTaskBanner();renderVariety();if(currentTab==='contacts'){renderCards();renderTable();}if(currentTab==='pipeline')renderPipeline();if(currentTab==='reminders')renderReminders();}
-
-function renderMetrics(){
-  const total=contacts.length;
-  const allT=contacts.reduce((s,c)=>s+(parseInt(c.trees)||0),0);
-  const inProd=contacts.filter(c=>c.status==='In production').reduce((s,c)=>s+(parseInt(c.trees)||0),0);
-  const pct=Math.round((inProd/CFG.CAPACITY)*100);
-  const capClr=pct>=90?'var(--red)':pct>=70?'var(--amber)':'var(--g600)';
-  const capBarClr=pct>=90?'#991B1B':pct>=70?'#B45309':'#40916C';
-  const pipeV=contacts.filter(c=>c.status!=='Lead').reduce((s,c)=>s+((c.trees||0)*(c.price||0)),0);
-  const due=contacts.filter(c=>c.followup&&daysUntil(c.followup)<=0).length;
-  const capBar='<div class="cap-bar"><div class="cap-fill" style="width:'+Math.min(pct,100)+'%;background:'+capBarClr+'"></div></div>';
-  const dm=document.getElementById('d-metrics');
-  const mm=document.getElementById('m-metrics');
-  if(dm)dm.innerHTML=
-    '<div class="mcard"><div class="ml">Contacts</div><div class="mv">'+total+'</div></div>'+
-    '<div class="mcard"><div class="ml">Trees in pipeline</div><div class="mv">'+allT.toLocaleString()+'</div></div>'+
-    '<div class="mcard"><div class="ml">Capacity used</div><div class="mv" style="color:'+capClr+'">'+pct+'%</div><div class="msub">'+inProd.toLocaleString()+' of '+CFG.CAPACITY.toLocaleString()+' in production</div>'+capBar+'</div>'+
-    '<div class="mcard"><div class="ml">Pipeline value</div><div class="mv good">$'+(pipeV>=1000?Math.round(pipeV/1000)+'k':Math.round(pipeV))+'</div></div>'+
-    '<div class="mcard"><div class="ml">Follow-ups due</div><div class="mv '+(due>0?'warn':'')+'">'+due+'</div></div>';
-  if(mm)mm.innerHTML=
-    '<div class="m-mc"><div class="ml">Contacts</div><div class="mv">'+total+'</div></div>'+
-    '<div class="m-mc"><div class="ml">Pipeline value</div><div class="mv good">$'+(pipeV>=1000?Math.round(pipeV/1000)+'k':Math.round(pipeV))+'</div></div>'+
-    '<div class="m-mc"><div class="ml">Capacity used</div><div class="mv" style="color:'+capClr+'">'+pct+'%</div><div class="msub">'+inProd.toLocaleString()+' in production</div>'+capBar+'</div>'+
-    '<div class="m-mc"><div class="ml">Follow-ups due</div><div class="mv '+(due>0?'warn':'')+'">'+due+'</div></div>';
-  setSyncBadge(cloudOk);
-}
-
-function renderVariety(){
-  const el=document.getElementById('d-variety');if(!el)return;
-  const cur=el.value;
-  el.innerHTML='<option value="">All varieties</option>'+[...new Set(contacts.map(c=>c.variety).filter(Boolean))].sort().map(v=>'<option>'+esc(v)+'</option>').join('');
-  el.value=cur;
-}
-
-function getFiltered(){
-  const dq=(document.getElementById('d-search')?.value||'').toLowerCase();
-  const mq=(document.getElementById('m-search')?.value||'').toLowerCase();
-  const dfs=document.getElementById('d-stage')?.value||'';
-  const mfs=document.getElementById('m-stage')?.value||'';
-  const fv=document.getElementById('d-variety')?.value||'';
-  return contacts.filter(c=>{
-    const n=(c.name||'').toLowerCase(),co=(c.company||'').toLowerCase();
-    if(dq&&!n.includes(dq)&&!co.includes(dq))return false;
-    if(mq&&!n.includes(mq)&&!co.includes(mq))return false;
-    if(dfs&&c.status!==dfs)return false;
-    if(mfs&&c.status!==mfs)return false;
-    if(fv&&c.variety!==fv)return false;
-    return true;
+  // Surplus cards
+  surplus.forEach((item, idx) => {
+    const pctAvail = Math.round((item.avail / item.adj) * 100);
+    const catColor = {Mandarin:'#D97706',Navel:'#2563EB',Valencia:'#7C3AED',Specialty:'#0F766E'}[item.category] || '#1B4332';
+    const catBg = {Mandarin:'#FEF3C7',Navel:'#DBEAFE',Valencia:'#EDE9FE',Specialty:'#CCFBF1'}[item.category] || '#D8F3DC';
+    html +=
+      '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+          '<div style="font-size:20px;font-weight:800;color:var(--g900);min-width:28px;text-align:center">' + (idx+1) + '</div>' +
+          '<div>' +
+            '<div style="display:flex;gap:6px;align-items:center">' +
+              '<span style="font-size:14px;font-weight:700;color:var(--g900)">' + item.variety + ' / ' + item.rootstock + '</span>' +
+              '<span style="background:' + catBg + ';color:' + catColor + ';font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px">' + item.category + '</span>' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--tx2);margin-top:2px">Adj: ' + item.adj.toLocaleString() + '  ·  Committed: ' + item.ordered.toLocaleString() + '  ·  <b style="color:var(--g600)">' + pctAvail + '% free</b></div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right">' +
+          '<div style="font-size:20px;font-weight:800;color:#059669">' + item.avail.toLocaleString() + '</div>' +
+          '<div style="font-size:11px;color:var(--tx2)">~$' + (item.avail * 12.50).toLocaleString(undefined,{maximumFractionDigits:0}) + ' est.</div>' +
+        '</div>' +
+      '</div>';
   });
+
+  return html;
 }
 
-function renderCards(){
-  const list=getFiltered();
-  const el=document.getElementById('m-list');
-  if(!el)return;
-  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🌱</div><p>No customers found.<br>Tap + to add your first lead.</p></div>';return;}
-  el.innerHTML=list.map(c=>{
-    const id=c.id;
-    const isOverdue=c.followup&&daysUntil(c.followup)<0;
-    return `<div class="ccard${isOverdue?' overdue-card':''}" onclick="openDetail('${id}')">
-      <div class="ccard-top">
-        <div><div class="ccard-name">${esc(c.name)}</div><div class="ccard-co">${esc(c.company||'—')}</div></div>
-        <span class="badge ${BCLS[c.status]||''}">${c.status}</span>
-      </div>
-      <div class="ccard-meta">
-        <span class="chip">Variety: <strong>${esc(c.variety||'—')}</strong></span>
-        <span class="chip">Trees: <strong>${c.trees?Number(c.trees).toLocaleString():'—'}</strong></span>
-        <span class="chip">Value: <strong>${fmtVal(c.trees,c.price)}</strong></span>
-        <span class="chip">Pickup: <strong>${fmtDate(c.date)}</strong></span>
-      </div>
-      <div class="ccard-foot">
-        ${fuTag(c.followup)}
-        <div style="display:flex;gap:5px">
-          <button class="btn-xs green" onclick="event.stopPropagation();nextStage('${id}')">Next stage</button>
-          <button class="btn-xs" onclick="event.stopPropagation();openEdit('${id}')">Edit</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+// ── ORDERS VIEW ───────────────────────────────────────────────────────────────
+function renderInvOrdersView(){
+  const orders = invYear === '2027' ? [] : INV_ORDERS_2026;
+
+  if(!orders.length)
+    return '<div style="text-align:center;padding:40px;color:var(--tx2)">No orders placed for 2027 yet.</div>';
+
+  // Group by variety
+  const byVariety = {};
+  orders.forEach(o => {
+    if(!byVariety[o.variety]) byVariety[o.variety] = [];
+    byVariety[o.variety].push(o);
+  });
+
+  const grandTotal = orders.reduce((s,o) => s + o.qty, 0);
+  const grandRev = orders.reduce((s,o) => s + o.qty * o.price, 0);
+  const grandDep = orders.reduce((s,o) => s + o.qty * o.price * 0.5, 0);
+  const grandBal = grandRev - grandDep;
+
+  let html =
+    '<div style="background:var(--g900);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+      '<div><div style="font-size:18px;font-weight:800">' + grandTotal.toLocaleString() + ' trees sold</div>' +
+      '<div style="font-size:12px;color:rgba(255,255,255,.65)">All 2026 orders  |  ' + orders.length + ' line items  |  ' + Object.keys(byVariety).length + ' varieties</div></div>' +
+      '<div style="text-align:right">' +
+        '<div style="font-size:14px;font-weight:700;color:#6EE7B7">$' + Math.round(grandRev).toLocaleString() + ' total</div>' +
+        '<div style="font-size:12px;color:rgba(255,255,255,.6)">$' + Math.round(grandDep).toLocaleString() + ' dep · <span style="color:#FCA5A5">$' + Math.round(grandBal).toLocaleString() + ' outstanding</span></div>' +
+      '</div>' +
+    '</div>';
+
+  for(const variety in byVariety){
+    const vOrders = byVariety[variety];
+    const vQty = vOrders.reduce((s,o) => s + o.qty, 0);
+    const vRev = vOrders.reduce((s,o) => s + o.qty * o.price, 0);
+    const vBal = vRev * 0.50;
+
+    html +=
+      '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;overflow:hidden">' +
+        '<div style="background:#F0FDF4;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--bd)">' +
+          '<span style="font-size:14px;font-weight:700;color:var(--g900)">' + variety + '</span>' +
+          '<div style="text-align:right">' +
+            '<span style="font-size:13px;font-weight:700;color:var(--g700)">' + vQty.toLocaleString() + ' trees</span>' +
+            '<span style="font-size:12px;color:var(--tx2);margin-left:8px">$' + Math.round(vBal).toLocaleString() + ' bal outstanding</span>' +
+          '</div>' +
+        '</div>' +
+        '<div style="padding:0 14px">' +
+          // Group by rootstock within variety
+          ['Rich 16','Rubi','C35','Carrizo'].map(rs => {
+            const rsOrders = vOrders.filter(o => o.rootstock === rs);
+            if(!rsOrders.length) return '';
+            return (
+              '<div style="padding:8px 0;border-bottom:1px solid var(--bd)">' +
+                '<div style="font-size:11px;font-weight:700;color:var(--g600);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">' + rs + '</div>' +
+                rsOrders.map(o =>
+                  '<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px">' +
+                    '<span style="color:var(--tx)">' + o.client + '</span>' +
+                    '<div style="display:flex;gap:10px;align-items:center">' +
+                      '<span style="font-weight:700;color:var(--g700)">' + o.qty.toLocaleString() + '</span>' +
+                      '<span style="color:var(--tx2);font-size:11px">$' + o.price.toFixed(2) + '</span>' +
+                      '<span style="color:var(--bd);font-size:11px">' + o.shipment + '</span>' +
+                      '<span style="color:var(--tx2);font-size:11px">#' + o.contract + '</span>' +
+                    '</div>' +
+                  '</div>'
+                ).join('') +
+              '</div>'
+            );
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+  return html;
 }
 
-function renderTable(){
-  const list=getFiltered();
-  const el=document.getElementById('d-tbody');
-  if(!el)return;
-  if(!list.length){el.innerHTML='<tr><td colspan="9" style="text-align:center;padding:3rem;color:var(--tx3)">No customers match your filters.</td></tr>';return;}
-  el.innerHTML=list.map(c=>{
-    const id=c.id;
-    const days=daysUntil(c.followup);
-    const fc=days!==null&&days<0?'fu-due':days===0?'fu-soon':'fu-ok';
-    const rowOverdue=c.followup&&daysUntil(c.followup)<0;
-    return `<tr class="${rowOverdue?'overdue-row':''}" onclick="openDetail('${id}')">
-      <td><strong>${esc(c.name)}</strong></td>
-      <td class="mt">${esc(c.company||'—')}</td>
-      <td><span class="badge ${BCLS[c.status]||''}">${c.status}</span></td>
-      <td class="mt">${esc(c.variety||'—')}</td>
-      <td>${c.trees?Number(c.trees).toLocaleString():'—'}</td>
-      <td>${fmtVal(c.trees,c.price)}</td>
-      <td class="mt">${fmtDate(c.date)}</td>
-      <td><span class="${fc}" style="font-size:12px;font-weight:500">${fuTxt(c.followup)}</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn-xs green" onclick="event.stopPropagation();nextStage('${id}')" style="margin-right:4px">→</button>
-        <button class="btn-xs" onclick="event.stopPropagation();openEdit('${id}')">Edit</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function renderPipeline(){
-  const html=STAGES.map(s=>{
-    const cols=contacts.filter(c=>c.status===s);
-    const tt=cols.reduce((a,c)=>a+(parseInt(c.trees)||0),0);
-    const items=cols.map(c=>`<div class="pitem" onclick="openDetail('${c.id}')">
-      <div class="pitem-name">${esc(c.name)}</div>
-      <div class="pitem-det">${c.trees?Number(c.trees).toLocaleString()+' trees':'—'}</div>
-      ${c.variety?`<div class="pitem-det">${esc(c.variety)}</div>`:''}
-    </div>`).join('');
-    return `<div class="pcol">
-      <div class="pcol-hd"><span>${s}</span><span class="pcol-ct">${cols.length}</span></div>
-      ${items||'<div style="font-size:12px;color:var(--tx4);padding:6px 0">No contacts</div>'}
-      ${tt?`<div class="ptotal">${tt.toLocaleString()} trees total</div>`:''}
-    </div>`;
-  }).join('');
-  const dp=document.getElementById('dv-pipeline'),mp=document.getElementById('mv-pipeline');
-  if(dp)dp.innerHTML=html;if(mp)mp.innerHTML=html;
-}
+// Keep legacy functions for any code that calls them
+function getPromised(){ return {}; }
+function refreshInvTable(){}
+function refreshInvLots(){}
+function openInvRowModal(){ toast('Inventory is now managed via the spreadsheet upload.'); }
+function openInvLotModal(){ toast('Inventory is now managed via the spreadsheet upload.'); }
+function closeInvModal(){ ['modal-inv-row','modal-inv-lot','modal-inv-log'].forEach(id=>{ try{closeModal(id);}catch(e){} }); }
+function saveInvRow(){}
+function saveLot(){}
+function saveLogMovement(){}
+function openEditInvRow(){}
+function openAssignLot(){}
+function openLogModal(){}
+function calcReadyDate(){ return null; }
+function mkMetCard(label,val,color){ return '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px"><div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:10px;color:rgba(255,255,255,.6)">'+label+'</div></div>'; }
 
 // ── REMINDERS ────────────────────────────────────────────────────────────
 let reminders = JSON.parse(localStorage.getItem('mg_reminders')||'[]');
