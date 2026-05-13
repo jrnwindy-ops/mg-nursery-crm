@@ -850,6 +850,7 @@ function showMain(){
   if(main){main.style.display='flex';main.classList.add('visible');}
   // Seed with hardcoded contacts immediately so something shows while cloud loads
   contacts=seed();
+  loadInvOverrides(); // load any in-app inventory updates
   // Also merge localStorage right away so user-added contacts appear instantly
   try{
     var stored=JSON.parse(localStorage.getItem('mg_v3')||'null');
@@ -2427,10 +2428,52 @@ function buildTimelineHTML(){
 // Adjusted totals = raw × 0.70 (30% cull factor)
 // Orders pulled from contact records in CRM
 
+
+// ── INVENTORY PERSISTENCE ─────────────────────────────────────────────────────
+const INV_RAW_KEY   = 'mg_inv_raw_v1';   // raw count overrides per variety/rootstock
+const INV_ORDER_KEY = 'mg_inv_orders_v1'; // spot sale orders added in-app
+
+function loadInvOverrides(){
+  try{
+    const rawOv = JSON.parse(localStorage.getItem(INV_RAW_KEY)||'null');
+    if(rawOv && rawOv.length){
+      rawOv.forEach(ov => {
+        const item = INV_MASTER_2026.find(i => i.variety===ov.variety && i.rootstock===ov.rootstock);
+        if(item) item.raw = ov.raw;
+        const item27 = INV_MASTER_2027.find(i => i.variety===ov.variety && i.rootstock===ov.rootstock);
+        if(item27) item27.raw = ov.raw;
+      });
+    }
+  }catch(e){}
+  try{
+    const addedOrders = JSON.parse(localStorage.getItem(INV_ORDER_KEY)||'null');
+    if(addedOrders && addedOrders.length){
+      addedOrders.forEach(o => {
+        const exists = INV_ORDERS_2026.find(x =>
+          x.variety===o.variety && x.rootstock===o.rootstock &&
+          x.client===o.client && x.qty===o.qty);
+        if(!exists) INV_ORDERS_2026.push(o);
+      });
+    }
+  }catch(e){}
+}
+
+function saveInvRaw(){
+  const overrides = INV_MASTER_2026.map(i => ({variety:i.variety,rootstock:i.rootstock,raw:i.raw}));
+  try{ localStorage.setItem(INV_RAW_KEY, JSON.stringify(overrides)); }catch(e){}
+}
+
+function saveInvOrders(){
+  // Save only the orders added in-app (not the hardcoded ones)
+  const hardcodedKeys = new Set(INV_ORDERS_2026.slice(0,36).map(o=>o.variety+'|'+o.rootstock+'|'+o.client));
+  const added = INV_ORDERS_2026.filter(o => !hardcodedKeys.has(o.variety+'|'+o.rootstock+'|'+o.client));
+  try{ localStorage.setItem(INV_ORDER_KEY, JSON.stringify(added)); }catch(e){}
+}
+
 const INV_CULL = 0.70; // yield after cull
 
 // Master inventory data — raw counts from House #2 physical layout
-const INV_MASTER_2026 = [
+let INV_MASTER_2026 = [
   {variety:'Tango',       rootstock:'Rich 16', raw:50816, category:'Mandarin'},
   {variety:'Tango',       rootstock:'Rubi',    raw:20788, category:'Mandarin'},
   {variety:'Tango',       rootstock:'C35',     raw:20752, category:'Mandarin'},
@@ -2449,13 +2492,13 @@ const INV_MASTER_2026 = [
   {variety:'A. F. Lime',  rootstock:'Carrizo', raw:684,   category:'Specialty'},
 ];
 
-const INV_MASTER_2027 = [
+let INV_MASTER_2027 = [
   {variety:'Tango', rootstock:'Rubi', raw:29020, category:'Mandarin'},
 ];
 
 // Hardcoded orders from spreadsheet (matched to CRM contacts)
 // These mirror the order sheets exactly for reliable totals
-const INV_ORDERS_2026 = [
+let INV_ORDERS_2026 = [
   // Tango / Carrizo
   {variety:'Tango',rootstock:'Carrizo',client:'Crystal Cove Farms (Gary)',qty:25,price:16.50,contract:'1002',shipment:'Spring'},
   {variety:'Tango',rootstock:'Carrizo',client:'MilMar Ranches (Dennis Veeh)',qty:1980,price:12.50,contract:'1003',shipment:'Spring'},
@@ -2562,7 +2605,9 @@ function buildInvShell(){
             '<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px">&#127807; Nursery Inventory</div>' +
             '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">House #2 — Active production  |  30% cull adjustment applied</div>' +
           '</div>' +
-          '<div style="display:flex;gap:6px;align-items:center">' +
+          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+            '<button onclick="openAddSpotOrder()" style="padding:6px 12px;background:#0369A1;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Spot Sale</button>' +
+            '<button onclick="openInvRowModal(\'\',\'\',0)" style="padding:6px 12px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">&#9998; Count</button>' +
             // Year toggle
             '<div style="display:flex;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden">' +
               '<button onclick="switchInvYear(\'2026\')" id="inv-yr-2026" style="padding:6px 14px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:.15s">2026</button>' +
@@ -2739,6 +2784,7 @@ function renderInvCards(){
                     '<span style="font-size:13px;font-weight:700;color:var(--g700);min-width:60px">' + item.rootstock + '</span>' +
                     '<span style="font-size:12px;color:var(--tx2)">Raw: <b style="color:var(--tx)">' + item.raw.toLocaleString() + '</b></span>' +
                     '<span style="font-size:12px;color:var(--tx2)">Adj: <b style="color:var(--g700)">' + adj.toLocaleString() + '</b></span>' +
+                    '<button onclick="openInvRowModal(\''+item.variety+'\',\''+item.rootstock+'\','+item.raw+')" style="font-size:10px;padding:2px 7px;background:transparent;border:1px solid var(--bd);border-radius:5px;cursor:pointer;color:var(--tx2);font-family:inherit">edit</button>' +
                   '</div>' +
                   '<div style="font-size:13px;font-weight:700;color:' + (avail < 0 ? '#DC2626' : avail === 0 ? '#9CA3AF' : 'var(--g700)') + '">' +
                     (avail < 0 ? '⚠ (' + Math.abs(avail).toLocaleString() + ')' : avail === 0 ? '—' : '+' + avail.toLocaleString()) +
@@ -2822,6 +2868,10 @@ function renderInvSpot(){
   const totalAvail = surplus.reduce((s,i) => s + i.avail, 0);
   const totalRev = surplus.reduce((s,i) => s + i.avail * 12.50, 0);
   html +=
+    '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+      '<button onclick="openAddSpotOrder()" style="flex:1;padding:10px;background:#0369A1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">+ Book Spot Sale</button>' +
+      '<button onclick="openInvRowModal(\'\',\'\',0)" style="flex:1;padding:10px;background:var(--g900);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#9998; Update Count</button>' +
+    '</div>' +
     '<div style="background:var(--g900);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<div><div style="font-size:18px;font-weight:800">' + totalAvail.toLocaleString() + ' trees available</div>' +
       '<div style="font-size:12px;color:rgba(255,255,255,.65)">' + surplus.length + ' varieties with surplus  |  ' + invYear + ' season</div></div>' +
@@ -2932,7 +2982,81 @@ function renderInvOrdersView(){
 function getPromised(){ return {}; }
 function refreshInvTable(){}
 function refreshInvLots(){}
-function openInvRowModal(){ toast('Inventory is now managed via the spreadsheet upload.'); }
+function openInvRowModal(variety, rootstock, currentRaw){
+  // Pre-fill the quick update form
+  const vEl = document.getElementById('inv-upd-variety');
+  const rEl = document.getElementById('inv-upd-rootstock');
+  const qEl = document.getElementById('inv-upd-qty');
+  if(vEl) vEl.value = variety || '';
+  if(rEl) rEl.value = rootstock || '';
+  if(qEl){ qEl.value = currentRaw || ''; qEl.focus(); }
+  openModal('modal-inv-update');
+}
+
+function saveInvUpdate(){
+  const variety   = (document.getElementById('inv-upd-variety')||{}).value||'';
+  const rootstock = (document.getElementById('inv-upd-rootstock')||{}).value||'';
+  const raw       = parseInt((document.getElementById('inv-upd-qty')||{}).value||0);
+  if(!variety || !raw){ alert('Variety and quantity are required.'); return; }
+  const item = INV_MASTER_2026.find(i => i.variety===variety && i.rootstock===rootstock);
+  if(item){
+    item.raw = raw;
+  } else {
+    // New variety/rootstock combination
+    INV_MASTER_2026.push({variety, rootstock, raw, category:'Other'});
+  }
+  saveInvRaw();
+  closeModal('modal-inv-update');
+  renderInventory();
+  toast('Inventory updated ✓');
+}
+
+function openAddSpotOrder(){
+  // Clear the spot order form
+  ['inv-ord-variety','inv-ord-rootstock','inv-ord-client','inv-ord-qty',
+   'inv-ord-price','inv-ord-contract','inv-ord-shipment'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  const prEl = document.getElementById('inv-ord-price');
+  if(prEl) prEl.value = '12.50';
+  openModal('modal-inv-order');
+}
+
+function saveSpotOrder(){
+  const variety   = (document.getElementById('inv-ord-variety')||{}).value||'';
+  const rootstock = (document.getElementById('inv-ord-rootstock')||{}).value||'';
+  const client    = (document.getElementById('inv-ord-client')||{}).value||'';
+  const qty       = parseInt((document.getElementById('inv-ord-qty')||{}).value||0);
+  const price     = parseFloat((document.getElementById('inv-ord-price')||{}).value||12.50);
+  const contract  = (document.getElementById('inv-ord-contract')||{}).value||'N/A';
+  const shipment  = (document.getElementById('inv-ord-shipment')||{}).value||'Spring';
+  if(!variety||!rootstock||!client||!qty){ alert('Variety, rootstock, buyer, and quantity are required.'); return; }
+  const order = {variety, rootstock, client, qty, price, contract, shipment};
+  INV_ORDERS_2026.push(order);
+  saveInvOrders();
+  // Also add/update the contact record
+  const existingContact = contacts.find(c =>
+    c.name.toLowerCase().includes(client.split(' ')[0].toLowerCase()));
+  if(!existingContact){
+    const newContact = {
+      id: uid(), name: client, company: null, phone: null, email: null,
+      status: 'Deposit received', varieties: [{variety, rootstock}],
+      variety, trees: qty, price, date: null, followup: null,
+      notes: 'Spot sale · Contract: '+contract+' · '+qty.toLocaleString()+' trees',
+      source: 'Spot sale', contact_log: [{
+        text: 'Spot sale booked: '+qty.toLocaleString()+' '+variety+'/'+rootstock+' @ $'+price+'/tree',
+        ts: now(), by: 'Raffi'
+      }], created_at: now()
+    };
+    contacts.unshift(newContact);
+    saveLocal();
+  }
+  closeModal('modal-inv-order');
+  renderInventory();
+  renderAll();
+  toast('Spot sale order saved ✓');
+}
 function openInvLotModal(){ toast('Inventory is now managed via the spreadsheet upload.'); }
 function closeInvModal(){ ['modal-inv-row','modal-inv-lot','modal-inv-log'].forEach(id=>{ try{closeModal(id);}catch(e){} }); }
 function saveInvRow(){}
@@ -3923,5 +4047,86 @@ document.addEventListener('DOMContentLoaded', function(){
   initNotifications();
 });
 </script>
+
+<!-- MODAL: INVENTORY COUNT UPDATE -->
+<div class="modal-bg" id="modal-inv-update">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>&#9998; Update Raw Count</h2>
+  <div class="fgrid">
+    <div><label class="flabel">Variety (Scion)</label>
+      <select class="finput" id="inv-upd-variety">
+        <option value="">Select variety...</option>
+        <option>Tango</option><option>Olinda</option><option>P. Wash</option>
+        <option>Shiranui</option><option>A. Gold</option><option>Gillette</option>
+        <option>Fukumoto</option><option>L. Lane</option><option>P. S. Lime</option>
+        <option>Powell</option><option>A. F. Lime</option><option>Cara Cara</option>
+        <option>M14</option><option>Page</option>
+      </select>
+    </div>
+    <div><label class="flabel">Rootstock</label>
+      <select class="finput" id="inv-upd-rootstock">
+        <option value="">Select rootstock...</option>
+        <option>Rich 16</option><option>Rubi</option><option>C35</option><option>Carrizo</option>
+      </select>
+    </div>
+    <div class="ffull"><label class="flabel">New Raw Count (before cull adjustment)</label>
+      <input class="finput" id="inv-upd-qty" type="number" min="0" placeholder="e.g. 52000">
+    </div>
+  </div>
+  <div class="mfooter">
+    <button class="btn-xs" onclick="closeModal('modal-inv-update')">Cancel</button>
+    <button class="btn-save" onclick="saveInvUpdate()">Save Count</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: SPOT SALE ORDER -->
+<div class="modal-bg" id="modal-inv-order">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>&#128200; Book Spot Sale</h2>
+  <div class="fgrid">
+    <div><label class="flabel">Variety (Scion)</label>
+      <select class="finput" id="inv-ord-variety">
+        <option value="">Select variety...</option>
+        <option>Tango</option><option>Olinda</option><option>P. Wash</option>
+        <option>Shiranui</option><option>A. Gold</option><option>Gillette</option>
+        <option>Fukumoto</option><option>L. Lane</option><option>P. S. Lime</option>
+        <option>Powell</option><option>A. F. Lime</option><option>Cara Cara</option>
+        <option>M14</option><option>Page</option>
+      </select>
+    </div>
+    <div><label class="flabel">Rootstock</label>
+      <select class="finput" id="inv-ord-rootstock">
+        <option value="">Select rootstock...</option>
+        <option>Rich 16</option><option>Rubi</option><option>C35</option><option>Carrizo</option>
+      </select>
+    </div>
+    <div class="ffull"><label class="flabel">Buyer Name</label>
+      <input class="finput" id="inv-ord-client" type="text" placeholder="e.g. John Smith Farms">
+    </div>
+    <div><label class="flabel">Quantity (trees)</label>
+      <input class="finput" id="inv-ord-qty" type="number" min="1" placeholder="e.g. 500">
+    </div>
+    <div><label class="flabel">Price per tree ($)</label>
+      <input class="finput" id="inv-ord-price" type="number" step="0.50" value="12.50">
+    </div>
+    <div><label class="flabel">Contract #</label>
+      <input class="finput" id="inv-ord-contract" placeholder="e.g. 1034 or N/A">
+    </div>
+    <div><label class="flabel">Shipment Window</label>
+      <select class="finput" id="inv-ord-shipment">
+        <option>Spring</option><option>Summer</option><option>Fall</option><option>Summer/Fall</option>
+      </select>
+    </div>
+  </div>
+  <div class="mfooter">
+    <button class="btn-xs" onclick="closeModal('modal-inv-order')">Cancel</button>
+    <button class="btn-save" onclick="saveSpotOrder()">Book Sale</button>
+  </div>
+</div>
+</div>
+
 </body>
 </html>
