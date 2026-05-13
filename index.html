@@ -3255,12 +3255,13 @@ function filterDeleted(list){ const d=getDeletedIds(); return list.filter(c=>!d.
 function ensureVarieties(c){
   if(c.varieties && c.varieties.length) return c;
   if(!c.variety) return c;
-  // Parse "Tango / Carrizo, Olinda / Rich 16" → [{variety,rootstock}]
+  // Parse "Tango / Carrizo, Olinda / Rich 16" or use rootstock field
   const parts = c.variety.split(',').map(s=>s.trim()).filter(Boolean);
-  c.varieties = parts.map(p=>{
+  c.varieties = parts.map((p,i)=>{
     const slash = p.indexOf(' / ');
     if(slash>-1) return {variety:p.slice(0,slash).trim(), rootstock:p.slice(slash+3).trim(), qty:0};
-    return {variety:p, rootstock:'', qty:0};
+    // Use top-level rootstock field for first entry if no slash
+    return {variety:p, rootstock:(i===0&&c.rootstock?c.rootstock:''), qty:0};
   });
   return c;
 }
@@ -3724,12 +3725,18 @@ function renderDetInfo(c){
     '<div class="ditem"><label>Email</label><p>'+(c.email?'<a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a>':'—')+'</p></div>'+
     '<div class="ditem"><label>Variety / Rootstock</label>'+
     (c.varieties&&c.varieties.filter(v=>v.variety).length
-      ? '<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+
+      ? '<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">'+
           c.varieties.filter(v=>v.variety).map(v=>
-            '<span style="font-size:13px">'+esc(v.variety)+(v.rootstock?' <span style="color:var(--tx2)">/ '+esc(v.rootstock)+'</span>':'')+(v.qty?'<span style="color:var(--tx2);font-size:12px"> · '+Number(v.qty).toLocaleString()+' trees</span>':'')+'</span>'
+            '<div style="font-size:13px;font-weight:500">'+esc(v.variety)+
+            (v.rootstock?'<span style="color:var(--tx2);font-weight:400"> / '+esc(v.rootstock)+'</span>':'')+
+            (v.qty?'<span style="color:var(--tx2);font-size:12px;font-weight:400"> · '+Number(v.qty).toLocaleString()+' trees</span>':'')+
+            '</div>'
           ).join('')+
         '</div>'
-      : '<p>'+esc(c.variety||'—')+'</p>')+
+      : (c.variety
+          ? '<p style="font-size:13px;font-weight:500">'+esc(c.variety)+(c.rootstock?'<span style="color:var(--tx2);font-weight:400"> / '+esc(c.rootstock)+'</span>':'')+'</p>'
+          : '<p style="color:var(--tx2)">—</p>'
+        ))+
     '</div>'+
     '<div class="ditem"><label>Trees</label><p>'+(c.trees?Number(c.trees).toLocaleString():'—')+'</p></div>'+
     '<div class="ditem"><label>Price / tree</label><p>'+(c.price?'$'+Number(c.price).toFixed(2):'—')+'</p></div>'+
@@ -4161,6 +4168,7 @@ async function saveContact(){
     status:document.getElementById('f-status').value,
     varieties:varieties.length?varieties:null,
     variety:varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null,
+    rootstock:varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null,
     trees:parseInt(document.getElementById('f-trees').value)||null,
     price:parseFloat(document.getElementById('f-price').value)||null,
     date:document.getElementById('f-date').value||null,
@@ -4181,6 +4189,7 @@ async function saveContact(){
           name:data.name, company:data.company||null,
           phone:data.phone||null, email:data.email||null,
           status:data.status, variety:data.variety||null,
+          rootstock:data.rootstock||null,
           varieties:data.varieties||null,
           trees:data.trees||null, price:data.price||null,
           date:data.date||null, followup:data.followup||null,
@@ -4215,6 +4224,7 @@ async function saveContact(){
           id:row.id, name:row.name, company:row.company||null,
           phone:row.phone||null, email:row.email||null,
           status:row.status, variety:row.variety||null,
+          rootstock:row.rootstock||null,
           varieties:row.varieties||null,
           trees:row.trees||null, price:row.price||null,
           date:row.date||null, followup:row.followup||null,
@@ -4246,6 +4256,7 @@ async function saveContact(){
           id:row.id, name:row.name, company:row.company||null,
           phone:row.phone||null, email:row.email||null,
           status:row.status, variety:row.variety||null,
+          rootstock:row.rootstock||null,
           trees:row.trees||null, price:row.price||null,
           date:row.date||null, followup:row.followup||null,
           notes:row.notes||null, contract_num:row.contract_num||null,
