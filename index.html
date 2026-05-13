@@ -4230,15 +4230,20 @@ function editFromDetail(){openEdit(currentId);}
 async function getVarietiesFromForm(){
   const rows = document.querySelectorAll('.variety-row');
   const list = [];
-  rows.forEach(r => {
+  let debugInfo = 'Rows found: '+rows.length+'\n';
+  rows.forEach((r,i) => {
     const vEl = r.querySelector('.vr-variety');
     const rsEl = r.querySelector('.vr-rootstock');
     const qEl = r.querySelector('.vr-qty');
     const v  = (vEl ? vEl.value : '').trim();
     const rs = (rsEl ? rsEl.value : '').trim();
     const qty = parseInt((qEl ? qEl.value : '') || 0) || 0;
+    debugInfo += 'Row '+i+': variety="'+v+'" rootstock="'+rs+'" qty='+qty+' (vEl='+(vEl?'yes':'NO')+', rsEl='+(rsEl?'yes':'NO')+')\n';
     if(v) list.push({variety:v, rootstock:rs, qty});
   });
+  debugInfo += 'Collected: '+list.length+' varieties';
+  console.log('[varieties]\n'+debugInfo);
+  window._lastVarietyDebug = debugInfo;
   return list;
 }
 async function saveContact(){
@@ -4246,6 +4251,11 @@ async function saveContact(){
   console.log('[saveContact] cloudOk='+cloudOk+' sb='+(sb?'yes':'no'));
   const name=document.getElementById('f-name').value.trim();if(!name){alert('Customer name is required.');return;}
   const varieties=getVarietiesFromForm();
+  // Show alert if varieties is empty so we know IMMEDIATELY
+  if(varieties.length === 0){
+    const proceed = confirm('No variety/rootstock selected. Debug info:\n\n'+(window._lastVarietyDebug||'(no debug)')+'\n\nSave anyway?');
+    if(!proceed) return;
+  }
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
   // Collect existing log entries
   let contactLog=[];
