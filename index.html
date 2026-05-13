@@ -1040,8 +1040,14 @@ async function loadAll(){
 
 function setSyncBadge(ok){
   const el=document.getElementById('sync-badge');
-  const txt=contacts.length+' contact'+(contacts.length!==1?'s':'')+' · '+(ok?'☁ syncing':'💾 local');
-  if(el){el.textContent=ok?'☁ Syncing':'💾 Local';el.className='sync-badge'+(ok?' on':'');}
+  const txt=contacts.length+' contact'+(contacts.length!==1?'s':'')+' · '+(ok?'☁ Live':'💾 Local');
+  if(el){
+    el.textContent=ok?'☁ Live':'💾 Local';
+    el.className='sync-badge'+(ok?' on':'');
+    el.title='Click to refresh now';
+    el.style.cursor='pointer';
+    el.onclick=()=>{ silentReload(); toast('Refreshing...'); };
+  }
   const ms=document.getElementById('m-sub'),ss=document.getElementById('sb-sub');
   if(ms)ms.textContent=txt;if(ss)ss.textContent=txt;
 }
