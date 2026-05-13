@@ -31,7 +31,6 @@ window.subscribeRT       = window.subscribeRT       || function(){};
 window.flushSyncQueue    = window.flushSyncQueue    || function(){};
 window.renderAll         = window.renderAll         || function(){};
 </script>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>
 <script>
 if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   var e=document.createElement('script');
@@ -40,7 +39,6 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   document.head.appendChild(e);
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="loadSupabaseFallback()"></script>
 <script>
 function loadSupabaseFallback(){
@@ -933,10 +931,7 @@ function showMain(){
   setTimeout(checkInstallPrompt, 1000);
   initSB().then(async function(){
     console.log('Supabase cloudOk='+cloudOk);
-    // Show connection status briefly on mobile so it's visible without console
-    if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
-      toast(cloudOk ? '☁ Supabase connected' : '💾 Supabase offline — local only');
-    }
+
     if(cloudOk){
       // Silent connection check — just verify we can read
       try{
@@ -4234,29 +4229,23 @@ function editFromDetail(){openEdit(currentId);}
 async function getVarietiesFromForm(){
   const rows = document.querySelectorAll('.variety-row');
   const list = [];
-  let debugInfo = 'Rows found: '+rows.length+'\n';
-  rows.forEach((r,i) => {
+  rows.forEach(r => {
     const vEl = r.querySelector('.vr-variety');
     const rsEl = r.querySelector('.vr-rootstock');
     const qEl = r.querySelector('.vr-qty');
-    const v  = (vEl ? vEl.value : '').trim();
-    const rs = (rsEl ? rsEl.value : '').trim();
-    const qty = parseInt((qEl ? qEl.value : '') || 0) || 0;
-    debugInfo += 'Row '+i+': variety="'+v+'" rootstock="'+rs+'" qty='+qty+' (vEl='+(vEl?'yes':'NO')+', rsEl='+(rsEl?'yes':'NO')+')\n';
-    if(v) list.push({variety:v, rootstock:rs, qty});
+    const v = vEl && vEl.value ? String(vEl.value).trim() : '';
+    const rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
+    const qty = qEl && qEl.value ? (parseInt(qEl.value)||0) : 0;
+    if(v) list.push({variety:v, rootstock:rs, qty:qty});
   });
-  debugInfo += 'Collected: '+list.length+' varieties';
-  console.log('[varieties]\n'+debugInfo);
-  window._lastVarietyDebug = debugInfo;
   return list;
 }
 async function saveContact(){
-  console.log('[saveContact] cloudOk='+cloudOk+' sb='+(sb?'yes':'no'));
+
   const name=document.getElementById('f-name').value.trim();if(!name){alert('Customer name is required.');return;}
 
-  // INLINE variety collection — read DOM directly, no function indirection
+  // Read variety rows directly from DOM
   const _vRows = document.querySelectorAll('.variety-row');
-  console.log('[saveContact INLINE] variety-row count:', _vRows.length);
   const varieties = [];
   for(let i=0; i<_vRows.length; i++){
     const r = _vRows[i];
@@ -4266,13 +4255,9 @@ async function saveContact(){
     const v = vEl && vEl.value ? String(vEl.value).trim() : '';
     const rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
     const qty = qEl && qEl.value ? (parseInt(qEl.value)||0) : 0;
-    console.log('[saveContact INLINE] row '+i+': v="'+v+'" rs="'+rs+'" qty='+qty);
     if(v) varieties.push({variety:v, rootstock:rs, qty:qty});
   }
-  console.log('[saveContact INLINE] varieties array:', JSON.stringify(varieties), 'length:', varieties.length);
-  if(varieties.length === 0){
-    if(!confirm('No variety selected. Save anyway?')) return;
-  }
+
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
   // Collect existing log entries
   let contactLog=[];
@@ -4356,22 +4341,11 @@ async function saveContact(){
           contact_log:row.contact_log||[],
           created_at:row.created_at
         };
-        // DEBUG: Show what we're about to send for variety/rootstock
-        console.log('[saveContact] Sending to Supabase:', JSON.stringify({
-          variety: sbRow.variety, rootstock: sbRow.rootstock, varieties: sbRow.varieties
-        }));
-        alert('Sending to Supabase:\nvariety: '+sbRow.variety+'\nrootstock: '+sbRow.rootstock+'\nvarieties: '+JSON.stringify(sbRow.varieties));
         const res = await sb.from(CFG.table).insert(sbRow);
-        // DEBUG: Show what Supabase returned
-        if(res.error){
-          alert('Supabase ERROR response:\n'+JSON.stringify(res.error,null,2));
-        } else {
-          alert('Supabase OK response:\n'+JSON.stringify(res.data||res,null,2).substring(0,500));
-        }
         if(res.error){
           console.warn('[saveContact] Insert failed:', JSON.stringify(res.error));
           const errMsg = res.error.message + (res.error.code ? ' ('+res.error.code+')' : '');
-          alert('Supabase error: '+errMsg);
+          console.warn('[saveContact] Supabase error:', errMsg);
           toast('⚠ Saved locally — '+errMsg);
           _skipNextReload=false;
           queueSync('insert', sbRow);
@@ -4383,7 +4357,7 @@ async function saveContact(){
         }
       }catch(e){
         console.warn('[saveContact] Insert exception:', e);
-        alert('Supabase exception: '+(e.message||JSON.stringify(e)));
+        console.warn('[saveContact] exception:', e);
         toast('⚠ Saved locally — connection error');
         _skipNextReload=false;
         queueSync('insert', {
