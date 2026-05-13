@@ -1841,103 +1841,240 @@ function generateQuote(contactId) {
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const quoteNum = 'Q-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0') + '-' + Date.now().toString().slice(-3);
-  const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
-  const trees = c.trees||0;
-  const price = c.price||12.50;
-  const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
-  const balance = total-deposit;
-  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'Spring 2026 — Exact date TBD';
-  const validUntil = new Date(today); validUntil.setDate(today.getDate()+30);
+  const quoteNum = 'Q-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').slice(-4).padStart(4,'0');
+
+  const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
+  const varRows = varieties.map(v =>
+    '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">' + (v.qty ? Number(v.qty).toLocaleString() : '') + '</td></tr>'
+  ).join('');
+
+  const trees = c.trees || 0;
+  // PDF defaults: $13.50/tree, $5.50 deposit per tree, $8 balance per tree
+  const pricePerTree = c.price || 13.50;
+  const depositPerTree = c.deposit_per_tree || 5.50;
+  const balancePerTree = +(pricePerTree - depositPerTree).toFixed(2);
+  const totalContract = +(trees * pricePerTree).toFixed(2);
+  const totalDeposit = +(trees * depositPerTree).toFixed(2);
+  const totalBalance = +(trees * balancePerTree).toFixed(2);
+
+  const deliveryDate = c.date
+    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+    : 'Spring 2027';
+
+  const validUntil = new Date(today);
+  validUntil.setDate(today.getDate() + 30);
   const validStr = validUntil.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const varRows = varieties.map(v=>'<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.variety||'')+'</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.rootstock||'—')+'</td></tr>').join('');
+
+  const buyerName = c.company && c.company !== c.name ? c.company : c.name;
+  const buyerAddr = c.address || '';
+  const buyerBlock = '<strong>' + esc(buyerName) + '</strong>' +
+    (c.name && c.company && c.company !== c.name ? '<br>Attn: '+esc(c.name) : '') +
+    (buyerAddr ? '<br>'+esc(buyerAddr) : '') +
+    (c.phone ? '<br>'+esc(c.phone) : '') +
+    (c.email ? '<br>'+esc(c.email) : '');
+
   const dlName = 'MG_Quote_' + quoteNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
 
-  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .qn { text-align: right; font-size: 12px; color: #555; } .qn-num { font-size: 15px; font-weight: 700; color: #0369A1; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #0369A1; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #EFF6FF; font-weight: 700; } .valid-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #92400E; } .note-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-top: 20px; font-size: 13px; color: #1B4332; } .approve-box { background: #0369A1; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center; } .pbar { background:#0369A1;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#fff;color:#0369A1;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    ' body { font-family: Georgia, "Times New Roman", serif; color: #111; background: #fff; font-size: 13px; line-height: 1.55; }' +
+    ' .page { max-width: 760px; margin: 0 auto; padding: 48px; }' +
+    ' @media print { .no-print { display: none !important; } @page { margin: 2cm; } body { font-size: 12px; } }' +
+    ' .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 3px double #0369A1; }' +
+    ' .co-name { font-size: 22px; font-weight: 700; color: #1B4332; }' +
+    ' .co-sub { font-size: 12px; color: #444; margin-top: 2px; }' +
+    ' .qn { text-align: right; font-size: 12px; color: #555; }' +
+    ' .qn-num { font-size: 15px; font-weight: 700; color: #0369A1; }' +
+    ' .title { text-align:center; font-size: 18px; font-weight: 700; color: #0369A1; margin: 14px 0 18px; text-transform: uppercase; letter-spacing: .05em; }' +
+    ' .intro { font-size: 13px; margin-bottom: 16px; line-height: 1.7; }' +
+    ' h2 { font-size: 14px; font-weight: 700; color: #0369A1; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #DBEAFE; }' +
+    ' .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }' +
+    ' .fl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }' +
+    ' .fv { font-size: 13px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 12px; min-height: 20px; }' +
+    ' table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }' +
+    ' thead th { background: #0369A1; color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }' +
+    ' .tr-tot td { background: #EFF6FF; font-weight: 700; font-size: 13px; }' +
+    ' .valid-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 12.5px; color: #92400E; }' +
+    ' .summary-box { background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px 16px; margin: 12px 0; font-size: 13px; }' +
+    ' .summary-row { display:flex; justify-content:space-between; padding: 3px 0; }' +
+    ' .summary-row.total { border-top: 1px solid #BFDBFE; margin-top: 6px; padding-top: 8px; font-weight: 700; color: #0369A1; font-size: 14px; }' +
+    ' ul.terms { list-style: disc; padding-left: 20px; margin: 6px 0; }' +
+    ' ul.terms li { margin-bottom: 5px; color: #333; font-size: 12.5px; line-height: 1.5; }' +
+    ' .section { margin-bottom: 14px; }' +
+    ' .section-num { font-weight: 700; color: #0369A1; font-size: 13.5px; margin-bottom: 6px; }' +
+    ' .note-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-top: 18px; font-size: 12.5px; color: #1B4332; }' +
+    ' .approve-box { background: #0369A1; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center; }' +
+    ' .pbar { background:#0369A1;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; font-family:-apple-system,sans-serif; }' +
+    ' .pbtn { background:#fff;color:#0369A1;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:inherit; }' +
+    ' .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit; }';
 
   const parts = [
-    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quote — ' + esc(c.name) + '</title><style>'+css+'</style></head><body>',
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Quote — ' + esc(buyerName) + '</title><style>' + css + '</style></head><body>',
+    // Top bar
     '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Quote #' + quoteNum + ' — ' + esc(c.name) + '</span>',
+      '<span style="color:#fff;font-size:13px;font-weight:600">&#128196; Quote #' + quoteNum + ' — ' + esc(buyerName) + '</span>',
       '<div>',
         '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
         '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
         '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715;</button>',
       '</div>',
     '</div>',
+
     '<div class="page">',
-    // HEADER
+    // Header
     '<div class="hdr">',
-      '<div><div class="co-name">M&amp;G Nursery</div>',
-      '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-      '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-      '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div></div>',
-      '<div class="qn"><div class="qn-num">QUOTE #' + quoteNum + '</div>',
-      '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-      '<div style="margin-top:4px;color:#D97706;font-weight:600">Valid until: ' + validStr + '</div>',
-      '<div style="font-weight:700;color:#0369A1;margin-top:2px">NURSERY PRICE QUOTATION</div></div>',
+      '<div>',
+        '<div class="co-name">M &amp; G Nursery</div>',
+        '<div class="co-sub">39390 Road 116, Cutler, CA 93615</div>',
+        '<div class="co-sub">(559) 397-1401</div>',
+        '<div class="co-sub">mgfarmsinc@gmail.com</div>',
+      '</div>',
+      '<div class="qn">',
+        '<div class="qn-num">QUOTE #' + quoteNum + '</div>',
+        '<div style="margin-top:6px">Date: ' + dateStr + '</div>',
+        '<div style="margin-top:4px;color:#D97706;font-weight:600">Valid until: ' + validStr + '</div>',
+      '</div>',
     '</div>',
-    // VALIDITY WARNING
-    '<div class="valid-box">&#9888; This quote is valid for 30 days from the date of issue. Pricing and availability are subject to change after ' + validStr + '.</div>',
-    // PARTIES
+
+    '<div class="title">Price Quote for Citrus Nursery Stock</div>',
+
+    '<p class="intro">This is a price quotation from <strong>M &amp; G Nursery</strong> ("Seller") to <strong>' + esc(buyerName) + '</strong> ("Buyer") for citrus nursery stock, subject to the terms and conditions outlined below. A formal Sales Agreement will be issued upon quote acceptance.</p>',
+
+    // Validity notice
+    '<div class="valid-box">&#9888; This quote is valid for <strong>30 days</strong> from the date of issue. Pricing and availability are subject to change after <strong>' + validStr + '</strong>.</div>',
+
+    // Prepared For / Seller
     '<h2>Prepared For</h2>',
     '<div class="two">',
-      '<div><div class="fl">Buyer / Prospective Purchaser</div><div class="fv"><strong>'+esc(c.name)+'</strong>'+(c.company&&c.company!==c.name?'<br>'+esc(c.company):'')+(c.phone?'<br>'+esc(c.phone):'')+(c.email?'<br>'+esc(c.email):'')+'</div></div>',
-      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Rafael Macias<br>39390 Rd 116, Cutler CA 93615</div></div>',
+      '<div><div class="fl">Buyer / Prospective Purchaser</div><div class="fv">' + buyerBlock + '</div></div>',
+      '<div><div class="fl">Seller</div><div class="fv"><strong>M &amp; G Nursery</strong><br>39390 Road 116<br>Cutler, CA 93615<br>(559) 397-1401</div></div>',
     '</div>',
-    // ORDER DETAILS
-    '<h2>Quoted Items</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>'+varRows+'</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Quantity</div><div class="fv"><strong>'+trees.toLocaleString()+' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>'+deliveryDate+'</strong></div></div>',
+
+    // 1. Quoted Items
+    '<div class="section">',
+      '<div class="section-num">1. Quoted Items</div>',
+      '<p style="margin-bottom:8px">This quote covers a total of <strong>' + trees.toLocaleString() + '</strong> citrus trees of the following variety/rootstock:</p>',
+      '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th><th style="text-align:right">Quantity</th></tr></thead><tbody>' + varRows + '</tbody></table>',
+      '<div class="two" style="margin-top:6px">',
+        '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
+        '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+      '</div>',
     '</div>',
-    // PRICING
-    '<h2>Pricing Summary</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+trees.toLocaleString()+' trees &times; $'+price.toFixed(2)+' per tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$'+total.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (40%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$'+balance.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-    '</tbody></table>',
-    // NOTES
+
+    // 2. Pricing and Payment Terms
+    '<div class="section">',
+      '<div class="section-num">2. Pricing and Payment Terms</div>',
+      '<ul class="terms">',
+        '<li>The total cost per tree is <strong>$' + pricePerTree.toFixed(2) + '</strong>.</li>',
+        '<li>A <strong>$' + depositPerTree.toFixed(2) + ' deposit per tree</strong> is required when the order is placed (<strong>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>).</li>',
+        '<li>The remaining balance of <strong>$' + balancePerTree.toFixed(2) + ' per tree</strong> shall be due and payable at the time the nursery stock is made available to the buyer (<strong>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>), approximately <strong>' + deliveryDate + '</strong>.</li>',
+        '<li>If the buyer fails to pick up and pay for the nursery stock within 30 days of notice of availability, the seller may dispose of the unclaimed nursery stock and retain the buyer&rsquo;s deposit as liquidated damages.</li>',
+        '<li><strong>Late Payment Penalty</strong>: Any unpaid balances beyond 30 days from the due date will incur a late charge of <strong>1.5% per month</strong> until paid in full.</li>',
+      '</ul>',
+      '<div class="summary-box">',
+        '<div class="summary-row"><span>' + trees.toLocaleString() + ' trees &times; $' + pricePerTree.toFixed(2) + '/tree</span><span>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row"><span>Deposit required at order placement ($' + depositPerTree.toFixed(2) + ' &times; ' + trees.toLocaleString() + ')</span><span>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row"><span>Balance due at pickup ($' + balancePerTree.toFixed(2) + ' &times; ' + trees.toLocaleString() + ')</span><span>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row total"><span>Total Contract Value</span><span>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+      '</div>',
+    '</div>',
+
+    // 3. Title, Risk of Loss, Pickup
+    '<div class="section">',
+      '<div class="section-num">3. Title, Risk of Loss, and Buyer Pickup Responsibilities</div>',
+      '<ul class="terms">',
+        '<li>Prices are quoted F.O.B. (Freight on Board) seller&rsquo;s nursery yard. Buyer is responsible for transportation.</li>',
+        '<li>For trees picked up on time, title and risk of loss pass to the buyer upon commencement of loading.</li>',
+        '<li>Trees not picked up within 30 days of notification will accrue storage fees equal to the actual cost of care plus <strong>20% overhead</strong> per day.</li>',
+      '</ul>',
+    '</div>',
+
+    // 4. Warranties and Establishment Support
+    '<div class="section">',
+      '<div class="section-num">4. Warranties and Establishment Support</div>',
+      '<ul class="terms">',
+        '<li>Trees will be of the varieties described and produced in compliance with applicable agricultural regulations.</li>',
+        '<li>Seller will conduct a follow-up review approximately 30 days after planting or delivery.</li>',
+        '<li>Replacement trees may be provided at seller&rsquo;s sole discretion for qualifying establishment losses. The buyer must notify the seller of any concerns within <strong>45 days</strong> of planting or receipt.</li>',
+        '<li>Replacement consideration does not cover losses due to improper planting, irrigation, salinity, weather, pests, disease, chemicals, mechanical damage, or other conditions outside the seller&rsquo;s control.</li>',
+        '<li>Replacement trees, if approved, are the buyer&rsquo;s exclusive remedy. Seller is not liable for consequential damages, lost profits, or field-development costs.</li>',
+      '</ul>',
+    '</div>',
+
+    // 5. Compliance with Agricultural Regulations
+    '<div class="section">',
+      '<div class="section-num">5. Compliance with Agricultural Regulations</div>',
+      '<ul class="terms">',
+        '<li>Buyer must have a Grower &ldquo;ACP Compliance Agreement&rdquo; and ensure trees are covered or enclosed during transportation to comply with pest and disease control regulations.</li>',
+      '</ul>',
+    '</div>',
+
+    // 6. Cancellation
+    '<div class="section">',
+      '<div class="section-num">6. Cancellation</div>',
+      '<ul class="terms">',
+        '<li>If the buyer cancels the order prior to pickup, the seller shall retain the deposit as liquidated damages.</li>',
+        '<li>If the seller cannot provide the agreed nursery stock within 90 days of the estimated delivery date, the buyer may cancel and receive a full refund of the deposit.</li>',
+      '</ul>',
+    '</div>',
+
+    // 7. Force Majeure
+    '<div class="section">',
+      '<div class="section-num">7. Force Majeure</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">Neither party shall be held liable for delays caused by acts of God, war, civil insurrection, natural disasters, pandemics, government regulations, or quarantine restrictions, including but not limited to Asian Citrus Psyllid and Huanglongbing disease restrictions.</p>',
+    '</div>',
+
+    // 8. Governing Law
+    '<div class="section">',
+      '<div class="section-num">8. Governing Law</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">This quote and any resulting agreement shall be governed by the laws of the State of California. Any disputes shall be resolved in the Superior Court of <strong>Tulare County, California</strong>. The prevailing party shall be entitled to recover reasonable attorney fees and costs.</p>',
+    '</div>',
+
+    // Notes
     '<div class="note-box">',
-      '<strong>Notes:</strong><br>',
-      '• All trees are grown from CDFA-certified budwood and will meet nursery certification standards at delivery.<br>',
-      '• Final tree count may vary ±5% due to natural production variation.<br>',
-      '• A formal purchase agreement will be issued upon quote approval and deposit receipt.<br>',
-      '• Delivery date is estimated. Minimum 14 days advance notice will be provided.',
+      '<strong>Additional Notes:</strong><br>',
+      '&bull; All trees grown from CDFA-certified budwood; meets nursery certification standards at delivery.<br>',
+      '&bull; Final tree count may vary &plusmn;5% due to natural production variation.<br>',
+      '&bull; Upon acceptance and deposit, a formal Sales Agreement will be issued for signature.<br>',
+      '&bull; Minimum 14 days advance notice of confirmed delivery date will be provided.',
     '</div>',
-    // APPROVE CTA
+
+    // CTA
     '<div class="approve-box">',
       '<div style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">Ready to move forward?</div>',
-      '<div style="color:rgba(255,255,255,.85);font-size:13px;margin-bottom:12px">Reply to this quote or contact Raffi to approve and receive your purchase contract.</div>',
-      '<div style="color:#fff;font-size:14px;font-weight:600">mgfarmsinc@gmail.com &nbsp;·&nbsp; (559) 397-1401</div>',
+      '<div style="color:rgba(255,255,255,.85);font-size:12.5px;margin-bottom:12px">Reply to this quote or contact us to approve and receive your Sales Agreement.</div>',
+      '<div style="color:#fff;font-size:13.5px;font-weight:600">mgfarmsinc@gmail.com &nbsp;&middot;&nbsp; (559) 397-1401</div>',
     '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Quote #' + quoteNum + ' · ' + dateStr + ' · AgCommand CRM · Martinez Accounting Inc.',
+
+    '<div style="text-align:center;color:#9CA3AF;font-size:10px;margin-top:18px;padding-top:12px;border-top:1px solid #E5E7EB">',
+      'M&amp;G Nursery &middot; Quote #' + quoteNum + ' &middot; Generated ' + dateStr,
     '</div>',
-    '</div>',
-    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="'+dlName+'";a.click();};<\/script>',
+
+    '</div>', // close .page
+    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
     '</body></html>'
   ];
 
   const html = parts.join('');
 
   // Save quote record to contact
-  const c2 = contacts.find(x=>x.id===contactId);
-  if(c2){
-    if(!c2.docs) c2.docs=[];
-    c2.docs.push({type:'quote',num:quoteNum,date:new Date().toISOString(),html});
-    if(c2.status==='Lead') { c2.status='Quoted'; }
+  const c2 = contacts.find(x => x.id === contactId);
+  if (c2) {
+    if (!c2.docs) c2.docs = [];
+    c2.docs.push({type:'quote', num:quoteNum, date:new Date().toISOString(), html:html});
+    if (c2.status === 'Lead') { c2.status = 'Quoted'; }
     saveLocal();
     renderAll();
   }
 
-  const blob = new Blob([html],{type:'text/html'});
+  const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const win = window.open(url,'_blank');
-  if(!win){const a=document.createElement('a');a.href=url;a.download=dlName;a.click();}
+  const win = window.open(url, '_blank');
+  if (!win) {
+    const a = document.createElement('a');
+    a.href = url; a.download = dlName; a.click();
+  }
 }
 
 function approveQuote(contactId) {
@@ -1960,11 +2097,14 @@ function emailContract(contactId) {
     return;
   }
   const trees = c.trees||0;
-  const price = c.price||12.5;
-  const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
+  const pricePerTree = c.price||13.50;
+  const depositPerTree = c.deposit_per_tree||5.50;
+  const balancePerTree = +(pricePerTree-depositPerTree).toFixed(2);
+  const total = +(trees*pricePerTree).toFixed(2);
+  const deposit = +(trees*depositPerTree).toFixed(2);
+  const balance = +(trees*balancePerTree).toFixed(2);
   const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties.map(v=>v.variety).join(', ') : (c.variety||'citrus trees');
-  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2026';
+  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2027';
   const contractNum = c.contract_num || 'TBD';
 
   const subject = 'M&G Nursery — Purchase Agreement & Next Steps | ' + esc(c.name);
@@ -1975,22 +2115,23 @@ function emailContract(contactId) {
     '─────────────────────────────\n' +
     'Variety: ' + varieties + '\n' +
     'Quantity: ' + trees.toLocaleString() + ' trees\n' +
-    'Price: $' + price.toFixed(2) + '/tree\n' +
-    'Total: $' + total.toLocaleString() + '\n' +
-    'Deposit Required (40%): $' + deposit.toLocaleString() + '\n' +
+    'Price: $' + pricePerTree.toFixed(2) + '/tree\n' +
+    'Total Contract Value: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Deposit ($' + depositPerTree.toFixed(2) + '/tree): $' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Balance at pickup ($' + balancePerTree.toFixed(2) + '/tree): $' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
     'Estimated Delivery: ' + deliveryDate + '\n' +
-    'Contract #: ' + contractNum + '\n\n' +
+    'Agreement #: ' + contractNum + '\n\n' +
     'NEXT STEPS\n' +
     '─────────────────────────────\n' +
-    '1. Review and sign the attached purchase agreement\n' +
-    '2. Return the signed agreement with your deposit of $' + deposit.toLocaleString() + '\n' +
+    '1. Review and sign the attached Sales Agreement\n' +
+    '2. Return the signed agreement along with your deposit of $' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + ' within 15 days\n' +
     '3. We will confirm your order and production slot upon receipt\n\n' +
     'Please make checks payable to M&G Nursery or contact us for wire transfer details.\n\n' +
     'If you have any questions please do not hesitate to call or reply to this email.\n\n' +
     'Best regards,\n' +
     'Rafael Macias\n' +
     'M&G Nursery\n' +
-    '39390 Rd 116, Cutler, CA 93615\n' +
+    '39390 Road 116, Cutler, CA 93615\n' +
     '(559) 397-1401 · mgfarmsinc@gmail.com\n\n' +
     '---\n' +
     'Financial Management by Martinez Accounting Inc.';
@@ -2031,8 +2172,29 @@ function generateContract(contactId) {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const rawContract = c.notes ? c.notes.split('Contract(s): ')[1] : null;
-  const contractNum = rawContract ? rawContract.split('|')[0].split(',')[0].trim()
-    : 'MG-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0');
+  // Agreement number: prefer existing from notes; otherwise build short MG-YYYY-#### format.
+  // Use last 4 digits of contactId, or sequential counter from localStorage.
+  function shortAgreementNum() {
+    var year = today.getFullYear();
+    var counterKey = 'mg_agreement_counter_' + year;
+    var n;
+    try {
+      n = parseInt(localStorage.getItem(counterKey) || '0', 10) + 1;
+      localStorage.setItem(counterKey, String(n));
+    } catch(e) {
+      // Fallback: last 4 digits of contactId if storage unavailable
+      n = parseInt(String(contactId).replace(/[^0-9]/g,'').slice(-4), 10) || 1;
+    }
+    return 'MG-' + year + '-' + String(n).padStart(4,'0');
+  }
+  // If contact already has a stored agreement number, reuse it; else generate once and stick.
+  if (!c.agreement_num && !rawContract) {
+    c.agreement_num = shortAgreementNum();
+    try { saveLocal(); } catch(e) {}
+  }
+  const contractNum = rawContract
+    ? rawContract.split('|')[0].split(',')[0].trim()
+    : (c.agreement_num || shortAgreementNum());
 
   const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
   const varietyRows = varieties.map(v =>
@@ -2258,8 +2420,6 @@ function generateContract(contactId) {
       '<ul class="terms">',
         '<li>Each signatory represents that they have full authority to enter into this agreement and bind their respective party.</li>',
         '<li>This agreement is legally binding upon receipt of the fully signed document and the initial deposit by the seller.</li>',
-        '<li>The buyer may not assign or transfer this agreement without the seller&rsquo;s prior written consent.</li>',
-        '<li>All amendments to this contract must be in writing and signed by both parties.</li>',
       '</ul>',
     '</div>',
 
