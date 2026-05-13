@@ -4251,14 +4251,27 @@ async function getVarietiesFromForm(){
   return list;
 }
 async function saveContact(){
-  // Debug: show cloudOk state briefly
   console.log('[saveContact] cloudOk='+cloudOk+' sb='+(sb?'yes':'no'));
   const name=document.getElementById('f-name').value.trim();if(!name){alert('Customer name is required.');return;}
-  const varieties=getVarietiesFromForm();
-  // Show alert if varieties is empty so we know IMMEDIATELY
+
+  // INLINE variety collection — read DOM directly, no function indirection
+  const _vRows = document.querySelectorAll('.variety-row');
+  console.log('[saveContact INLINE] variety-row count:', _vRows.length);
+  const varieties = [];
+  for(let i=0; i<_vRows.length; i++){
+    const r = _vRows[i];
+    const vEl = r.querySelector('.vr-variety');
+    const rsEl = r.querySelector('.vr-rootstock');
+    const qEl = r.querySelector('.vr-qty');
+    const v = vEl && vEl.value ? String(vEl.value).trim() : '';
+    const rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
+    const qty = qEl && qEl.value ? (parseInt(qEl.value)||0) : 0;
+    console.log('[saveContact INLINE] row '+i+': v="'+v+'" rs="'+rs+'" qty='+qty);
+    if(v) varieties.push({variety:v, rootstock:rs, qty:qty});
+  }
+  console.log('[saveContact INLINE] varieties array:', JSON.stringify(varieties), 'length:', varieties.length);
   if(varieties.length === 0){
-    const proceed = confirm('No variety/rootstock selected. Debug info:\n\n'+(window._lastVarietyDebug||'(no debug)')+'\n\nSave anyway?');
-    if(!proceed) return;
+    if(!confirm('No variety selected. Save anyway?')) return;
   }
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
   // Collect existing log entries
@@ -4267,7 +4280,7 @@ async function saveContact(){
   if(newLogEntry.trim()){
     contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Isidro'},...contactLog];
   }
-  console.log('[saveContact] BUILD-2026-05-13c | varieties from form:', JSON.stringify(varieties), 'isArray=', Array.isArray(varieties), 'length=', varieties.length, 'first=', varieties[0] ? JSON.stringify(varieties[0]) : 'none');
+  // removed - replaced with INLINE logs above
   const _builtVariety = varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null;
   const _builtRootstock = varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null;
   console.log('[saveContact] built variety:', _builtVariety, 'rootstock:', _builtRootstock);
