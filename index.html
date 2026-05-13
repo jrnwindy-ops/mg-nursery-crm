@@ -174,7 +174,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 .m-tabs::-webkit-scrollbar{display:none}
 .m-tab{font-size:12px;padding:6px 13px;border-radius:20px;border:1px solid var(--bd);background:var(--surf);color:var(--tx3);font-weight:500;white-space:nowrap;flex-shrink:0;transition:all .15s;box-shadow:var(--sh)}
 .m-tab.active{background:var(--g900);color:#fff;border-color:var(--g900)}
-.m-srch{padding:8px 12px;flex-shrink:0;display:flex;gap:7px}
+.m-srch{padding:8px 12px;flex-shrink:0;display:flex;flex-wrap:wrap;gap:7px}
 .m-srch input{flex:1;background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 11px;font-size:13px;color:var(--tx);outline:none;box-shadow:var(--sh)}
 .m-srch input:focus{border-color:var(--g400)}
 .m-srch select{background:var(--surf);border:1px solid var(--bd);border-radius:var(--rsm);padding:8px 8px;font-size:12px;color:var(--tx);outline:none;box-shadow:var(--sh);max-width:115px}
@@ -454,7 +454,8 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="m-srch">
       <input id="m-search" placeholder="Search..." oninput="renderAll()">
-      <select id="m-stage" onchange="renderAll()"><option value="">All</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+      <select id="m-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+      <select id="m-variety" onchange="renderAll()"><option value="">All varieties</option></select>
     </div>
     <div class="m-scroll" id="m-list"></div>
   </div>
@@ -3482,7 +3483,11 @@ function renderJournal(){ /* journal moved to personal device */ }
 function renderAll(){
   renderMetrics();
   const filtered=getFiltered();
-  if(currentTab==='contacts') renderCards(filtered);
+  // On mobile, check visibility of contacts area rather than just currentTab
+  const mContacts = document.getElementById('mv-contacts');
+  const contactsVisible = currentTab==='contacts' ||
+    (mContacts && mContacts.style.display !== 'none');
+  if(contactsVisible) renderCards(filtered);
   if(currentTab==='deliveries') renderDeliveries();
 }
 
