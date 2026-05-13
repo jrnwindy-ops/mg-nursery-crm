@@ -310,7 +310,7 @@ textarea.finput{height:70px;resize:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 .tl-event-row{display:flex;gap:10px;padding:6px 16px;border-bottom:.5px solid var(--bd)} .tl-clickable:hover{background:var(--g50);cursor:pointer}
 
-  .inv-tab-btn{padding:10px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;font-family:inherit;color:var(--tx2);border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+  .inv-tab-btn{padding:12px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;font-family:inherit;color:var(--tx2);border-bottom:2px solid transparent;white-space:nowrap;transition:.15s;-webkit-tap-highlight-color:transparent}
   .inv-tab-btn:hover{color:var(--g900)}
 </style>
 </head>
@@ -2523,11 +2523,18 @@ function getInvAvail(item, year){
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
 function renderInventory(){
-  const dv = document.getElementById('dv-inventory');
-  const mv = document.getElementById('mv-inventory');
-  const html = buildInvShell();
-  if(dv) dv.innerHTML = html;
-  if(mv) mv.innerHTML = html;
+  const isMobile = window.innerWidth < 768;
+  const target = document.getElementById(isMobile ? 'mv-inventory' : 'dv-inventory');
+  const other  = document.getElementById(isMobile ? 'dv-inventory' : 'mv-inventory');
+  if(!target) return;
+  target.innerHTML = buildInvShell();
+  if(other) other.innerHTML = '';
+  // Apply mobile-specific styles
+  if(isMobile){
+    target.style.display = 'block';
+    target.style.overflowY = 'auto';
+    target.style.webkitOverflowScrolling = 'touch';
+  }
   refreshInvMetrics();
   renderInvContent();
 }
@@ -3014,11 +3021,17 @@ function renderCards(filtered){
 
 
 function renderDeliveries(){
-  const dv = document.getElementById('dv-deliveries');
-  const mv = document.getElementById('mv-deliveries');
-  const html = buildDeliveriesHTML();
-  if(dv) dv.innerHTML = html;
-  if(mv) mv.innerHTML = html;
+  const isMobile = window.innerWidth < 768;
+  const target = document.getElementById(isMobile ? 'mv-deliveries' : 'dv-deliveries');
+  const other  = document.getElementById(isMobile ? 'dv-deliveries' : 'mv-deliveries');
+  if(!target) return;
+  target.innerHTML = buildDeliveriesHTML();
+  if(other) other.innerHTML = '';
+  if(isMobile){
+    target.style.display = 'block';
+    target.style.overflowY = 'auto';
+    target.style.webkitOverflowScrolling = 'touch';
+  }
 }
 
 function buildDeliveriesHTML(){
@@ -3088,7 +3101,7 @@ function buildDeliveriesHTML(){
     ).join('') +
     '</div>';
 
-  html += '<div style="padding:12px 14px 80px">';
+  html += '<div style="padding:12px 14px 100px">';
 
   // Build sections
   SEASONS.forEach(season => {
@@ -3850,12 +3863,14 @@ function switchTab(tab){
     document.getElementById('mnav-'+t)?.classList.toggle('active',t===tab);
   });
   document.getElementById('dv-contacts').style.display=tab==='contacts'?'flex':'none';
-  document.getElementById('dv-deliveries').style.display=tab==='deliveries'?'flex':'none';
+  document.getElementById('dv-deliveries').style.display=(tab==='deliveries'&&window.innerWidth>=768)?'flex':'none';
+  const mvDel2=document.getElementById('mv-deliveries');if(mvDel2)mvDel2.style.display=(tab==='deliveries'&&window.innerWidth<768)?'block':'none';
   document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
   document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
-  const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=tab==='inventory'?'flex':'none';
+  const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=(tab==='inventory'&&window.innerWidth>=768)?'flex':'none';
+  const mvInv2=document.getElementById('mv-inventory');if(mvInv2)mvInv2.style.display=(tab==='inventory'&&window.innerWidth<768)?'block':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
