@@ -1683,11 +1683,15 @@ function renderAdmin(){
 
 function buildAdminHTML(){
   // Backup button at top
-  const backupHtml = '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:12px 14px;margin:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
-    '<div><div style="font-size:13px;font-weight:600;color:#92400E">💾 Export Data Backup</div>' +
-    '<div style="font-size:11px;color:#92400E;margin-top:2px">Downloads all contacts and CRM data as a JSON file</div></div>' +
-    '<button onclick="exportBackup()" style="background:#92400E;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">↓ Backup Now</button>' +
-  '</div>';
+  const backupHtml =
+    '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:12px 14px;margin:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+      '<div><div style="font-size:13px;font-weight:600;color:#92400E">💾 Backup &amp; Restore</div>' +
+      '<div style="font-size:11px;color:#92400E;margin-top:2px">Export your local data, or restore from a backup file</div></div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button onclick="exportBackup()" style="background:#92400E;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">↓ Backup</button>' +
+        '<button onclick="restoreFromBackup()" style="background:#fff;color:#92400E;border:1px solid #92400E;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">↑ Restore</button>' +
+      '</div>' +
+    '</div>';
 
   const pending = adminTasks.filter(t => !t.done);
   const done = adminTasks.filter(t => t.done);
@@ -3279,6 +3283,58 @@ function exportBackup(){
   }catch(e){
     alert('Backup failed: '+e.message);
   }
+}
+
+
+function restoreFromBackup(){
+  if(!cloudOk){ alert('Cloud not connected. Connect to Supabase first.'); return; }
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.onchange = async function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const backup = JSON.parse(text);
+      const bContacts = backup.contacts || [];
+      if(!bContacts.length){ alert('Backup file has no contacts.'); return; }
+
+      if(!confirm('Restore '+bContacts.length+' contacts from backup?\n\nThis will upsert each contact to Supabase. Existing contacts (same ID) will be overwritten. New contacts will be added.\n\nContinue?')) return;
+
+      toast('Restoring '+bContacts.length+' contacts...');
+      let ok=0, fail=0;
+      for(const c of bContacts){
+        // Strip jsonb/text mismatches — only send fields the schema accepts
+        const sbRow = {
+          id: c.id, name: c.name, company: c.company || null,
+          phone: c.phone || null, email: c.email || null,
+          status: c.status || 'Lead',
+          variety: c.variety || (c.varieties && c.varieties[0] ? c.varieties[0].variety : null),
+          rootstock: c.rootstock || (c.varieties && c.varieties[0] ? c.varieties[0].rootstock : null),
+          varieties: c.varieties || null,
+          trees: c.trees || null, price: c.price || null,
+          date: c.date || null, followup: c.followup || null,
+          notes: c.notes || null, contract_num: c.contract_num || null,
+          lot_num: c.lot_num || null, source: c.source || null,
+          contact_log: c.contact_log || [],
+          created_at: c.created_at || new Date().toISOString()
+        };
+        try{
+          const res = await sb.from(CFG.table).upsert(sbRow);
+          if(res.error){ console.warn('Restore failed for', c.name, ':', res.error.message); fail++; }
+          else { ok++; }
+        }catch(e){ console.warn('Restore exception for', c.name, ':', e); fail++; }
+      }
+      // Clear the deleted IDs list since we just restored everything
+      try{ localStorage.removeItem('mg_deleted_v1'); }catch(e){}
+      alert('Restore complete:\n  ✓ '+ok+' contacts pushed to Supabase\n  ⚠ '+fail+' failed\n\nRefresh the page to see the merged data.');
+      if(ok>0) loadAll();
+    }catch(err){
+      alert('Restore failed: '+err.message);
+    }
+  };
+  fileInput.click();
 }
 
 // ── DELETED CONTACTS TRACKING ─────────────────────────────────────────────────
