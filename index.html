@@ -18,7 +18,25 @@
 <title>M&G Nursery CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script>
+// Stubs — prevent ReferenceErrors from killing iOS Safari script execution before initSB runs
+window.initNotifications = window.initNotifications || function(){};
+window.updateNotifBtn    = window.updateNotifBtn    || function(){};
+window.checkInstallPrompt= window.checkInstallPrompt|| function(){};
+window.silentReload      = window.silentReload      || function(){};
+window.subscribeRT       = window.subscribeRT       || function(){};
+window.flushSyncQueue    = window.flushSyncQueue    || function(){};
+window.renderAll         = window.renderAll         || function(){};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script><script>eruda.init();</script>
+<script>
+if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  var e=document.createElement('script');
+  e.src='https://cdn.jsdelivr.net/npm/eruda';
+  e.onload=function(){ eruda.init(); };
+  document.head.appendChild(e);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="loadSupabaseFallback()"></script>
 <script>
 function loadSupabaseFallback(){
