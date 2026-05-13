@@ -4263,14 +4263,18 @@ async function saveContact(){
   if(newLogEntry.trim()){
     contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Isidro'},...contactLog];
   }
+  console.log('[saveContact] varieties from form:', JSON.stringify(varieties));
+  const _builtVariety = varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null;
+  const _builtRootstock = varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null;
+  console.log('[saveContact] built variety:', _builtVariety, 'rootstock:', _builtRootstock);
   const data={name,
     company:document.getElementById('f-company').value.trim()||null,
     phone:document.getElementById('f-phone').value.trim()||null,
     email:document.getElementById('f-email').value.trim()||null,
     status:document.getElementById('f-status').value,
     varieties:varieties.length?varieties:null,
-    variety:varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null,
-    rootstock:varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null,
+    variety:_builtVariety,
+    rootstock:_builtRootstock,
     trees:parseInt(document.getElementById('f-trees').value)||null,
     price:parseFloat(document.getElementById('f-price').value)||null,
     date:document.getElementById('f-date').value||null,
