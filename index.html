@@ -2949,6 +2949,133 @@ function openLogModal(){}
 function calcReadyDate(){ return null; }
 function mkMetCard(label,val,color){ return '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px"><div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:10px;color:rgba(255,255,255,.6)">'+label+'</div></div>'; }
 
+// ── CONTACTS & PIPELINE RENDER ─────────────────────────────────────────────
+function getFiltered(){
+  const q=((document.getElementById('d-search')||document.getElementById('m-search')||{}).value||'').toLowerCase().trim();
+  const stage=(document.getElementById('d-stage')||document.getElementById('m-stage')||{}).value||'';
+  const variety=(document.getElementById('d-variety')||document.getElementById('m-variety')||{}).value||'';
+  return contacts.filter(c=>{
+    if(q && !c.name.toLowerCase().includes(q) && !(c.company||'').toLowerCase().includes(q) && !(c.variety||'').toLowerCase().includes(q)) return false;
+    if(stage && c.status!==stage) return false;
+    if(variety && !(c.variety||'').toLowerCase().includes(variety.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function renderMetrics(){
+  const total=contacts.length;
+  const trees=contacts.reduce((s,c)=>s+(parseInt(c.trees)||0),0);
+  const value=contacts.reduce((s,c)=>s+((parseInt(c.trees)||0)*(parseFloat(c.price)||0)),0);
+  const inProd=contacts.filter(c=>c.status==='In production').length;
+  const overdue=contacts.filter(c=>c.followup&&c.followup<new Date().toISOString().split('T')[0]&&c.status!=='Ready'&&c.status!=='In production').length;
+  const mk=(label,val,color)=>
+    '<div class="met-card" style="border-left:3px solid '+color+'">'+
+      '<div class="met-val" style="color:'+color+'">'+val+'</div>'+
+      '<div class="met-lbl">'+label+'</div>'+
+    '</div>';
+  const html=
+    mk('Total Contacts',total,'#1B4332')+
+    mk('Total Trees',trees.toLocaleString(),'#0369A1')+
+    mk('Pipeline Value','$'+Math.round(value/1000)+'K','#7C3AED')+
+    mk('In Production',inProd,'#059669')+
+    (overdue>0?mk('Follow-ups Overdue',overdue,'#DC2626'):'');
+  const dm=document.getElementById('d-metrics');const mm=document.getElementById('m-metrics');
+  if(dm)dm.innerHTML=html;if(mm)mm.innerHTML=html;
+}
+
+function renderCards(filtered){
+  const today=new Date().toISOString().split('T')[0];
+  const tbody=document.getElementById('d-tbody');
+  if(tbody){
+    tbody.innerHTML=!filtered.length
+      ?'<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--tx2)">No contacts match your filter.</td></tr>'
+      :filtered.map(c=>{
+          const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+          const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production';
+          return `<tr onclick="openDetail('${c.id}')" style="cursor:pointer">
+            <td style="font-weight:600;color:var(--g900)">${esc(c.name)}</td>
+            <td style="color:var(--tx2)">${esc(c.company||'—')}</td>
+            <td><span class="badge b-${c.status.replace(/ /g,'-')}">${esc(c.status)}</span></td>
+            <td style="font-size:12px;color:var(--tx2)">${esc(c.variety||'—')}</td>
+            <td style="text-align:right;font-weight:600;color:var(--g700)">${c.trees?Number(c.trees).toLocaleString():'—'}</td>
+            <td style="text-align:right;color:var(--tx2)">${val>0?'$'+val.toLocaleString():'—'}</td>
+            <td style="font-size:12px;color:var(--tx2)">${c.date||'—'}</td>
+            <td style="font-size:12px;color:${od?'#DC2626':'var(--tx2)'}">
+              ${od?'⚠ ':''}${c.followup||'—'}
+            </td>
+            <td><button onclick="event.stopPropagation();openEdit('${c.id}')" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--tx2)">Edit</button></td>
+          </tr>`;
+        }).join('');
+  }
+  const mv=document.getElementById('m-card-list');
+  if(mv){
+    mv.innerHTML=!filtered.length
+      ?'<div style="text-align:center;padding:32px;color:var(--tx2);font-size:14px">No contacts found.</div>'
+      :filtered.map(c=>{
+          const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+          const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production';
+          return `<div class="ccard" onclick="openDetail('${c.id}')">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+              <div style="font-size:15px;font-weight:700;color:var(--g900)">${esc(c.name)}</div>
+              <span class="badge b-${c.status.replace(/ /g,'-')}">${esc(c.status)}</span>
+            </div>
+            ${c.company&&c.company!==c.name?`<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">${esc(c.company)}</div>`:''}
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--tx2)">
+              ${c.variety?`<span>${esc(c.variety)}</span>`:''}
+              ${c.trees?`<span style="font-weight:600;color:var(--g700)">${Number(c.trees).toLocaleString()} trees</span>`:''}
+              ${val>0?`<span>$${val.toLocaleString()}</span>`:''}
+            </div>
+            ${od?`<div style="font-size:11px;color:#DC2626;margin-top:4px">⚠ Follow-up overdue: ${c.followup}</div>`:''}
+          </div>`;
+        }).join('');
+  }
+  const allVars=[...new Set(contacts.map(c=>c.variety).filter(Boolean))].sort();
+  [document.getElementById('d-variety'),document.getElementById('m-variety')].forEach(sel=>{
+    if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">All varieties</option>'+allVars.map(v=>`<option${v===cur?' selected':''}>${esc(v)}</option>`).join('');
+  });
+}
+
+
+function renderPipeline(){
+  const pipeHtml=STAGES.map(s=>{
+    const cols=contacts.filter(c=>c.status===s);
+    const tt=cols.reduce((a,c)=>a+(parseInt(c.trees)||0),0);
+    const items=cols.map(c=>`<div class="pipe-item" onclick="openDetail('${c.id}')">
+      <div class="pipe-item-name">${esc(c.name)}</div>
+      <div class="pipe-item-detail">${c.trees?Number(c.trees).toLocaleString()+' trees':'—'}</div>
+      ${c.variety?`<div class="pipe-item-detail">${esc(c.variety)}</div>`:''}
+    </div>`).join('');
+    return `<div class="pipe-col">
+      <div class="pipe-col-hd"><span>${s}</span><span class="pipe-col-count">${cols.length}</span></div>
+      ${items||'<div style="font-size:12px;color:var(--tx4);padding:8px 0">No contacts</div>'}
+      ${tt?`<div class="pipe-total">${tt.toLocaleString()} trees total</div>`:''}
+    </div>`;
+  }).join('');
+  const dp=document.getElementById('dv-pipeline');
+  const mp=document.getElementById('mv-pipeline');
+  if(dp)dp.innerHTML='<div class="pipe-wrap">'+pipeHtml+'</div>';
+  if(mp)mp.innerHTML='<div class="pipe-wrap">'+pipeHtml+'</div>';
+}
+
+
+function renderJournal(){
+  const dvj=document.getElementById('dv-journal');
+  const mvj=document.getElementById('mv-journal');
+  const html=buildJournalHTML();
+  if(dvj)dvj.innerHTML=html;
+  if(mvj)mvj.innerHTML=html;
+}
+
+function renderAll(){
+  renderMetrics();
+  const filtered=getFiltered();
+  if(currentTab==='contacts') renderCards(filtered);
+  if(currentTab==='pipeline') renderPipeline();
+}
+
+
 // ── REMINDERS ────────────────────────────────────────────────────────────
 let reminders = JSON.parse(localStorage.getItem('mg_reminders')||'[]');
 function saveReminders(){ localStorage.setItem('mg_reminders', JSON.stringify(reminders)); }
