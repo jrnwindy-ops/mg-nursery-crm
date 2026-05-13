@@ -2037,112 +2037,264 @@ function generateContract(contactId) {
   const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
   const varietyRows = varieties.map(v =>
     '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
-    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td></tr>'
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">' + (v.qty ? Number(v.qty).toLocaleString() : '') + '</td></tr>'
   ).join('');
 
   const trees = c.trees || 0;
-  const price = c.price || 12.50;
-  const total = trees * price;
-  const deposit = Math.round(total * 0.40 * 100)/100;
-  const balance = Math.round((total - deposit)*100)/100;
+  // PDF defaults: $13.50/tree, $5.50 deposit, $8 balance
+  const pricePerTree = c.price || 13.50;
+  const depositPerTree = c.deposit_per_tree || 5.50;
+  const balancePerTree = +(pricePerTree - depositPerTree).toFixed(2);
+  const totalContract = +(trees * pricePerTree).toFixed(2);
+  const totalDeposit = +(trees * depositPerTree).toFixed(2);
+  const totalBalance = +(trees * balancePerTree).toFixed(2);
+
   const deliveryDate = c.date
     ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
-    : 'To be determined';
-  const buyerBlock = esc(c.name) +
-    (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
+    : 'Spring 2027';
+
+  const buyerName = c.company && c.company !== c.name ? c.company : c.name;
+  const buyerAddr = c.address || '';
+  const buyerBlock = '<strong>' + esc(buyerName) + '</strong>' +
+    (c.name && c.company && c.company !== c.name ? '<br>Attn: '+esc(c.name) : '') +
+    (buyerAddr ? '<br>'+esc(buyerAddr) : '') +
     (c.phone ? '<br>'+esc(c.phone) : '') +
     (c.email ? '<br>'+esc(c.email) : '');
+
   const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
 
-  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .cn { text-align: right; font-size: 12px; color: #555; } .cn-num { font-size: 15px; font-weight: 700; color: #1B4332; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #F0FDF4; font-weight: 700; } .tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; } .tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; } .tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; } .tb ol { padding-left: 18px; } .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; } .sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; } .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    ' body { font-family: Georgia, "Times New Roman", serif; color: #111; background: #fff; font-size: 13px; line-height: 1.55; }' +
+    ' .page { max-width: 760px; margin: 0 auto; padding: 48px; }' +
+    ' @media print { .no-print { display: none !important; } @page { margin: 2cm; } body { font-size: 12px; } }' +
+    ' .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 3px double #1B4332; }' +
+    ' .co-name { font-size: 22px; font-weight: 700; color: #1B4332; }' +
+    ' .co-sub { font-size: 12px; color: #444; margin-top: 2px; }' +
+    ' .cn { text-align: right; font-size: 12px; color: #555; }' +
+    ' .cn-num { font-size: 14px; font-weight: 700; color: #1B4332; }' +
+    ' .title { text-align:center; font-size: 18px; font-weight: 700; color: #1B4332; margin: 18px 0 20px; text-transform: uppercase; letter-spacing: .05em; }' +
+    ' .intro { font-size: 13px; margin-bottom: 18px; line-height: 1.7; }' +
+    ' h2 { font-size: 14px; font-weight: 700; color: #1B4332; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #D1FAE5; }' +
+    ' .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }' +
+    ' .fl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }' +
+    ' .fv { font-size: 13px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 12px; min-height: 20px; }' +
+    ' table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }' +
+    ' thead th { background: #1B4332; color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }' +
+    ' ul.terms { list-style: disc; padding-left: 20px; margin: 6px 0 6px 0; }' +
+    ' ul.terms li { margin-bottom: 6px; color: #333; font-size: 12.5px; line-height: 1.55; }' +
+    ' .section { margin-bottom: 16px; }' +
+    ' .section-num { font-weight: 700; color: #1B4332; font-size: 13.5px; margin-bottom: 6px; }' +
+    ' .agree-id { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 12px 14px; margin: 8px 0; font-size: 12.5px; }' +
+    ' .agree-id .row { margin-bottom: 6px; }' +
+    ' .agree-id .row:last-child { margin-bottom: 0; }' +
+    ' .agree-id .blank { display:inline-block; min-width: 60px; border-bottom: 1px solid #888; padding: 0 8px; margin: 0 4px; }' +
+    ' .pull-quote { font-style: italic; color: #555; font-size: 12px; margin: 6px 0 0 20px; line-height: 1.5; }' +
+    ' .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 22px; page-break-inside: avoid; }' +
+    ' .sg-block { font-size: 12px; }' +
+    ' .sg-block strong { display:block; margin-bottom: 4px; color: #1B4332; font-size: 13px; }' +
+    ' .sl { border-bottom: 1px solid #111; height: 32px; margin: 6px 0 4px; }' +
+    ' .date-line { display:flex; align-items:center; gap:8px; margin: 14px 0 18px; font-size: 12.5px; }' +
+    ' .date-line .blank { flex:1; border-bottom: 1px solid #111; min-height: 18px; max-width: 240px; }' +
+    ' .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; font-family: -apple-system, sans-serif; }' +
+    ' .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:inherit; }' +
+    ' .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit; }' +
+    ' .footer-id { text-align:center; color:#9CA3AF; font-size:10px; margin-top: 20px; padding-top: 12px; border-top: 1px solid #E5E7EB; }';
 
   const parts = [
     '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-    '<title>Purchase Agreement — ' + esc(c.name) + '</title>',
+    '<title>Sales Agreement — ' + esc(buyerName) + '</title>',
     '<style>' + css + '</style></head><body>',
+    // Top bar (not printed)
     '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
+      '<span style="color:#fff;font-size:13px;font-weight:600">&#128196; Agreement #' + contractNum + ' — ' + esc(buyerName) + '</span>',
       '<div>',
         '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
         '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
         '<button class="dbtn" onclick="window.close()" style="margin-left:6px">&#x2715; Close</button>',
       '</div>',
     '</div>',
+    // Page content
     '<div class="page">',
+    // Header — matches PDF
     '<div class="hdr">',
       '<div>',
-        '<div class="co-name">M&amp;G Nursery</div>',
-        '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-        '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-        '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div>',
+        '<div class="co-name">M &amp; G Nursery</div>',
+        '<div class="co-sub">39390 Road 116, Cutler, CA 93615</div>',
+        '<div class="co-sub">(559) 397-1401</div>',
+        '<div class="co-sub">mgfarmsinc@gmail.com</div>',
       '</div>',
       '<div class="cn">',
-        '<div class="cn-num">CONTRACT #' + contractNum + '</div>',
-        '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-        '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div>',
+        '<div class="cn-num">M&amp;G NURSERY / ' + esc(buyerName).toUpperCase() + '</div>',
+        '<div style="margin-top:6px">Date: ' + dateStr + '</div>',
       '</div>',
     '</div>',
-    '<h2>Parties</h2>',
-    '<div class="two">',
-      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Rafael Macias<br>39390 Rd 116, Cutler CA 93615</div></div>',
-      '<div><div class="fl">Buyer</div><div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
+
+    '<div class="title">Sales Agreement for Citrus Nursery Stock</div>',
+
+    '<p class="intro">This is a formal agreement of sale between <strong>M &amp; G Nursery</strong> ("Seller") and <strong>' + esc(buyerName) + '</strong> ("Buyer"), regarding the sale of citrus trees.</p>',
+
+    // 1. Sale Details
+    '<div class="section">',
+      '<div class="section-num">1. Sale Details</div>',
+      '<p style="margin-bottom:8px">This sale includes a total of <strong>' + trees.toLocaleString() + '</strong> citrus trees of the following variety/rootstock:</p>',
+      '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th><th style="text-align:right">Quantity</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
     '</div>',
-    '<h2>Order Details</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+
+    // 2. Pricing and Payment Terms
+    '<div class="section">',
+      '<div class="section-num">2. Pricing and Payment Terms</div>',
+      '<ul class="terms">',
+        '<li>The total cost per tree is <strong>$' + pricePerTree.toFixed(2) + '</strong>.</li>',
+        '<li>A <strong>$' + depositPerTree.toFixed(2) + ' deposit per tree</strong> must be paid when the order is placed (<strong>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>).</li>',
+        '<li>The remaining balance of <strong>$' + balancePerTree.toFixed(2) + ' per tree</strong> shall be due and payable at the time the nursery stock is made available to the buyer (<strong>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>), approximately <strong>' + deliveryDate + '</strong>.</li>',
+        '<li>If the buyer fails to pick up and pay for the nursery stock within 30 days of notice of availability, the seller may dispose of the unclaimed nursery stock and retain the buyer&rsquo;s deposit as liquidated damages.</li>',
+        '<li><strong>Late Payment Penalty</strong>: Any unpaid balances beyond 30 days from due date will incur a late charge of <strong>1.5% per month</strong> until paid in full.</li>',
+      '</ul>',
+      '<div style="margin-top:8px;padding:8px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px"><strong>Total Contract Value:</strong> ' + trees.toLocaleString() + ' trees &times; $' + pricePerTree.toFixed(2) + ' = <strong>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong></div>',
     '</div>',
-    '<h2>Pricing &amp; Payment</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-    '</tbody></table>',
-    '<h2>Terms &amp; Conditions</h2>',
-    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
-      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
-      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
-      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
-      '<li>Delivery date is estimated. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
-      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
-      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
-      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
-      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> due to natural production variation.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
-      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
-      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
-      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
-      '<li>M&amp;G Nursery may cancel due to crop failure, disease, or force majeure — all deposits refunded in full.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
-      '<li>M&amp;G Nursery warrants trees are grown from certified budwood and free from known diseases per CDFA regulations.</li>',
-      '<li>No warranty is made as to performance after delivery.</li>',
-      '<li>Quality claims must be made within <strong>48 hours of delivery</strong>.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>5. General</h3><ol>',
-      '<li>This agreement constitutes the entire understanding between parties.</li>',
-      '<li>Governed by California law. Disputes resolved in Tulare County, California.</li>',
-    '</ol></div>',
-    '<h2>Signatures</h2>',
-    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms of this Nursery Purchase Agreement.</p>',
+
+    // 3. Agreement Identification
+    '<div class="section">',
+      '<div class="section-num">3. Agreement Identification</div>',
+      '<div class="agree-id">',
+        '<div class="row"><strong>Agreement Number:</strong> ' + contractNum + '</div>',
+        '<div class="row"><strong>New Agreement:</strong> Yes <span class="blank">&nbsp;</span> &nbsp; No <span class="blank">&nbsp;</span></div>',
+        '<div class="row"><strong>Replacement for Agreement Number:</strong> <span class="blank" style="min-width:140px">&nbsp;</span></div>',
+      '</div>',
+      '<p class="pull-quote">(If this section is filled out, this agreement shall supersede and replace all terms and conditions set forth in the original agreement number listed above.)</p>',
+    '</div>',
+
+    // 4. Title, Risk of Loss, and Buyer Pickup Responsibilities
+    '<div class="section">',
+      '<div class="section-num">4. Title, Risk of Loss, and Buyer Pickup Responsibilities</div>',
+      '<ul class="terms">',
+        '<li>The prices set forth in this contract are for the nursery stock F.O.B. (Freight on Board) seller&rsquo;s nursery yard.</li>',
+        '<li>For trees that are picked up on time, title and responsibility for the trees pass to the buyer upon commencement of loading onto the buyer&rsquo;s chosen transportation method.</li>',
+        '<li>For trees not picked up within 30 days of notification, the seller retains the right to charge storage fees as outlined in Section 8. The seller is not liable for any deterioration or loss of trees left uncollected beyond the designated pickup period.</li>',
+      '</ul>',
+    '</div>',
+
+    // 5. Warranties and Establishment Support
+    '<div class="section">',
+      '<div class="section-num">5. Warranties and Establishment Support</div>',
+      '<ul class="terms">',
+        '<li>The seller warrants that, to the best of their knowledge, the nursery stock sold to the buyer will be of the varieties described in this contract and produced in compliance with applicable agricultural regulations.</li>',
+        '<li>The seller will conduct a follow-up review with the buyer approximately 30 days after planting or delivery to discuss tree establishment and field performance.</li>',
+        '<li>As part of M&amp;G Nursery&rsquo;s customer support program, the seller may, at its sole discretion, provide replacement trees for qualifying establishment losses reported during the initial establishment period.</li>',
+        '<li>Replacement consideration is intended to support normal orchard establishment and does not constitute a guarantee against losses caused by improper planting, irrigation issues, salinity, weather events, pests, disease, chemical exposure, mechanical damage, neglect, acts of nature, or other conditions outside the seller&rsquo;s control.</li>',
+        '<li>The buyer must notify the seller of any concerns regarding tree condition or losses within <strong>45 days</strong> of planting or receipt of nursery stock.</li>',
+        '<li>The seller reserves the right to inspect the planting and determine eligibility for replacement assistance.</li>',
+        '<li>Replacement trees, if approved, shall constitute the buyer&rsquo;s exclusive remedy, and the seller shall not be liable for consequential damages, lost profits, production losses, or field-development costs.</li>',
+      '</ul>',
+    '</div>',
+
+    // 6. Compliance with Agricultural Regulations
+    '<div class="section">',
+      '<div class="section-num">6. Compliance with Agricultural Regulations</div>',
+      '<ul class="terms">',
+        '<li>The buyer must have a Grower &ldquo;ACP Compliance Agreement&rdquo; and ensure that trees are covered or enclosed during transportation to comply with pest and disease control regulations.</li>',
+      '</ul>',
+    '</div>',
+
+    // 7. Cancellation and Liquidated Damages
+    '<div class="section">',
+      '<div class="section-num">7. Cancellation and Liquidated Damages</div>',
+      '<ul class="terms">',
+        '<li>If the buyer cancels the order prior to pickup, the seller shall retain the deposit as liquidated damages.</li>',
+        '<li>If the seller cannot provide the agreed nursery stock within 90 days of the estimated delivery date, the buyer may elect to cancel the agreement and receive a full refund of the deposit, with no further liability on either side.</li>',
+      '</ul>',
+    '</div>',
+
+    // 8. Failure to Pick Up Trees
+    '<div class="section">',
+      '<div class="section-num">8. Failure to Pick Up Trees</div>',
+      '<ul class="terms">',
+        '<li>The buyer must pick up the trees within <strong>30 days</strong> of notice of availability.</li>',
+        '<li>If trees remain uncollected after 30 days, the buyer will be charged storage fees equal to the actual cost of care plus <strong>20% overhead</strong> for each day the trees remain at the seller&rsquo;s nursery.</li>',
+        '<li>If the buyer fails to pick up the trees within 30 days past the due pickup date (total of 60 days from notification), the seller reserves the right to retain the deposit and resell the trees.</li>',
+        '<li>The seller assumes no liability for the condition of trees left uncollected beyond the designated pickup period.</li>',
+      '</ul>',
+    '</div>',
+
+    // 9. Force Majeure
+    '<div class="section">',
+      '<div class="section-num">9. Force Majeure</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">Neither party shall be held liable for delays caused by acts of God, war, civil insurrection, natural disasters, pandemics, government regulations, or quarantine restrictions, including but not limited to Asian Citrus Psyllid and Huanglongbing disease restrictions.</p>',
+    '</div>',
+
+    // 10. Legal and Dispute Resolution
+    '<div class="section">',
+      '<div class="section-num">10. Legal and Dispute Resolution</div>',
+      '<ul class="terms">',
+        '<li>This agreement shall be governed by the laws of the State of California.</li>',
+        '<li>Any disputes shall be resolved in the Superior Court of <strong>Tulare County, California</strong>.</li>',
+        '<li>The prevailing party in any dispute shall be entitled to recover reasonable attorney fees and costs.</li>',
+      '</ul>',
+    '</div>',
+
+    // 11. Assignment and Modification
+    '<div class="section">',
+      '<div class="section-num">11. Assignment and Modification</div>',
+      '<ul class="terms">',
+        '<li>The buyer may not assign or transfer this agreement without the seller&rsquo;s prior written consent.</li>',
+        '<li>All amendments to this contract must be in writing and signed by both parties.</li>',
+      '</ul>',
+    '</div>',
+
+    // 12. Signature and Receipt of Initial Deposit
+    '<div class="section">',
+      '<div class="section-num">12. Signature and Receipt of Initial Deposit</div>',
+      '<ul class="terms">',
+        '<li>Until signed by the authorized agent of the seller, this agreement is considered an offer to purchase, not a binding contract.</li>',
+        '<li>The buyer must remit both a signed copy of this agreement and the initial deposit within <strong>15 days</strong> of receipt.</li>',
+        '<li>If the buyer fails to do so, the offer to purchase shall be null and void unless the seller chooses to accept the late remittance.</li>',
+      '</ul>',
+    '</div>',
+
+    // 13. Authority to Enter Agreement
+    '<div class="section">',
+      '<div class="section-num">13. Authority to Enter Agreement</div>',
+      '<ul class="terms">',
+        '<li>Each signatory represents that they have full authority to enter into this agreement and bind their respective party.</li>',
+        '<li>This agreement is legally binding upon receipt of the fully signed document and the initial deposit by the seller.</li>',
+        '<li>The buyer may not assign or transfer this agreement without the seller&rsquo;s prior written consent.</li>',
+        '<li>All amendments to this contract must be in writing and signed by both parties.</li>',
+      '</ul>',
+    '</div>',
+
+    // Acceptance line
+    '<div class="date-line">',
+      '<span>The signatures below confirm that both parties have read and accepted the terms and conditions of this agreement on</span>',
+      '<span class="blank">&nbsp;</span>',
+      '<span>.</span>',
+    '</div>',
+
+    // Signature blocks
     '<div class="sg">',
-      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">Rafael Macias, Owner</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
-      '<div><div class="fl">Buyer</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+      '<div class="sg-block">',
+        '<strong>SELLER</strong>',
+        'M &amp; G Nursery<br>',
+        '39390 Road 116, Cutler, CA 93615',
+        '<div style="margin-top:14px"><div class="fl">By</div><div class="sl"></div></div>',
+        '<div style="margin-top:8px"><div class="fl">Date</div><div class="sl"></div></div>',
+      '</div>',
+      '<div class="sg-block">',
+        '<strong>BUYER</strong>',
+        esc(buyerName) + '<br>',
+        buyerAddr ? esc(buyerAddr) : '<span style="color:#999">Street Address, City, State, Zip</span>',
+        '<div style="margin-top:14px"><div class="fl">By</div><div class="sl"></div>',
+        (c.company && c.company !== c.name ? '<div style="font-size:11px;color:#6B7280;margin-top:2px">' + esc(c.name) + '</div>' : ''),
+        '</div>',
+        '<div style="margin-top:8px"><div class="fl">Date</div><div class="sl"></div></div>',
+      '</div>',
     '</div>',
-    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
-      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
+
+    '<div class="footer-id">',
+      'M&amp;G Nursery &middot; Agreement #' + contractNum + ' &middot; Generated ' + dateStr,
     '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Contract #' + contractNum + ' · ' + dateStr + ' · AgCommand CRM',
-    '</div>',
-    '</div>',
+
+    '</div>', // close .page
     '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
     '</body></html>'
   ];
