@@ -920,7 +920,7 @@ function showMain(){
       var preL=contacts.slice();
       var merged=preL.map(function(p){var s=stored.find(function(x){return x.id===p.id;});return s?Object.assign({},p,s):p;});
       stored.forEach(function(s){if(!merged.find(function(m){return m.id===s.id;}))merged.push(s);});
-      contacts=merged.map(ensureVarieties);
+      contacts=filterDeleted(merged).map(ensureVarieties);
     }
   }catch(e){}
   activities=[];orders=[];tasks=[];
@@ -1046,7 +1046,7 @@ async function loadAll(){
       }
     });
 
-    contacts=merged.map(ensureVarieties);
+    contacts=filterDeleted(merged).map(ensureVarieties);
 
     // Push anything missing from cloud up to Supabase
     const cloudIds=new Set(cloudContacts.map(c=>c.id));
@@ -1178,7 +1178,7 @@ async function silentReload(){
     });
     // Final dedup by id — safety net
     const seen=new Set();
-    contacts = merged.filter(c=>{ if(seen.has(c.id)) return false; seen.add(c.id); return true; }).map(ensureVarieties);
+    contacts = filterDeleted(merged.filter(c=>{ if(seen.has(c.id)) return false; seen.add(c.id); return true; })).map(ensureVarieties);
     activities=ar.data||[];
     orders=or.data||[];
     saveLocal();
@@ -3244,6 +3244,13 @@ function renderMetrics(){
 }
 
 // ── Reconstruct varieties array from flat variety string if missing ──────────
+// ── DELETED CONTACTS TRACKING ─────────────────────────────────────────────────
+const DEL_KEY = 'mg_deleted_v1';
+function getDeletedIds(){ try{ return new Set(JSON.parse(localStorage.getItem(DEL_KEY)||'[]')); }catch(e){ return new Set(); } }
+function addDeletedId(id){ try{ const s=getDeletedIds(); s.add(id); localStorage.setItem(DEL_KEY,JSON.stringify([...s])); }catch(e){} }
+function filterDeleted(list){ const d=getDeletedIds(); return list.filter(c=>!d.has(c.id)); }
+
+
 function ensureVarieties(c){
   if(c.varieties && c.varieties.length) return c;
   if(!c.variety) return c;
@@ -4091,11 +4098,16 @@ async function getVarietiesFromForm(){
   const rows = document.querySelectorAll('.variety-row');
   const list = [];
   rows.forEach(r => {
-    const v = (r.querySelector('.vr-variety')||{}).value||'';
-    const rs = (r.querySelector('.vr-rootstock')||{}).value||'';
-    const qty = parseInt((r.querySelector('.vr-qty')||{}).value)||0;
+    const vEl = r.querySelector('.vr-variety');
+    const rsEl = r.querySelector('.vr-rootstock');
+    const qEl = r.querySelector('.vr-qty');
+    const v  = (vEl ? vEl.value : '') || '';
+    const rs = (rsEl ? rsEl.value : '') || '';
+    const qty = parseInt((qEl ? qEl.value : '') || 0) || 0;
+    console.log('[varieties] row: variety='+v+' rootstock='+rs+' qty='+qty);
     if(v.trim()) list.push({variety:v.trim(), rootstock:rs.trim(), qty});
   });
+  console.log('[varieties] total collected:', list.length, JSON.stringify(list));
   return list;
 }
 async function saveContact(){
@@ -4234,6 +4246,7 @@ async function saveContact(){
 
 async function deleteContact(){
   if(!confirm('Delete this customer and all related data?'))return;
+  addDeletedId(currentId); // record so merge never re-adds this contact
   contacts=contacts.filter(x=>x.id!==currentId);activities=activities.filter(a=>a.contact_id!==currentId);orders=orders.filter(o=>o.contact_id!==currentId);
   if(cloudOk){try{await Promise.all([sb.from(CFG.table).delete().eq('id',currentId),sb.from(CFG.actTable).delete().eq('contact_id',currentId),sb.from(CFG.orderTable).delete().eq('contact_id',currentId)]);}catch(e){console.warn(e);}}
   saveLocal();closeModal('modal-detail');renderAll();toast('Customer deleted');
