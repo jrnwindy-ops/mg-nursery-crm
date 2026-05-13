@@ -834,7 +834,7 @@ function doLogin(){
   var val=document.getElementById('pw-input').value.trim();
   document.getElementById('login-err').textContent='';
   if(val===CFG.password){
-    try{sessionStorage.setItem('mg_auth','1');}catch(e){}
+    try{sessionStorage.setItem('mg_auth','1');}catch(e){} try{localStorage.setItem('mg_auth_fb','1');}catch(e2){}
     showMain();
   }else{
     document.getElementById('login-err').textContent='Incorrect password.';
@@ -842,13 +842,24 @@ function doLogin(){
     document.getElementById('pw-input').focus();
   }
 }
-function doLogout(){try{sessionStorage.removeItem('mg_auth');}catch(e){}document.getElementById('screen-login').classList.remove('hidden');document.getElementById('screen-main').classList.remove('visible');document.getElementById('pw-input').value='';}
+function doLogout(){try{sessionStorage.removeItem('mg_auth'); try{localStorage.removeItem('mg_auth_fb');}catch(e){};}catch(e){}document.getElementById('screen-login').classList.remove('hidden');document.getElementById('screen-main').classList.remove('visible');document.getElementById('pw-input').value='';}
 function showMain(){
   var login=document.getElementById('screen-login');
   var main=document.getElementById('screen-main');
   if(login){login.style.display='none';login.classList.add('hidden');}
   if(main){main.style.display='flex';main.classList.add('visible');}
+  // Seed with hardcoded contacts immediately so something shows while cloud loads
   contacts=seed();
+  // Also merge localStorage right away so user-added contacts appear instantly
+  try{
+    var stored=JSON.parse(localStorage.getItem('mg_v3')||'null');
+    if(stored&&stored.length>0){
+      var preL=contacts.slice();
+      var merged=preL.map(function(p){var s=stored.find(function(x){return x.id===p.id;});return s?Object.assign({},p,s):p;});
+      stored.forEach(function(s){if(!merged.find(function(m){return m.id===s.id;}))merged.push(s);});
+      contacts=merged;
+    }
+  }catch(e){}
   activities=[];orders=[];tasks=[];
   renderAll();
   setTimeout(updateNotifBtn, 300);
@@ -3876,7 +3887,10 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 
 document.addEventListener('DOMContentLoaded', function(){
   var authed=false;
-  try{authed=sessionStorage.getItem('mg_auth')==='1';}catch(e){}
+  try{authed=sessionStorage.getItem('mg_auth')==='1';}catch(e){
+    // sessionStorage blocked (iOS private mode) — fall back to localStorage
+    try{authed=localStorage.getItem('mg_auth_fb')==='1';}catch(e2){}
+  }
   if(authed)showMain();
   initNotifications();
 });
