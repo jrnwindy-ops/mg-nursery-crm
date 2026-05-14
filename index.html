@@ -3086,10 +3086,23 @@ function calcReadyDate(){ return null; }
 function mkMetCard(label,val,color){ return '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px"><div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div><div style="font-size:10px;color:rgba(255,255,255,.6)">'+label+'</div></div>'; }
 
 // ── CONTACTS & PIPELINE RENDER ─────────────────────────────────────────────
+function _filterVal(desktopId, mobileId){
+  // Read whichever element is visible (not display:none).
+  // On mobile, d-* elements exist in DOM but are hidden; on desktop the m-* are hidden.
+  const d = document.getElementById(desktopId);
+  const m = document.getElementById(mobileId);
+  const dVisible = d && d.offsetParent !== null;
+  const mVisible = m && m.offsetParent !== null;
+  if (mVisible && m.value) return m.value;
+  if (dVisible && d.value) return d.value;
+  // Fall back to any non-empty value from either (in case offsetParent is unreliable)
+  return (m && m.value) || (d && d.value) || '';
+}
+
 function getFiltered(){
-  const q=((document.getElementById('d-search')||document.getElementById('m-search')||{}).value||'').toLowerCase().trim();
-  const stage=(document.getElementById('d-stage')||document.getElementById('m-stage')||{}).value||'';
-  const variety=(document.getElementById('d-variety')||document.getElementById('m-variety')||{}).value||'';
+  const q = _filterVal('d-search', 'm-search').toLowerCase().trim();
+  const stage = _filterVal('d-stage', 'm-stage');
+  const variety = _filterVal('d-variety', 'm-variety');
   return contacts.filter(c=>{
     if(q && !c.name.toLowerCase().includes(q) && !(c.company||'').toLowerCase().includes(q) && !(c.variety||'').toLowerCase().includes(q)) return false;
     if(stage && c.status!==stage) return false;
