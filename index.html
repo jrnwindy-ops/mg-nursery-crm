@@ -946,45 +946,52 @@ async function loadAll(){
     let localStored=[];
     try{const ls=localStorage.getItem('mg_v3');if(ls)localStored=JSON.parse(ls)||[];}catch(e2){}
 
-    // Three-way merge: cloud wins, then localStorage additions, then hardcoded
+    // Determine if this device has ever seen cloud data before
+    const everSynced = localStorage.getItem('mg_synced_v1') === '1';
+    const cloudIsEmpty = cloudContacts.length === 0;
+
+    // ── CLOUD IS SOURCE OF TRUTH ──
+    // If cloud has contacts, those are the only contacts that exist.
+    // We only fall back to localStorage/preLoaded if cloud is EMPTY and
+    // this device has never synced — that's the first-deploy case.
+
     const seenIds  = new Set();
-    const seenNames= new Set();
     const merged   = [];
 
-    // 1. Cloud contacts — source of truth
+    // 1. Cloud contacts — always the truth when present
     cloudContacts.forEach(c=>{
       seenIds.add(c.id);
-      seenNames.add((c.name||'').toLowerCase().trim());
-      // Restore localStorage-only fields
+      // Restore localStorage-only fields (contact_log, varieties)
       const loc = localStored.find(x=>x.id===c.id);
       merged.push(loc ? {...c, contact_log:loc.contact_log||[], varieties:loc.varieties||null} : c);
     });
 
-    // 2. localStorage contacts not in cloud (user-added, not yet pushed)
-    localStored.forEach(c=>{
-      if(!seenIds.has(c.id) && !seenNames.has((c.name||'').toLowerCase().trim())){
-        seenIds.add(c.id); seenNames.add((c.name||'').toLowerCase().trim());
-        merged.push(c);
-      }
-    });
+    // 2. First-time seed: if cloud is empty AND this device has never synced,
+    //    push the hardcoded starter contacts up to cloud.
+    let didInitialSeed = false;
+    if(cloudIsEmpty && !everSynced && preLoaded && preLoaded.length > 0){
+      console.log('[loadAll] First-time seed: pushing '+preLoaded.length+' starter contacts to empty cloud');
+      preLoaded.forEach(c=>{
+        if(!seenIds.has(c.id)){ seenIds.add(c.id); merged.push(c); }
+      });
+      didInitialSeed = true;
+    }
 
-    // 3. Hardcoded contacts not in cloud or local (new additions from deploys)
-    preLoaded.forEach(c=>{
-      if(!seenIds.has(c.id) && !seenNames.has((c.name||'').toLowerCase().trim())){
-        seenIds.add(c.id); seenNames.add((c.name||'').toLowerCase().trim());
-        merged.push(c);
-      }
-    });
+    // 3. Push any pending offline writes from sync queue (handled separately by flushSyncQueue)
+    //    DO NOT re-add localStorage contacts that aren't in cloud — those were likely deleted on another device.
 
     contacts=filterDeleted(merged).map(ensureVarieties);
 
-    // Push anything missing from cloud up to Supabase
-    const cloudIds=new Set(cloudContacts.map(c=>c.id));
-    const needsSync=merged.filter(c=>!cloudIds.has(c.id));
-    if(needsSync.length>0){
-      console.log('Syncing '+needsSync.length+' contacts to cloud...');
-      try{ for(const c of needsSync){ await sb.from(CFG.table).upsert(c); } }catch(e3){console.warn('Sync failed:',e3);}
+    // If we did a first-time seed, push those starter contacts up
+    if(didInitialSeed){
+      try{
+        for(const c of preLoaded){ await sb.from(CFG.table).upsert(c); }
+        console.log('[loadAll] Initial seed pushed to cloud');
+      }catch(e3){console.warn('[loadAll] Seed sync failed:',e3);}
     }
+
+    // Mark this device as synced — from now on, cloud is authoritative
+    try{ localStorage.setItem('mg_synced_v1','1'); }catch(e4){}
 
     // Always persist merged result to localStorage
     saveLocal();
@@ -1014,12 +1021,17 @@ async function loadAll(){
     console.log('Orders loaded:', orders.length);
   }catch(e){console.warn('Orders:',e);orders=[];}
 
+  // Admin task board (separate from contacts pipeline)
+  try {
+    await loadAdminData();
+  } catch(e) { console.warn('[Admin] init load failed', e); }
 
   await flushSyncQueue(); // push any contacts saved while offline
   setSyncBadge(true);
   subscribeRT();
+  subscribeAdminRT();
   renderAll();
-  console.log('loadAll complete. contacts='+contacts.length);
+  console.log('loadAll complete. contacts='+contacts.length+', admin tasks='+adminTasks.length);
 }
 
 function setSyncBadge(ok){
@@ -1071,7 +1083,10 @@ function subscribeRT(){
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   clearInterval(_pollTimer);
   _pollTimer = setInterval(()=>{
-    if(cloudOk && !_skipNextReload) silentReload();
+    if(cloudOk && !_skipNextReload) {
+      silentReload();
+      loadAdminData();
+    }
   }, isMobile ? 8000 : 15000);
 }
 
@@ -1084,24 +1099,21 @@ async function silentReload(){
       sb.from(CFG.orderTable).select('*').order('created_at',{ascending:false}),
     ]);
     const cloudData = cr.data||[];
-    // Restore localStorage-only fields (contact_log, varieties) into cloud contacts
+
+    // CLOUD IS SOURCE OF TRUTH — no local resurrection of deleted contacts.
+    // Build localStorage map only to restore client-side-only fields (contact_log, varieties)
     const localMap = {};
     try{
       const ls = JSON.parse(localStorage.getItem('mg_v3')||'[]');
       ls.forEach(c=>{ localMap[c.id]=c; });
     }catch(e2){}
+
     const merged = cloudData.map(c => {
       const local = localMap[c.id];
       if(local) return {...c, contact_log:local.contact_log||[], varieties:local.varieties||null};
       return c;
     });
-    // Add local-only contacts not yet in cloud
-    const cloudIds  = new Set(cloudData.map(c=>c.id));
-    const cloudNames= new Set(cloudData.map(c=>(c.name||'').toLowerCase().trim()));
-    contacts.filter(c=>!cloudIds.has(c.id)).forEach(c=>{
-      // Skip if same name already exists in cloud (prevents hardcoded duplicates)
-      if(!cloudNames.has((c.name||'').toLowerCase().trim())) merged.push(c);
-    });
+
     // Final dedup by id — safety net
     const seen=new Set();
     contacts = filterDeleted(merged.filter(c=>{ if(seen.has(c.id)) return false; seen.add(c.id); return true; })).map(ensureVarieties);
@@ -1109,7 +1121,7 @@ async function silentReload(){
     orders=or.data||[];
     saveLocal();
     renderAll();
-    console.log('[silentReload] contacts='+contacts.length);
+    console.log('[silentReload] contacts='+contacts.length+' (cloud authoritative)');
   }catch(e){ console.warn('[silentReload] error:',e); }
 }
 
@@ -1151,11 +1163,75 @@ function renderDigest(){
   if(mm)mm.innerHTML=html('digest-banner','m-digest');
 }
 
-let adminTasks = JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
-let adminStaff = JSON.parse(localStorage.getItem('mg_admin_staff')||'null') || ['Isidro','Admin Juan','Admin Julie'];
+// ── ADMIN BOARD: Cloud-synced via Supabase tables admin_tasks + admin_staff ──
+const LK_ADMIN_TASKS = 'mg_admin_tasks';
+const LK_ADMIN_STAFF = 'mg_admin_staff';
+const ADMIN_TASK_TABLE = 'admin_tasks';
+const ADMIN_STAFF_TABLE = 'admin_staff';
 
-function saveAdminTasks(){ localStorage.setItem('mg_admin_tasks', JSON.stringify(adminTasks)); }
-function saveAdminStaff(){ localStorage.setItem('mg_admin_staff', JSON.stringify(adminStaff)); }
+// Load from localStorage on init (instant render); cloud overwrites once loaded
+let adminTasks = JSON.parse(localStorage.getItem(LK_ADMIN_TASKS)||'[]');
+let adminStaffRows = JSON.parse(localStorage.getItem(LK_ADMIN_STAFF)||'null'); // [{id,name,position}]
+if (!adminStaffRows || !adminStaffRows.length) {
+  adminStaffRows = [
+    {id:'staff-isidro', name:'Isidro', position:0},
+    {id:'staff-juan', name:'Admin Juan', position:1},
+    {id:'staff-julie', name:'Admin Julie', position:2}
+  ];
+}
+// adminStaff: array of names sorted by position (used by render code)
+let adminStaff = adminStaffRows.sort((a,b)=>(a.position||0)-(b.position||0)).map(r=>r.name);
+
+function saveAdminTasksLocal(){ localStorage.setItem(LK_ADMIN_TASKS, JSON.stringify(adminTasks)); }
+function saveAdminStaffLocal(){
+  localStorage.setItem(LK_ADMIN_STAFF, JSON.stringify(adminStaffRows));
+  adminStaff = adminStaffRows.sort((a,b)=>(a.position||0)-(b.position||0)).map(r=>r.name);
+}
+
+// Backward-compat shims (some legacy callers may reference these)
+function saveAdminTasks(){ saveAdminTasksLocal(); }
+function saveAdminStaff(){ saveAdminStaffLocal(); }
+
+async function loadAdminData(){
+  if(!cloudOk || !sb) return;
+  try {
+    const [tr, sr] = await Promise.all([
+      sb.from(ADMIN_TASK_TABLE).select('*').order('created_at',{ascending:false}),
+      sb.from(ADMIN_STAFF_TABLE).select('*').order('position',{ascending:true})
+    ]);
+    if (tr.data) {
+      adminTasks = tr.data;
+      saveAdminTasksLocal();
+    }
+    if (sr.data && sr.data.length) {
+      adminStaffRows = sr.data.map(r => ({id:r.id, name:r.name, position:r.position||0}));
+      saveAdminStaffLocal();
+    }
+    console.log('[Admin] Loaded', adminTasks.length, 'tasks,', adminStaffRows.length, 'staff');
+    if (currentTab === 'admin') renderAdmin();
+  } catch(e) {
+    console.warn('[Admin] load failed', e);
+  }
+}
+
+// Realtime subscription for admin tables
+function subscribeAdminRT(){
+  if(!cloudOk || !sb) return;
+  try {
+    sb.channel('mg-admin-tasks')
+      .on('postgres_changes',{event:'*',schema:'public',table:ADMIN_TASK_TABLE},()=>{
+        console.log('[RT Admin] tasks changed');
+        loadAdminData();
+      })
+      .subscribe();
+    sb.channel('mg-admin-staff')
+      .on('postgres_changes',{event:'*',schema:'public',table:ADMIN_STAFF_TABLE},()=>{
+        console.log('[RT Admin] staff changed');
+        loadAdminData();
+      })
+      .subscribe();
+  } catch(e){ console.warn('[RT Admin] error',e); }
+}
 
 function renderAdmin(){
   const dv = document.getElementById('dv-admin');
@@ -1270,29 +1346,44 @@ function buildAdminHTML(){
   '</div>';
 }
 
-function addStaffMember(){
+async function addStaffMember(){
   // Search both containers since ID may appear in either
   const inputs = document.querySelectorAll('#new-staff-name');
   const inp = Array.from(inputs).find(el => el.value.trim()) || inputs[0];
   if (!inp || !inp.value.trim()) return;
   const name = inp.value.trim();
   if (adminStaff.includes(name)) { inp.value=''; return; }
-  adminStaff.push(name);
-  saveAdminStaff();
+  const newRow = {
+    id: 'staff-' + uid(),
+    name: name,
+    position: adminStaffRows.length
+  };
+  adminStaffRows.push(newRow);
+  saveAdminStaffLocal();
   inp.value = '';
   renderAdmin();
   toast(name + ' added to team ✓');
+  if (cloudOk) {
+    try { await sb.from(ADMIN_STAFF_TABLE).insert(newRow); }
+    catch(e) { console.warn('[Admin staff insert]', e); }
+  }
 }
 
-function removeStaffMember(si){
-  const name = adminStaff[si];
-  if (!confirm('Remove ' + name + ' from the team? Their tasks will remain but show unassigned.')) return;
-  adminStaff.splice(si, 1);
-  saveAdminStaff();
+async function removeStaffMember(si){
+  const row = adminStaffRows[si];
+  if (!row) return;
+  if (!confirm('Remove ' + row.name + ' from the team? Their tasks will remain but show unassigned.')) return;
+  const removedId = row.id;
+  adminStaffRows.splice(si, 1);
+  saveAdminStaffLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_STAFF_TABLE).delete().eq('id', removedId); }
+    catch(e) { console.warn('[Admin staff delete]', e); }
+  }
 }
 
-function addAdminTask(assignee, si){
+async function addAdminTask(assignee, si){
   const key = si;
   // Query all matching inputs (may be in dv or mv)
   const inpAll = document.querySelectorAll('#new-admin-task-' + key);
@@ -1300,23 +1391,49 @@ function addAdminTask(assignee, si){
   const dueAll = document.querySelectorAll('#due-admin-task-' + key);
   const due = dueAll[0];
   if (!inp || !inp.value.trim()) return;
-  adminTasks.unshift({id:uid(), task:inp.value.trim(), assignee, due:due?due.value:'', done:false, created_at:now()});
+  const newTask = {
+    id: uid(),
+    task: inp.value.trim(),
+    assignee,
+    due: due ? due.value : '',
+    done: false,
+    created_at: now()
+  };
+  adminTasks.unshift(newTask);
   inp.value = ''; if(due) due.value = '';
-  saveAdminTasks();
+  saveAdminTasksLocal();
   renderAdmin();
   toast('Task added for ' + assignee + ' ✓');
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).insert(newTask); }
+    catch(e) { console.warn('[Admin task insert]', e); }
+  }
 }
 
-function completeAdminTask(idx){
-  if (adminTasks[idx]) adminTasks[idx].done = true;
-  saveAdminTasks();
+async function completeAdminTask(idx){
+  const t = adminTasks[idx];
+  if (!t) return;
+  t.done = true;
+  t.completed_at = now();
+  saveAdminTasksLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).update({done:true, completed_at:t.completed_at}).eq('id', t.id); }
+    catch(e) { console.warn('[Admin task complete]', e); }
+  }
 }
 
-function deleteAdminTask(idx){
+async function deleteAdminTask(idx){
+  const t = adminTasks[idx];
+  if (!t) return;
+  const removedId = t.id;
   adminTasks.splice(idx, 1);
-  saveAdminTasks();
+  saveAdminTasksLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).delete().eq('id', removedId); }
+    catch(e) { console.warn('[Admin task delete]', e); }
+  }
 }
 
 
@@ -3089,8 +3206,9 @@ function exportBackup(){
       contacts: JSON.parse(localStorage.getItem('mg_v3')||'[]'),
       activities: JSON.parse(localStorage.getItem('mg_act_v3')||'[]'),
       orders: JSON.parse(localStorage.getItem('mg_ord_v3')||'[]'),
-      tasks: JSON.parse(localStorage.getItem('mg_tasks_v1')||'[]'),
       reminders: JSON.parse(localStorage.getItem('mg_reminders')||'[]'),
+      admin_tasks: JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]'),
+      admin_staff: JSON.parse(localStorage.getItem('mg_admin_staff')||'[]'),
       deleted: JSON.parse(localStorage.getItem('mg_deleted_v1')||'[]'),
       exported_at: new Date().toISOString(),
       device: navigator.userAgent
@@ -4210,9 +4328,11 @@ document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible' && cloudOk){
     console.log('[visibility] page visible — refreshing');
     silentReload();
+    loadAdminData();
     // Re-subscribe in case iOS killed the WebSocket
     clearInterval(_pollTimer);
     subscribeRT();
+    subscribeAdminRT();
   }
 });
 
