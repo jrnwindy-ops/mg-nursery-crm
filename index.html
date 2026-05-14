@@ -288,10 +288,6 @@ textarea.finput{height:70px;resize:none}
 .ditem p{font-size:14px;color:var(--tx);font-weight:500}
 .nbox{background:var(--bg);border-radius:var(--rsm);padding:11px;font-size:13px;color:var(--tx2);line-height:1.7;white-space:pre-wrap;margin-bottom:13px;border:1px solid var(--bd)}
 /* TASKS */
-.task-banner{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 16px;margin:0 14px 6px;box-shadow:var(--sh)}
-.task-banner-d{background:var(--surf);border:1.5px solid var(--blue-bd);border-radius:var(--r);padding:13px 18px;margin:0 24px 12px;box-shadow:var(--sh);flex-shrink:0}
-.task-banner-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.task-banner-title{font-size:13px;font-weight:700;color:var(--blue)}
 .task-card{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;margin-bottom:9px;box-shadow:var(--sh);cursor:pointer;transition:box-shadow .15s}
 .task-card:hover{box-shadow:var(--shmd)}
 .task-card.done{opacity:0.5;border-style:dashed}
@@ -304,7 +300,6 @@ textarea.finput{height:70px;resize:none}
 .task-meta{font-size:11px;color:var(--tx4);margin-top:3px}
 .task-hint{font-size:12px;color:var(--g800);background:var(--g50);border-radius:var(--rsm);padding:7px 10px;margin-top:7px;border:1px solid var(--g100)}
 .task-section-hd{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);padding:10px 0 5px;border-bottom:1px solid var(--bd);margin-bottom:8px}
-.mic-pulse{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(27,67,50,.4)}50%{box-shadow:0 0 0 12px rgba(27,67,50,0)}}
 .msg-ch-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--surf);font-size:13px;font-weight:600;color:var(--tx2);transition:all .15s;cursor:pointer}
 .msg-ch-btn:hover{border-color:var(--g400);color:var(--g800);background:var(--g50)}
@@ -370,7 +365,6 @@ textarea.finput{height:70px;resize:none}
     <nav class="sb-nav">
       <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
       <button class="sn-btn" id="snav-deliveries" onclick="switchTab('deliveries')"><span class="sn-icon">&#128666;</span> Deliveries</button>
-      <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
       <button class="sn-btn" id="snav-inventory" onclick="switchTab('inventory')"><span class="sn-icon">&#127807;</span> Inventory</button>
       <button class="sn-btn" id="snav-admin" onclick="switchTab('admin')"><span class="sn-icon">&#128119;</span> Admin</button>
@@ -380,7 +374,6 @@ textarea.finput{height:70px;resize:none}
         <button class="sn-btn" id="notif-btn" onclick="handleNotifBtn()" style="font-size:11px;opacity:.85"><span class="sn-icon">&#128276;</span> <span id="notif-btn-label">Enable Notifications</span></button>
         <button class="sn-btn" id="install-btn" onclick="handleInstallBtn()" style="font-size:11px;opacity:.85;display:none"><span class="sn-icon">&#128247;</span> <span>Install App</span></button>
       </div>
-      <button class="sn-btn" id="snav-tasks" onclick="switchTab('tasks')"><span class="sn-icon">&#10003;</span> Tasks</button>
     </nav>
     <div class="sb-foot">
       <div style="display:flex;gap:6px;margin-bottom:8px">
@@ -397,21 +390,17 @@ textarea.finput{height:70px;resize:none}
       <h2 id="d-tab-title">Contacts</h2>
       <div class="d-hdr-r">
         <span class="sync-badge" id="sync-badge" onclick="retryCloud()" title="Click to retry cloud connection" style="cursor:pointer">&#128190; Local</span>
-        <button class="fab-d" id="mic-btn-d" onclick="openDictate()" style="background:var(--g800);margin-right:6px">&#127908; Dictate task</button>
         <button class="fab-d" onclick="openAdd()">+ Add customer</button>
       </div>
     </div>
     <div class="d-metrics" id="d-metrics"></div>
     <div id="d-digest"></div>
-    <div id="d-task-banner"></div>
     <div class="d-tabs">
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
       <button class="d-tab" id="dtab-deliveries" onclick="switchTab('deliveries')">&#128666; Deliveries</button>
-      <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
       <button class="d-tab" id="dtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
       <button class="d-tab" id="dtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
-      <button class="d-tab" id="dtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
     </div>
     <div id="dv-contacts" class="d-body">
       <div class="d-toolbar">
@@ -427,8 +416,6 @@ textarea.finput{height:70px;resize:none}
       </div>
     </div>
     <div id="dv-deliveries" class="d-pipe" style="display:none"></div>
-    <div id="dv-reminders" class="d-rem" style="display:none"></div>
-    <div id="dv-tasks" class="d-rem" style="display:none"></div>
   <div id="dv-admin" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-timeline" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
   <div id="dv-inventory" class="d-rem" style="display:none;flex-direction:column;overflow-y:auto"></div>
@@ -442,22 +429,18 @@ textarea.finput{height:70px;resize:none}
         <div class="m-brand"><h1>M&amp;G Nursery</h1><p id="m-sub">CRM &amp; Pipeline</p></div>
       </div>
       <div style="display:flex;gap:7px;align-items:center">
-        <button class="m-logout" id="mic-btn-m" onclick="openDictate()" style="background:var(--g800);border-color:var(--g600)">&#127908;</button>
         <button class="m-logout" onclick="doLogout()">Sign out</button>
       </div>
     </div>
   </div>
   <div class="m-met mobile-only" id="m-metrics"></div>
   <div id="m-digest" class="mobile-only"></div>
-  <div id="m-task-banner" class="mobile-only"></div>
   <div class="m-tabs mobile-only">
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
     <button class="m-tab" id="mtab-deliveries" onclick="switchTab('deliveries')">Deliveries</button>
-    <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
     <button class="m-tab" id="mtab-inventory" onclick="switchTab('inventory')">&#127807; Inventory</button>
     <button class="m-tab" id="mtab-admin" onclick="switchTab('admin')">&#128119; Admin</button>
-    <button class="m-tab" id="mtab-tasks" onclick="switchTab('tasks')">&#127908; Tasks</button>
   </div>
   <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="m-srch">
@@ -468,8 +451,6 @@ textarea.finput{height:70px;resize:none}
     <div class="m-scroll" id="m-list"></div>
   </div>
   <div id="mv-deliveries" class="m-pipe mobile-only" style="display:none"></div>
-  <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
-  <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-admin" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-timeline" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-inventory" class="m-rem mobile-only" style="display:none"></div>
@@ -477,11 +458,9 @@ textarea.finput{height:70px;resize:none}
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
     <button class="bnav-btn" id="mnav-deliveries" onclick="switchTab('deliveries')"><span class="bnav-icon">&#128666;</span><span class="bnav-label">Deliveries</span></button>
-    <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
     <button class="bnav-btn" id="mnav-inventory" onclick="switchTab('inventory')"><span class="bnav-icon">&#127807;</span><span class="bnav-label">Inventory</span></button>
     <button class="bnav-btn" id="mnav-admin" onclick="switchTab('admin')"><span class="bnav-icon">&#128119;</span><span class="bnav-label">Admin</span></button>
-    <button class="bnav-btn" id="mnav-tasks" onclick="switchTab('tasks')"><span class="bnav-icon">&#10003;</span><span class="bnav-label">Tasks</span></button>
   </div>
 </div>
 
@@ -765,60 +744,6 @@ textarea.finput{height:70px;resize:none}
 
 <div class="toast" id="toast"></div>
 
-<!-- MODAL: DICTATE TASK -->
-<div class="modal-bg" id="modal-dictate">
-<div class="modal">
-  <div class="mhandle"></div>
-  <h2>&#127908; Dictate a task</h2>
-  <div id="dictate-browser-warn" style="display:none;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:10px">
-    &#9888; Your browser has limited voice support. Use <strong>Chrome</strong> or <strong>Safari</strong> for best results, or type your task below instead.
-  </div>
-  <div id="dictate-status" style="text-align:center;padding:12px 0 4px;font-size:14px;color:var(--tx3)">Tap the mic to start speaking</div>
-  <div id="dictate-stop-hint" style="text-align:center;font-size:12px;color:var(--muted);padding-bottom:12px">Say <strong>STOP</strong> to finish, or tap ⏹ button</div>
-  <div id="dictate-char-count" style="text-align:center;font-size:11px;color:var(--muted);min-height:14px"></div>
-  <div style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;align-items:center">
-    <button id="mic-record-btn" onclick="toggleRecording()" style="width:70px;height:70px;border-radius:50%;border:none;background:var(--g900);color:#fff;font-size:28px;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(27,67,50,.35)">&#127908;</button>
-  </div>
-  <div id="dictate-type-toggle" style="text-align:center;margin-bottom:10px">
-    <button onclick="toggleDictateMode()" style="font-size:12px;background:none;border:1px solid var(--bd);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--tx3);font-family:inherit" id="dictate-mode-btn">&#9000; Switch to typing instead</button>
-  </div>
-  <div id="dictate-preview" style="display:none">
-    <label class="flabel">Task (edit before saving)</label>
-    <textarea class="finput" id="dictate-text" style="height:90px" placeholder="Type your task here..."></textarea>
-    <label class="flabel">Created by</label>
-    <input class="finput" id="dictate-by" placeholder="e.g. Raffi, Isidro">
-    <div id="dictate-assignee-box" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#1B4332">
-      <strong>&#128119; Assign to:</strong> <span id="dictate-assignee-name" style="font-weight:700"></span>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px" id="dictate-assignee-btns"></div>
-    </div>
-    <div id="dictate-suggestion" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--g800)">
-      <strong>&#128161; Suggested CRM action:</strong><br>
-      <span id="dictate-hint"></span>
-    </div>
-  </div>
-  <div class="mact">
-    <button class="btn-cancel" onclick="closeModal('modal-dictate');stopRecording()">Cancel</button>
-    <button class="btn-save" id="dictate-save-btn" onclick="saveTask()" style="display:none">Save task</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL: TASK DETAIL -->
-<div class="modal-bg" id="modal-task-detail">
-<div class="modal">
-  <div class="mhandle"></div>
-  <h2 id="td-title" style="font-size:16px;margin-bottom:4px"></h2>
-  <p id="td-meta" style="font-size:12px;color:var(--tx3);margin-bottom:14px"></p>
-  <div id="td-hint-wrap" style="display:none;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rsm);padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--g800)">
-    <strong>&#128161; How to action this in the CRM:</strong><br>
-    <span id="td-hint"></span>
-  </div>
-  <div class="mact">
-    <button class="btn-cancel" onclick="closeModal('modal-task-detail')">Close</button>
-    <button class="btn-save" onclick="completeTask()">Mark complete ✓</button>
-    <button class="btn-danger" onclick="deleteTask()">Delete</button>
-  </div>
-</div>
 </div>
 
 <script>
@@ -931,7 +856,7 @@ function showMain(){
       contacts=filterDeleted(merged).map(ensureVarieties);
     }
   }catch(e){}
-  activities=[];orders=[];tasks=[];
+  activities=[];orders=[];
   renderAll();
   setTimeout(updateNotifBtn, 300);
   setTimeout(checkInstallPrompt, 1000);
@@ -1089,17 +1014,17 @@ async function loadAll(){
     console.log('Orders loaded:', orders.length);
   }catch(e){console.warn('Orders:',e);orders=[];}
 
-  try{
-    const tr=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
-    tasks=tr.data||[];
-    console.log('Tasks loaded:', tasks.length);
-  }catch(e){console.warn('Tasks:',e);tasks=[];}
+  // Admin task board (separate from contacts pipeline)
+  try {
+    await loadAdminData();
+  } catch(e) { console.warn('[Admin] init load failed', e); }
 
   await flushSyncQueue(); // push any contacts saved while offline
   setSyncBadge(true);
   subscribeRT();
+  subscribeAdminRT();
   renderAll();
-  console.log('loadAll complete. contacts='+contacts.length);
+  console.log('loadAll complete. contacts='+contacts.length+', admin tasks='+adminTasks.length);
 }
 
 function setSyncBadge(ok){
@@ -1151,7 +1076,10 @@ function subscribeRT(){
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   clearInterval(_pollTimer);
   _pollTimer = setInterval(()=>{
-    if(cloudOk && !_skipNextReload) silentReload();
+    if(cloudOk && !_skipNextReload) {
+      silentReload();
+      loadAdminData();
+    }
   }, isMobile ? 8000 : 15000);
 }
 
@@ -1201,7 +1129,6 @@ function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.toLocaleDateStr
 function fuTag(d){const days=daysUntil(d);if(days===null)return'<span class="fu" style="color:var(--tx4)">No follow-up</span>';if(days<0)return'<span class="fu fu-due">Overdue '+Math.abs(days)+'d</span>';if(days===0)return'<span class="fu fu-soon">Due today</span>';if(days<=5)return'<span class="fu fu-soon">In '+days+'d</span>';return'<span class="fu fu-ok">In '+days+'d</span>';}
 function fuTxt(d){const days=daysUntil(d);if(days===null)return'—';if(days<0)return'Overdue '+Math.abs(days)+'d';if(days===0)return'Today';return'In '+days+'d';}
 
-function goToTasks(){switchTab("tasks");}
 function closeDigest(id){const el=document.getElementById(id);if(el)el.innerHTML='';}
 function renderDigest(){
   const due=contacts.filter(c=>c.followup&&daysUntil(c.followup)<=0)
@@ -1232,444 +1159,70 @@ function renderDigest(){
   if(mm)mm.innerHTML=html('digest-banner','m-digest');
 }
 
-// ═══════════════ TASKS ═══════════════
-let tasks = [];
-let currentTaskId = null;
-const LKT = 'mg_tasks_v3';
-const TASK_TABLE = 'tasks';
+// ── ADMIN BOARD: Cloud-synced via Supabase tables admin_tasks + admin_staff ──
+const LK_ADMIN_TASKS = 'mg_admin_tasks';
+const LK_ADMIN_STAFF = 'mg_admin_staff';
+const ADMIN_TASK_TABLE = 'admin_tasks';
+const ADMIN_STAFF_TABLE = 'admin_staff';
 
-const CRM_HINTS = [
-  {keywords:['follow up','followup','call back','reach out','contact'],
-   hint:'Open the customer in Contacts → Activity tab → Log activity → Select "Call / voicemail" or "Email sent" → Add your notes.'},
-  {keywords:['quote','estimate','price','pricing'],
-   hint:'Open the customer in Contacts → Activity tab → Log activity → Select "Quote sent" → Note the details.'},
-  {keywords:['deposit','payment','invoice'],
-   hint:'Open the customer in Contacts → Update stage to "Deposit received" → Activity tab → Log "Deposit received" with amount.'},
-  {keywords:['order','confirm','lot','production'],
-   hint:'Open the customer in Contacts → Order docs tab → Create or update order docs with lot number and pickup details.'},
-  {keywords:['pickup','delivery','schedule','ready'],
-   hint:'Open the customer in Contacts → Update stage to "Ready" → Order docs tab → Confirm pickup date and time → Log "Pickup scheduled" in Activity.'},
-  {keywords:['add','new customer','new lead','new client','enter'],
-   hint:'Tap "+ Add customer" → Fill in name, phone, company, stage, variety and trees → Set a follow-up date → Save.'},
-  {keywords:['update','change','edit'],
-   hint:'Find the customer in Contacts → Tap their name to open → Tap "Edit" → Make changes → Save.'},
-  {keywords:['log','note','record','write'],
-   hint:'Open the customer in Contacts → Activity tab → Tap "+ Log activity" → Select type → Add notes → Save.'},
-  {keywords:['reconcile','quickbooks','expense','receipt'],
-   hint:'This is an accounting task — set aside receipts/documents for the QuickBooks entry session. Flag for Isidro if urgent.'},
-];
-
-function getCRMHint(text){
-  const lower = text.toLowerCase();
-  for(const rule of CRM_HINTS){
-    if(rule.keywords.some(k=>lower.includes(k))) return rule.hint;
-  }
-  return null;
+let adminTasks = JSON.parse(localStorage.getItem(LK_ADMIN_TASKS)||'[]');
+let adminStaffRows = JSON.parse(localStorage.getItem(LK_ADMIN_STAFF)||'null');
+if (!adminStaffRows || !adminStaffRows.length || typeof adminStaffRows[0] === 'string') {
+  adminStaffRows = [
+    {id:'staff-isidro', name:'Isidro', position:0},
+    {id:'staff-juan', name:'Admin Juan', position:1},
+    {id:'staff-julie', name:'Admin Julie', position:2}
+  ];
 }
+let adminStaff = adminStaffRows.sort((a,b)=>(a.position||0)-(b.position||0)).map(r=>r.name);
 
-function fmtTs2(ts){
-  if(!ts)return'';
-  const d=new Date(ts);
-  const now=new Date();
-  const diff=Math.round((now-d)/60000);
-  if(diff<1)return'Just now';
-  if(diff<60)return diff+'m ago';
-  if(diff<1440)return Math.round(diff/60)+'h ago';
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+function saveAdminTasksLocal(){ localStorage.setItem(LK_ADMIN_TASKS, JSON.stringify(adminTasks)); }
+function saveAdminStaffLocal(){
+  localStorage.setItem(LK_ADMIN_STAFF, JSON.stringify(adminStaffRows));
+  adminStaff = adminStaffRows.sort((a,b)=>(a.position||0)-(b.position||0)).map(r=>r.name);
 }
+function saveAdminTasks(){ saveAdminTasksLocal(); }
+function saveAdminStaff(){ saveAdminStaffLocal(); }
 
-async function loadTasks(){
-  try{
-    if(cloudOk){
-      const{data,error}=await sb.from(TASK_TABLE).select('*').order('created_at',{ascending:false});
-      if(error)throw error;
-      tasks=data||[];
-    }else{
-      tasks=JSON.parse(localStorage.getItem(LKT)||'[]');
+async function loadAdminData(){
+  if(!cloudOk || !sb) return;
+  try {
+    const [tr, sr] = await Promise.all([
+      sb.from(ADMIN_TASK_TABLE).select('*').order('created_at',{ascending:false}),
+      sb.from(ADMIN_STAFF_TABLE).select('*').order('position',{ascending:true})
+    ]);
+    if (tr.data) {
+      adminTasks = tr.data;
+      saveAdminTasksLocal();
     }
-  }catch(e){
-    console.warn('Tasks load failed',e);
-    try{tasks=JSON.parse(localStorage.getItem(LKT)||'[]');}catch(e2){tasks=[];}
-  }
-}
-
-function saveTasksLocal(){localStorage.setItem(LKT,JSON.stringify(tasks));}
-
-// Dictation
-let recognition=null;
-let isRecording=false;
-
-function openDictate(){
-  document.getElementById('dictate-status').textContent='Tap the mic to start speaking';
-  document.getElementById('dictate-preview').style.display='none';
-  document.getElementById('dictate-save-btn').style.display='none';
-  document.getElementById('dictate-text').value='';
-  document.getElementById('dictate-by').value='';
-  document.getElementById('dictate-hint').textContent='';
-  document.getElementById('dictate-suggestion').style.display='none';
-  const btn=document.getElementById('mic-record-btn');
-  btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-  isRecording=false;
-  openModal('modal-dictate');
-}
-
-function detectAssigneeFromSpeech(transcript){
-  const t = transcript.toLowerCase();
-  const box = document.getElementById('dictate-assignee-box');
-  const nameEl = document.getElementById('dictate-assignee-name');
-  const btnsEl = document.getElementById('dictate-assignee-btns');
-  if(!box) return;
-
-  let matched = null;
-  const staff = adminStaff || ['Isidro','Admin Juan','Admin Julie'];
-  for(const s of staff){
-    const parts = s.toLowerCase().split(' ');
-    if(parts.some(p => t.includes(p)) || t.includes(s.toLowerCase())){
-      matched = s; break;
+    if (sr.data && sr.data.length) {
+      adminStaffRows = sr.data.map(r => ({id:r.id, name:r.name, position:r.position||0}));
+      saveAdminStaffLocal();
     }
-  }
-
-  if(matched){
-    window._dictateAssignee = matched;
-    nameEl.textContent = matched;
-    const others = staff.filter(s => s !== matched);
-    let html = '<span style="font-size:11px;color:#1B4332;margin-right:4px">Reassign:</span>';
-    others.forEach(function(s){
-      html += '<button data-sname="'+s+'" onclick="reassignDictate(this.dataset.sname)" style="background:#fff;border:1px solid #BBF7D0;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#1B4332;font-family:inherit;margin-right:4px">'+s+'</button>';
-    });
-    html += '<button onclick="cancelDictateAssign()" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#991B1B;font-family:inherit">&#x2715; General task</button>';
-    btnsEl.innerHTML = html;
-    box.style.display = 'block';
-  } else {
-    window._dictateAssignee = null;
-    box.style.display = 'none';
+    console.log('[Admin] Loaded', adminTasks.length, 'tasks,', adminStaffRows.length, 'staff');
+    if (currentTab === 'admin') renderAdmin();
+  } catch(e) {
+    console.warn('[Admin] load failed', e);
   }
 }
 
-function reassignDictate(name){
-  window._dictateAssignee = name;
-  const el = document.getElementById('dictate-assignee-name');
-  if(el) el.textContent = name;
+function subscribeAdminRT(){
+  if(!cloudOk || !sb) return;
+  try {
+    sb.channel('mg-admin-tasks')
+      .on('postgres_changes',{event:'*',schema:'public',table:ADMIN_TASK_TABLE},()=>{
+        console.log('[RT Admin] tasks changed');
+        loadAdminData();
+      })
+      .subscribe();
+    sb.channel('mg-admin-staff')
+      .on('postgres_changes',{event:'*',schema:'public',table:ADMIN_STAFF_TABLE},()=>{
+        console.log('[RT Admin] staff changed');
+        loadAdminData();
+      })
+      .subscribe();
+  } catch(e){ console.warn('[RT Admin] error',e); }
 }
-function cancelDictateAssign(){
-  window._dictateAssignee = null;
-  const box = document.getElementById('dictate-assignee-box');
-  if(box) box.style.display = 'none';
-}
-function openDictateModal(){
-  // Reset state
-  const warn = document.getElementById('dictate-browser-warn');
-  if(warn) warn.style.display = 'none';
-  const mic = document.getElementById('mic-record-btn');
-  if(mic) mic.style.display = '';
-  const hint = document.getElementById('dictate-stop-hint');
-  if(hint) hint.style.display = '';
-  const preview = document.getElementById('dictate-preview');
-  if(preview) preview.style.display = 'none';
-  const saveBtn = document.getElementById('dictate-save-btn');
-  if(saveBtn) saveBtn.style.display = 'none';
-  const status = document.getElementById('dictate-status');
-  if(status) status.textContent = 'Tap the mic to start speaking';
-  const mb = document.getElementById('dictate-mode-btn');
-  if(mb) mb.textContent = '\u232b Switch to typing instead';
-  openModal('modal-dictate');
-  // Auto-detect browser
-  setTimeout(function(){
-    const b = detectBrowserSupport();
-    if(b.limited && warn) warn.style.display = 'block';
-    if(!b.supported){
-      if(warn) warn.style.display = 'block';
-      toggleDictateMode();
-    }
-  }, 150);
-}
-
-function toggleRecording(){
-  if(isRecording){stopRecording();}
-  else{startRecording();}
-}
-
-function detectBrowserSupport(){
-  const ua = navigator.userAgent.toLowerCase();
-  const isDuckDuckGo = ua.includes('ddg') || ua.includes('duckduckgo') || document.referrer.includes('duckduckgo');
-  const isFirefox = ua.includes('firefox');
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  return { supported: !!SR, limited: isDuckDuckGo || isFirefox, isDDG: isDuckDuckGo };
-}
-
-function toggleDictateMode(){
-  const isVoice = document.getElementById('mic-record-btn').style.display !== 'none';
-  const micBtn = document.getElementById('mic-record-btn');
-  const modeBtn = document.getElementById('dictate-mode-btn');
-  const stopHint = document.getElementById('dictate-stop-hint');
-  const preview = document.getElementById('dictate-preview');
-  if(isVoice){
-    // Switch to type mode
-    micBtn.style.display = 'none';
-    if(stopHint) stopHint.style.display = 'none';
-    modeBtn.textContent = '\u1f3a4 Switch to voice instead';
-    preview.style.display = 'block';
-    document.getElementById('dictate-text').focus();
-    document.getElementById('dictate-save-btn').style.display = 'block';
-    document.getElementById('dictate-status').textContent = 'Type your task below';
-  } else {
-    // Switch back to voice
-    micBtn.style.display = '';
-    if(stopHint) stopHint.style.display = '';
-    modeBtn.textContent = '\u232b Switch to typing instead';
-    document.getElementById('dictate-status').textContent = 'Tap the mic to start speaking';
-  }
-}
-
-function startRecording(){
-  const browser = detectBrowserSupport();
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    // No speech support — auto-switch to type mode
-    const warn = document.getElementById('dictate-browser-warn');
-    if(warn) warn.style.display = 'block';
-    toggleDictateMode();
-    return;
-  }
-  if(browser.limited){
-    // Show warning but still try
-    const warn = document.getElementById('dictate-browser-warn');
-    if(warn) warn.style.display = 'block';
-  }
-  recognition=new SpeechRecognition();
-  recognition.continuous=true;      // stays on until manually stopped
-  recognition.interimResults=true;
-  recognition.lang='en-US';
-  recognition.maxAlternatives=1;
-  isRecording=true;
-  let finalTranscript='';
-  let interimTranscript='';
-
-  const btn=document.getElementById('mic-record-btn');
-  btn.textContent='⏹';btn.style.background='var(--red)';btn.classList.add('mic-pulse');
-  document.getElementById('dictate-status').textContent='Listening... say STOP when done';
-
-  recognition.onresult=function(e){
-    interimTranscript='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      if(e.results[i].isFinal){
-        // Check for stop word
-        if(/stop/i.test(t.trim())){
-          stopRecording();
-          return;
-        }
-        finalTranscript+=t+' ';
-      } else {
-        interimTranscript+=t;
-      }
-    }
-    const full=(finalTranscript+interimTranscript).trim();
-    const textEl=document.getElementById('dictate-text');
-    if(textEl) textEl.value=full;
-    document.getElementById('dictate-preview').style.display='block';
-    document.getElementById('dictate-save-btn').style.display='block';
-    const hint=getCRMHint(full);
-    if(hint){
-      document.getElementById('dictate-hint').textContent=hint;
-      document.getElementById('dictate-suggestion').style.display='block';
-    }else{
-      document.getElementById('dictate-suggestion').style.display='none';
-    }
-    detectAssigneeFromSpeech(full);
-    // Update character counter
-    const ctr=document.getElementById('dictate-char-count');
-    if(ctr) ctr.textContent=full.length+' chars';
-  };
-
-  recognition.onend=function(){
-    // If still recording (browser cut it off after silence), restart automatically
-    if(isRecording){
-      try{ recognition.start(); }catch(e){ /* already started */ }
-    } else {
-      btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-      document.getElementById('dictate-status').textContent='Done — review and save, or tap mic to record more';
-    }
-  };
-
-  recognition.onerror=function(e){
-    if(e.error==='no-speech'&&isRecording){
-      // No speech detected but still recording — just restart quietly
-      try{ recognition.start(); }catch(err){}
-      return;
-    }
-    if(e.error==='aborted') return; // we aborted it intentionally
-    isRecording=false;
-    btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse');
-    document.getElementById('dictate-status').textContent='Microphone error — check permissions and try again';
-  };
-
-  recognition.start();
-}
-
-function stopRecording(){
-  isRecording=false; // set false BEFORE calling stop so onend doesn't restart
-  if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
-  const btn=document.getElementById('mic-record-btn');
-  if(btn){ btn.textContent='🎙';btn.style.background='var(--g900)';btn.classList.remove('mic-pulse'); }
-  const statusEl=document.getElementById('dictate-status');
-  if(statusEl) statusEl.textContent='Done — review and save, or tap mic to record more';
-}
-
-async function saveTask(){
-  const text=document.getElementById('dictate-text').value.trim();
-  const by=document.getElementById('dictate-by').value.trim();
-  if(!text){alert('Please add a task description.');return;}
-
-  // Check if routed to admin staff member
-  const detectedAssignee = window._dictateAssignee || null;
-  if(detectedAssignee){
-    // Save to admin task board
-    adminTasks.unshift({id:uid(),task:text,assignee:detectedAssignee,due:'',done:false,created_at:now()});
-    saveAdminTasks();
-    window._dictateAssignee = null;
-    const ab=document.getElementById('dictate-assignee-box');if(ab)ab.style.display='none';
-    closeModal('modal-dictate');
-    stopRecording();
-    toast('Task assigned to '+detectedAssignee+' ✓');
-    if(currentTab==='admin') renderAdmin();
-    else { switchTab('admin'); }
-    return;
-  }
-
-  // Otherwise save as general task
-  const hint=getCRMHint(text);
-  const task={
-    id:uid(),
-    text,
-    created_by:by||'Team',
-    hint:hint||null,
-    status:'pending',
-    created_at:now(),
-    completed_at:null,
-  };
-  tasks.unshift(task);
-  if(cloudOk){try{await sb.from(TASK_TABLE).insert(task);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-dictate');
-  stopRecording();
-  renderTasks();
-  renderTaskBanner();
-  toast('Task saved ✓');
-}
-
-function openTaskDetail(id){
-  const t=tasks.find(x=>x.id===id);if(!t)return;
-  currentTaskId=id;
-  document.getElementById('td-title').textContent=t.text;
-  document.getElementById('td-meta').textContent=
-    'Created by '+t.created_by+' · '+fmtTs2(t.created_at)+
-    (t.status==='done'?' · Completed '+fmtTs2(t.completed_at):'');
-  if(t.hint){
-    document.getElementById('td-hint').textContent=t.hint;
-    document.getElementById('td-hint-wrap').style.display='block';
-  }else{
-    document.getElementById('td-hint-wrap').style.display='none';
-  }
-  openModal('modal-task-detail');
-}
-
-async function completeTask(){
-  const t=tasks.find(x=>x.id===currentTaskId);if(!t)return;
-  t.status='done';t.completed_at=now();
-  if(cloudOk){try{await sb.from(TASK_TABLE).update({status:'done',completed_at:t.completed_at}).eq('id',currentTaskId);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-task-detail');
-  renderTasks();renderTaskBanner();
-  toast('Task completed ✓');
-}
-
-async function deleteTask(){
-  if(!confirm('Delete this task?'))return;
-  tasks=tasks.filter(x=>x.id!==currentTaskId);
-  if(cloudOk){try{await sb.from(TASK_TABLE).delete().eq('id',currentTaskId);}catch(e){console.warn(e);}}
-  saveTasksLocal();
-  closeModal('modal-task-detail');
-  renderTasks();renderTaskBanner();
-  toast('Task deleted');
-}
-
-function renderTaskBanner(){
-  const pending=tasks.filter(t=>t.status==='pending');
-  if(!pending.length){
-    const db=document.getElementById('d-task-banner');
-    const mb=document.getElementById('m-task-banner');
-    if(db)db.innerHTML='';if(mb)mb.innerHTML='';return;
-  }
-  const items=pending.slice(0,3).map(t=>
-    '<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
-    '<div class="digest-dot" style="background:var(--blue)"></div>'+
-    '<span class="digest-item-name">'+esc(t.text.length>60?t.text.substring(0,60)+'...':t.text)+'</span>'+
-    '<span class="digest-item-when" style="color:var(--blue)">'+fmtTs2(t.created_at)+'</span>'+
-    '</div>'
-  ).join('');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks →</div>':'';
-  const mkBanner=(cls,closeId)=>
-    '<div class="'+cls+'">'+
-    '<div class="task-banner-hd">'+
-    '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
-    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
-    '</div>'+items+more+'</div>';
-  const db=document.getElementById('d-task-banner');
-  const mb=document.getElementById('m-task-banner');
-  if(db)db.innerHTML=mkBanner('task-banner-d','d-task-banner');
-  if(mb)mb.innerHTML=mkBanner('task-banner','m-task-banner');
-}
-
-function renderTasks(){
-  const filter=currentTaskFilter||'all';
-  const filtered=filter==='all'?tasks:filter==='done'?tasks.filter(t=>t.status==='done'):tasks.filter(t=>t.status!=='done'&&t.assignee===filter);
-  const pending=tasks.filter(t=>t.status!=='done');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks \u2192</div>':'';
-  const mkBanner=(cls,closeId)=>
-    '<div class="'+cls+'">' +
-    '<div class="task-banner-hd">' +
-    '<span class="task-banner-title">&#128203; '+pending.length+' pending task'+(pending.length!==1?'s':'')+' for the team</span>'+
-    '<button class="digest-close" data-cid="'+closeId+'" onclick="closeDigest(this.dataset.cid)">&#x2715;</button>'+
-    '</div>'+
-    filtered.slice(0,3).map(t=>'<div class="digest-item" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)" style="cursor:pointer">'+
-      '<div class="task-card-to">'+
-      '<span class="tc-name">'+esc(t.title||t.task||'')+'</span>'+
-      '<span class="tc-assign">'+esc(t.assignee||'')+'</span>'+
-      '</div></div>').join('')+
-    more+'</div>';
-  const db=document.getElementById('d-task-banner');
-  const mb=document.getElementById('m-task-banner');
-  if(db)db.innerHTML=pending.length>0?mkBanner('task-banner-d','d-task-banner'):'';
-  if(mb)mb.innerHTML=pending.length>0?mkBanner('task-banner','m-task-banner'):'';
-
-  const html=filtered.length===0
-    ?'<div style="text-align:center;padding:40px 20px;color:var(--muted)">No tasks yet. Add one below.</div>'
-    :filtered.map(t=>{
-      return '<div class="task-card'+(t.status==='done'?' done':'')+'" data-tid="'+t.id+'" onclick="openTaskDetail(this.dataset.tid)">'+
-        '<div class="task-card-top">'+
-        '<div class="task-status-dot '+(t.status==='done'?'done':t.priority==='high'?'high':'normal')+'"></div>'+
-        '<div class="task-card-main">'+
-          '<div class="task-title">'+esc(t.title||t.task||'')+'</div>'+
-          '<div class="task-meta">'+(t.assignee?esc(t.assignee)+' · ':'')+
-          (t.due?new Date(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · ':'')+
-          (t.contact_id?(contacts.find(c=>c.id===t.contact_id)||{}).name||'':'')+'</div>'+
-        '</div>'+
-        '</div>'+
-      '</div>';
-    }).join('');
-
-  const dv=document.getElementById('dv-tasks');
-  const mv=document.getElementById('mv-tasks');
-  if(dv)dv.innerHTML='<div style="padding:16px;overflow-y:auto;width:100%">'+html+'</div>';
-  if(mv)mv.innerHTML=html;
-}
-
-let adminTasks = JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]');
-let adminStaff = JSON.parse(localStorage.getItem('mg_admin_staff')||'null') || ['Isidro','Admin Juan','Admin Julie'];
-
-function saveAdminTasks(){ localStorage.setItem('mg_admin_tasks', JSON.stringify(adminTasks)); }
-function saveAdminStaff(){ localStorage.setItem('mg_admin_staff', JSON.stringify(adminStaff)); }
 
 function renderAdmin(){
   const dv = document.getElementById('dv-admin');
@@ -1784,53 +1337,92 @@ function buildAdminHTML(){
   '</div>';
 }
 
-function addStaffMember(){
-  // Search both containers since ID may appear in either
+async function addStaffMember(){
   const inputs = document.querySelectorAll('#new-staff-name');
   const inp = Array.from(inputs).find(el => el.value.trim()) || inputs[0];
   if (!inp || !inp.value.trim()) return;
   const name = inp.value.trim();
   if (adminStaff.includes(name)) { inp.value=''; return; }
-  adminStaff.push(name);
-  saveAdminStaff();
+  const newRow = {
+    id: 'staff-' + uid(),
+    name: name,
+    position: adminStaffRows.length
+  };
+  adminStaffRows.push(newRow);
+  saveAdminStaffLocal();
   inp.value = '';
   renderAdmin();
   toast(name + ' added to team ✓');
+  if (cloudOk) {
+    try { await sb.from(ADMIN_STAFF_TABLE).insert(newRow); }
+    catch(e) { console.warn('[Admin staff insert]', e); }
+  }
 }
 
-function removeStaffMember(si){
-  const name = adminStaff[si];
-  if (!confirm('Remove ' + name + ' from the team? Their tasks will remain but show unassigned.')) return;
-  adminStaff.splice(si, 1);
-  saveAdminStaff();
+async function removeStaffMember(si){
+  const row = adminStaffRows[si];
+  if (!row) return;
+  if (!confirm('Remove ' + row.name + ' from the team? Their tasks will remain but show unassigned.')) return;
+  const removedId = row.id;
+  adminStaffRows.splice(si, 1);
+  saveAdminStaffLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_STAFF_TABLE).delete().eq('id', removedId); }
+    catch(e) { console.warn('[Admin staff delete]', e); }
+  }
 }
 
-function addAdminTask(assignee, si){
+async function addAdminTask(assignee, si){
   const key = si;
-  // Query all matching inputs (may be in dv or mv)
   const inpAll = document.querySelectorAll('#new-admin-task-' + key);
   const inp = Array.from(inpAll).find(el => el.value.trim()) || inpAll[0];
   const dueAll = document.querySelectorAll('#due-admin-task-' + key);
   const due = dueAll[0];
   if (!inp || !inp.value.trim()) return;
-  adminTasks.unshift({id:uid(), task:inp.value.trim(), assignee, due:due?due.value:'', done:false, created_at:now()});
+  const newTask = {
+    id: uid(),
+    task: inp.value.trim(),
+    assignee,
+    due: due ? due.value : '',
+    done: false,
+    created_at: now()
+  };
+  adminTasks.unshift(newTask);
   inp.value = ''; if(due) due.value = '';
-  saveAdminTasks();
+  saveAdminTasksLocal();
   renderAdmin();
   toast('Task added for ' + assignee + ' ✓');
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).insert(newTask); }
+    catch(e) { console.warn('[Admin task insert]', e); }
+  }
 }
 
-function completeAdminTask(idx){
-  if (adminTasks[idx]) adminTasks[idx].done = true;
-  saveAdminTasks();
+async function completeAdminTask(idx){
+  const t = adminTasks[idx];
+  if (!t) return;
+  t.done = true;
+  t.completed_at = now();
+  saveAdminTasksLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).update({done:true, completed_at:t.completed_at}).eq('id', t.id); }
+    catch(e) { console.warn('[Admin task complete]', e); }
+  }
 }
 
-function deleteAdminTask(idx){
+async function deleteAdminTask(idx){
+  const t = adminTasks[idx];
+  if (!t) return;
+  const removedId = t.id;
   adminTasks.splice(idx, 1);
-  saveAdminTasks();
+  saveAdminTasksLocal();
   renderAdmin();
+  if (cloudOk) {
+    try { await sb.from(ADMIN_TASK_TABLE).delete().eq('id', removedId); }
+    catch(e) { console.warn('[Admin task delete]', e); }
+  }
 }
 
 
@@ -1841,25 +1433,76 @@ function generateQuote(contactId) {
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const quoteNum = 'Q-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0') + '-' + Date.now().toString().slice(-3);
-  const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
-  const trees = c.trees||0;
-  const price = c.price||12.50;
-  const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
-  const balance = total-deposit;
-  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'Spring 2026 — Exact date TBD';
-  const validUntil = new Date(today); validUntil.setDate(today.getDate()+30);
+  const quoteNum = 'Q-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').slice(-4).padStart(4,'0');
+
+  const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
+  const varRows = varieties.map(v =>
+    '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">' + (v.qty ? Number(v.qty).toLocaleString() : '') + '</td></tr>'
+  ).join('');
+
+  const trees = c.trees || 0;
+  const pricePerTree = c.price || 13.50;
+  const depositPerTree = c.deposit_per_tree || 5.50;
+  const balancePerTree = +(pricePerTree - depositPerTree).toFixed(2);
+  const totalContract = +(trees * pricePerTree).toFixed(2);
+  const totalDeposit = +(trees * depositPerTree).toFixed(2);
+  const totalBalance = +(trees * balancePerTree).toFixed(2);
+
+  const deliveryDate = c.date
+    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+    : 'Spring 2027';
+
+  const validUntil = new Date(today);
+  validUntil.setDate(today.getDate() + 30);
   const validStr = validUntil.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const varRows = varieties.map(v=>'<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.variety||'')+'</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+esc(v.rootstock||'—')+'</td></tr>').join('');
+
+  const buyerName = c.company && c.company !== c.name ? c.company : c.name;
+  const buyerAddr = c.address || '';
+  const buyerBlock = '<strong>' + esc(buyerName) + '</strong>' +
+    (c.name && c.company && c.company !== c.name ? '<br>Attn: '+esc(c.name) : '') +
+    (buyerAddr ? '<br>'+esc(buyerAddr) : '') +
+    (c.phone ? '<br>'+esc(c.phone) : '') +
+    (c.email ? '<br>'+esc(c.email) : '');
+
   const dlName = 'MG_Quote_' + quoteNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
 
-  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .qn { text-align: right; font-size: 12px; color: #555; } .qn-num { font-size: 15px; font-weight: 700; color: #0369A1; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #0369A1; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #EFF6FF; font-weight: 700; } .valid-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #92400E; } .note-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-top: 20px; font-size: 13px; color: #1B4332; } .approve-box { background: #0369A1; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center; } .pbar { background:#0369A1;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#fff;color:#0369A1;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    ' body { font-family: Georgia, "Times New Roman", serif; color: #111; background: #fff; font-size: 13px; line-height: 1.55; }' +
+    ' .page { max-width: 760px; margin: 0 auto; padding: 48px; }' +
+    ' @media print { .no-print { display: none !important; } @page { margin: 2cm; } body { font-size: 12px; } }' +
+    ' .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 3px double #0369A1; }' +
+    ' .co-name { font-size: 22px; font-weight: 700; color: #1B4332; }' +
+    ' .co-sub { font-size: 12px; color: #444; margin-top: 2px; }' +
+    ' .qn { text-align: right; font-size: 12px; color: #555; }' +
+    ' .qn-num { font-size: 15px; font-weight: 700; color: #0369A1; }' +
+    ' .title { text-align:center; font-size: 18px; font-weight: 700; color: #0369A1; margin: 14px 0 18px; text-transform: uppercase; letter-spacing: .05em; }' +
+    ' .intro { font-size: 13px; margin-bottom: 16px; line-height: 1.7; }' +
+    ' h2 { font-size: 14px; font-weight: 700; color: #0369A1; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #DBEAFE; }' +
+    ' .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }' +
+    ' .fl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }' +
+    ' .fv { font-size: 13px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 12px; min-height: 20px; }' +
+    ' table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }' +
+    ' thead th { background: #0369A1; color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }' +
+    ' .valid-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 12.5px; color: #92400E; }' +
+    ' .summary-box { background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px 16px; margin: 12px 0; font-size: 13px; }' +
+    ' .summary-row { display:flex; justify-content:space-between; padding: 3px 0; }' +
+    ' .summary-row.total { border-top: 1px solid #BFDBFE; margin-top: 6px; padding-top: 8px; font-weight: 700; color: #0369A1; font-size: 14px; }' +
+    ' ul.terms { list-style: disc; padding-left: 20px; margin: 6px 0; }' +
+    ' ul.terms li { margin-bottom: 5px; color: #333; font-size: 12.5px; line-height: 1.5; }' +
+    ' .section { margin-bottom: 14px; }' +
+    ' .section-num { font-weight: 700; color: #0369A1; font-size: 13.5px; margin-bottom: 6px; }' +
+    ' .note-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 16px; margin-top: 18px; font-size: 12.5px; color: #1B4332; }' +
+    ' .approve-box { background: #0369A1; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: center; }' +
+    ' .pbar { background:#0369A1;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; font-family:-apple-system,sans-serif; }' +
+    ' .pbtn { background:#fff;color:#0369A1;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:inherit; }' +
+    ' .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit; }';
 
   const parts = [
-    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quote — ' + esc(c.name) + '</title><style>'+css+'</style></head><body>',
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Quote — ' + esc(buyerName) + '</title><style>' + css + '</style></head><body>',
     '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Quote #' + quoteNum + ' — ' + esc(c.name) + '</span>',
+      '<span style="color:#fff;font-size:13px;font-weight:600">&#128196; Quote #' + quoteNum + ' — ' + esc(buyerName) + '</span>',
       '<div>',
         '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
         '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
@@ -1867,78 +1510,131 @@ function generateQuote(contactId) {
       '</div>',
     '</div>',
     '<div class="page">',
-    // HEADER
     '<div class="hdr">',
-      '<div><div class="co-name">M&amp;G Nursery</div>',
-      '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-      '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-      '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div></div>',
-      '<div class="qn"><div class="qn-num">QUOTE #' + quoteNum + '</div>',
-      '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-      '<div style="margin-top:4px;color:#D97706;font-weight:600">Valid until: ' + validStr + '</div>',
-      '<div style="font-weight:700;color:#0369A1;margin-top:2px">NURSERY PRICE QUOTATION</div></div>',
+      '<div>',
+        '<div class="co-name">M &amp; G Nursery</div>',
+        '<div class="co-sub">39390 Road 116, Cutler, CA 93615</div>',
+        '<div class="co-sub">(559) 397-1401</div>',
+        '<div class="co-sub">mgfarmsinc@gmail.com</div>',
+      '</div>',
+      '<div class="qn">',
+        '<div class="qn-num">QUOTE #' + quoteNum + '</div>',
+        '<div style="margin-top:6px">Date: ' + dateStr + '</div>',
+        '<div style="margin-top:4px;color:#D97706;font-weight:600">Valid until: ' + validStr + '</div>',
+      '</div>',
     '</div>',
-    // VALIDITY WARNING
-    '<div class="valid-box">&#9888; This quote is valid for 30 days from the date of issue. Pricing and availability are subject to change after ' + validStr + '.</div>',
-    // PARTIES
+    '<div class="title">Price Quote for Citrus Nursery Stock</div>',
+    '<p class="intro">This is a price quotation from <strong>M &amp; G Nursery</strong> ("Seller") to <strong>' + esc(buyerName) + '</strong> ("Buyer") for citrus nursery stock, subject to the terms and conditions outlined below. A formal Sales Agreement will be issued upon quote acceptance.</p>',
+    '<div class="valid-box">&#9888; This quote is valid for <strong>30 days</strong> from the date of issue. Pricing and availability are subject to change after <strong>' + validStr + '</strong>.</div>',
     '<h2>Prepared For</h2>',
     '<div class="two">',
-      '<div><div class="fl">Buyer / Prospective Purchaser</div><div class="fv"><strong>'+esc(c.name)+'</strong>'+(c.company&&c.company!==c.name?'<br>'+esc(c.company):'')+(c.phone?'<br>'+esc(c.phone):'')+(c.email?'<br>'+esc(c.email):'')+'</div></div>',
-      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Rafael Macias<br>39390 Rd 116, Cutler CA 93615</div></div>',
+      '<div><div class="fl">Buyer / Prospective Purchaser</div><div class="fv">' + buyerBlock + '</div></div>',
+      '<div><div class="fl">Seller</div><div class="fv"><strong>M &amp; G Nursery</strong><br>39390 Road 116<br>Cutler, CA 93615<br>(559) 397-1401</div></div>',
     '</div>',
-    // ORDER DETAILS
-    '<h2>Quoted Items</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>'+varRows+'</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Quantity</div><div class="fv"><strong>'+trees.toLocaleString()+' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>'+deliveryDate+'</strong></div></div>',
+    '<div class="section">',
+      '<div class="section-num">1. Quoted Items</div>',
+      '<p style="margin-bottom:8px">This quote covers a total of <strong>' + trees.toLocaleString() + '</strong> citrus trees of the following variety/rootstock:</p>',
+      '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th><th style="text-align:right">Quantity</th></tr></thead><tbody>' + varRows + '</tbody></table>',
+      '<div class="two" style="margin-top:6px">',
+        '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
+        '<div><div class="fl">Estimated Delivery / Pickup</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+      '</div>',
     '</div>',
-    // PRICING
-    '<h2>Pricing Summary</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+trees.toLocaleString()+' trees &times; $'+price.toFixed(2)+' per tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$'+total.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (40%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$'+balance.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-    '</tbody></table>',
-    // NOTES
+    '<div class="section">',
+      '<div class="section-num">2. Pricing and Payment Terms</div>',
+      '<ul class="terms">',
+        '<li>The total cost per tree is <strong>$' + pricePerTree.toFixed(2) + '</strong>.</li>',
+        '<li>A <strong>$' + depositPerTree.toFixed(2) + ' deposit per tree</strong> is required when the order is placed (<strong>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>).</li>',
+        '<li>The remaining balance of <strong>$' + balancePerTree.toFixed(2) + ' per tree</strong> shall be due and payable at the time the nursery stock is made available to the buyer (<strong>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>), approximately <strong>' + deliveryDate + '</strong>.</li>',
+        '<li>If the buyer fails to pick up and pay for the nursery stock within 30 days of notice of availability, the seller may dispose of the unclaimed nursery stock and retain the buyer&rsquo;s deposit as liquidated damages.</li>',
+        '<li><strong>Late Payment Penalty</strong>: Any unpaid balances beyond 30 days from the due date will incur a late charge of <strong>1.5% per month</strong> until paid in full.</li>',
+      '</ul>',
+      '<div class="summary-box">',
+        '<div class="summary-row"><span>' + trees.toLocaleString() + ' trees &times; $' + pricePerTree.toFixed(2) + '/tree</span><span>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row"><span>Deposit at order placement ($' + depositPerTree.toFixed(2) + ' &times; ' + trees.toLocaleString() + ')</span><span>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row"><span>Balance due at pickup ($' + balancePerTree.toFixed(2) + ' &times; ' + trees.toLocaleString() + ')</span><span>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+        '<div class="summary-row total"><span>Total Contract Value</span><span>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</span></div>',
+      '</div>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">3. Title, Risk of Loss, and Buyer Pickup Responsibilities</div>',
+      '<ul class="terms">',
+        '<li>Prices are quoted F.O.B. (Freight on Board) seller&rsquo;s nursery yard. Buyer is responsible for transportation.</li>',
+        '<li>For trees picked up on time, title and risk of loss pass to the buyer upon commencement of loading.</li>',
+        '<li>Trees not picked up within 30 days of notification will accrue storage fees equal to the actual cost of care plus <strong>20% overhead</strong> per day.</li>',
+      '</ul>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">4. Warranties and Establishment Support</div>',
+      '<ul class="terms">',
+        '<li>Trees will be of the varieties described and produced in compliance with applicable agricultural regulations.</li>',
+        '<li>Seller will conduct a follow-up review approximately 30 days after planting or delivery.</li>',
+        '<li>Replacement trees may be provided at seller&rsquo;s sole discretion for qualifying establishment losses. The buyer must notify the seller of any concerns within <strong>45 days</strong> of planting or receipt.</li>',
+        '<li>Replacement consideration does not cover losses due to improper planting, irrigation, salinity, weather, pests, disease, chemicals, mechanical damage, or other conditions outside the seller&rsquo;s control.</li>',
+        '<li>Replacement trees, if approved, are the buyer&rsquo;s exclusive remedy. Seller is not liable for consequential damages, lost profits, or field-development costs.</li>',
+      '</ul>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">5. Compliance with Agricultural Regulations</div>',
+      '<ul class="terms">',
+        '<li>Buyer must have a Grower &ldquo;ACP Compliance Agreement&rdquo; and ensure trees are covered or enclosed during transportation to comply with pest and disease control regulations.</li>',
+      '</ul>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">6. Cancellation</div>',
+      '<ul class="terms">',
+        '<li>If the buyer cancels the order prior to pickup, the seller shall retain the deposit as liquidated damages.</li>',
+        '<li>If the seller cannot provide the agreed nursery stock within 90 days of the estimated delivery date, the buyer may cancel and receive a full refund of the deposit.</li>',
+      '</ul>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">7. Force Majeure</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">Neither party shall be held liable for delays caused by acts of God, war, civil insurrection, natural disasters, pandemics, government regulations, or quarantine restrictions, including but not limited to Asian Citrus Psyllid and Huanglongbing disease restrictions.</p>',
+    '</div>',
+    '<div class="section">',
+      '<div class="section-num">8. Governing Law</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">This quote and any resulting agreement shall be governed by the laws of the State of California. Any disputes shall be resolved in the Superior Court of <strong>Tulare County, California</strong>. The prevailing party shall be entitled to recover reasonable attorney fees and costs.</p>',
+    '</div>',
     '<div class="note-box">',
-      '<strong>Notes:</strong><br>',
-      '• All trees are grown from CDFA-certified budwood and will meet nursery certification standards at delivery.<br>',
-      '• Final tree count may vary ±5% due to natural production variation.<br>',
-      '• A formal purchase agreement will be issued upon quote approval and deposit receipt.<br>',
-      '• Delivery date is estimated. Minimum 14 days advance notice will be provided.',
+      '<strong>Additional Notes:</strong><br>',
+      '&bull; All trees grown from CDFA-certified budwood; meets nursery certification standards at delivery.<br>',
+      '&bull; Final tree count may vary &plusmn;5% due to natural production variation.<br>',
+      '&bull; Upon acceptance and deposit, a formal Sales Agreement will be issued for signature.<br>',
+      '&bull; Minimum 14 days advance notice of confirmed delivery date will be provided.',
     '</div>',
-    // APPROVE CTA
     '<div class="approve-box">',
       '<div style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">Ready to move forward?</div>',
-      '<div style="color:rgba(255,255,255,.85);font-size:13px;margin-bottom:12px">Reply to this quote or contact Raffi to approve and receive your purchase contract.</div>',
-      '<div style="color:#fff;font-size:14px;font-weight:600">mgfarmsinc@gmail.com &nbsp;·&nbsp; (559) 397-1401</div>',
+      '<div style="color:rgba(255,255,255,.85);font-size:12.5px;margin-bottom:12px">Reply to this quote or contact us to approve and receive your Sales Agreement.</div>',
+      '<div style="color:#fff;font-size:13.5px;font-weight:600">mgfarmsinc@gmail.com &nbsp;&middot;&nbsp; (559) 397-1401</div>',
     '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Quote #' + quoteNum + ' · ' + dateStr + ' · AgCommand CRM · Martinez Accounting Inc.',
+    '<div style="text-align:center;color:#9CA3AF;font-size:10px;margin-top:18px;padding-top:12px;border-top:1px solid #E5E7EB">',
+      'M&amp;G Nursery &middot; Quote #' + quoteNum + ' &middot; Generated ' + dateStr,
     '</div>',
     '</div>',
-    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="'+dlName+'";a.click();};<\/script>',
+    '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
     '</body></html>'
   ];
 
   const html = parts.join('');
 
-  // Save quote record to contact
-  const c2 = contacts.find(x=>x.id===contactId);
-  if(c2){
-    if(!c2.docs) c2.docs=[];
-    c2.docs.push({type:'quote',num:quoteNum,date:new Date().toISOString(),html});
-    if(c2.status==='Lead') { c2.status='Quoted'; }
+  const c2 = contacts.find(x => x.id === contactId);
+  if (c2) {
+    if (!c2.docs) c2.docs = [];
+    c2.docs.push({type:'quote', num:quoteNum, date:new Date().toISOString(), html:html});
+    if (c2.status === 'Lead') { c2.status = 'Quoted'; }
     saveLocal();
     renderAll();
   }
 
-  const blob = new Blob([html],{type:'text/html'});
+  const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const win = window.open(url,'_blank');
-  if(!win){const a=document.createElement('a');a.href=url;a.download=dlName;a.click();}
+  const win = window.open(url, '_blank');
+  if (!win) {
+    const a = document.createElement('a');
+    a.href = url; a.download = dlName; a.click();
+  }
 }
+
 
 function approveQuote(contactId) {
   const c = contacts.find(x=>x.id===contactId);
@@ -1960,37 +1656,41 @@ function emailContract(contactId) {
     return;
   }
   const trees = c.trees||0;
-  const price = c.price||12.5;
-  const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
+  const pricePerTree = c.price||13.50;
+  const depositPerTree = c.deposit_per_tree||5.50;
+  const balancePerTree = +(pricePerTree-depositPerTree).toFixed(2);
+  const total = +(trees*pricePerTree).toFixed(2);
+  const deposit = +(trees*depositPerTree).toFixed(2);
+  const balance = +(trees*balancePerTree).toFixed(2);
   const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties.map(v=>v.variety).join(', ') : (c.variety||'citrus trees');
-  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2026';
-  const contractNum = c.contract_num || 'TBD';
+  const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2027';
+  const contractNum = c.agreement_num || c.contract_num || 'TBD';
 
-  const subject = 'M&G Nursery — Purchase Agreement & Next Steps | ' + esc(c.name);
+  const subject = 'M&G Nursery — Sales Agreement & Next Steps | ' + esc(c.name);
   const body =
     'Dear ' + c.name.split(' ')[0] + ',\n\n' +
-    'Thank you for your order. Please find attached your M&G Nursery Purchase Agreement.\n\n' +
+    'Thank you for your order. Please find attached your M&G Nursery Sales Agreement.\n\n' +
     'ORDER SUMMARY\n' +
     '─────────────────────────────\n' +
     'Variety: ' + varieties + '\n' +
     'Quantity: ' + trees.toLocaleString() + ' trees\n' +
-    'Price: $' + price.toFixed(2) + '/tree\n' +
-    'Total: $' + total.toLocaleString() + '\n' +
-    'Deposit Required (40%): $' + deposit.toLocaleString() + '\n' +
+    'Price: $' + pricePerTree.toFixed(2) + '/tree\n' +
+    'Total Contract Value: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Deposit ($' + depositPerTree.toFixed(2) + '/tree): $' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Balance at pickup ($' + balancePerTree.toFixed(2) + '/tree): $' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
     'Estimated Delivery: ' + deliveryDate + '\n' +
-    'Contract #: ' + contractNum + '\n\n' +
+    'Agreement #: ' + contractNum + '\n\n' +
     'NEXT STEPS\n' +
     '─────────────────────────────\n' +
-    '1. Review and sign the attached purchase agreement\n' +
-    '2. Return the signed agreement with your deposit of $' + deposit.toLocaleString() + '\n' +
+    '1. Review and sign the attached Sales Agreement\n' +
+    '2. Return the signed agreement along with your deposit of $' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + ' within 15 days\n' +
     '3. We will confirm your order and production slot upon receipt\n\n' +
     'Please make checks payable to M&G Nursery or contact us for wire transfer details.\n\n' +
     'If you have any questions please do not hesitate to call or reply to this email.\n\n' +
     'Best regards,\n' +
     'Rafael Macias\n' +
     'M&G Nursery\n' +
-    '39390 Rd 116, Cutler, CA 93615\n' +
+    '39390 Road 116, Cutler, CA 93615\n' +
     '(559) 397-1401 · mgfarmsinc@gmail.com\n\n' +
     '---\n' +
     'Financial Management by Martinez Accounting Inc.';
@@ -2031,37 +1731,92 @@ function generateContract(contactId) {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const rawContract = c.notes ? c.notes.split('Contract(s): ')[1] : null;
-  const contractNum = rawContract ? rawContract.split('|')[0].split(',')[0].trim()
-    : 'MG-' + today.getFullYear() + '-' + String(contactId).replace(/[^0-9]/g,'').padStart(4,'0');
+
+  // Short agreement number: MG-YYYY-#### sequential counter, stored in localStorage
+  function shortAgreementNum() {
+    var year = today.getFullYear();
+    var counterKey = 'mg_agreement_counter_' + year;
+    var n;
+    try {
+      n = parseInt(localStorage.getItem(counterKey) || '0', 10) + 1;
+      localStorage.setItem(counterKey, String(n));
+    } catch(e) {
+      n = parseInt(String(contactId).replace(/[^0-9]/g,'').slice(-4), 10) || 1;
+    }
+    return 'MG-' + year + '-' + String(n).padStart(4,'0');
+  }
+  if (!c.agreement_num && !rawContract) {
+    c.agreement_num = shortAgreementNum();
+    try { saveLocal(); } catch(e) {}
+  }
+  const contractNum = rawContract
+    ? rawContract.split('|')[0].split(',')[0].trim()
+    : (c.agreement_num || shortAgreementNum());
 
   const varieties = (c.varieties && c.varieties.length > 0) ? c.varieties : [{variety:c.variety||'',rootstock:''}];
   const varietyRows = varieties.map(v =>
     '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.variety||'') + '</td>' +
-    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td></tr>'
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + esc(v.rootstock||'—') + '</td>' +
+    '<td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">' + (v.qty ? Number(v.qty).toLocaleString() : '') + '</td></tr>'
   ).join('');
 
   const trees = c.trees || 0;
-  const price = c.price || 12.50;
-  const total = trees * price;
-  const deposit = Math.round(total * 0.40 * 100)/100;
-  const balance = Math.round((total - deposit)*100)/100;
+  const pricePerTree = c.price || 13.50;
+  const depositPerTree = c.deposit_per_tree || 5.50;
+  const balancePerTree = +(pricePerTree - depositPerTree).toFixed(2);
+  const totalContract = +(trees * pricePerTree).toFixed(2);
+  const totalDeposit = +(trees * depositPerTree).toFixed(2);
+  const totalBalance = +(trees * balancePerTree).toFixed(2);
+
   const deliveryDate = c.date
     ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
-    : 'To be determined';
-  const buyerBlock = esc(c.name) +
-    (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
-    (c.phone ? '<br>'+esc(c.phone) : '') +
-    (c.email ? '<br>'+esc(c.email) : '');
+    : 'Spring 2027';
+
+  const buyerName = c.company && c.company !== c.name ? c.company : c.name;
+  const buyerAddr = c.address || '';
+
   const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
 
-  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .cn { text-align: right; font-size: 12px; color: #555; } .cn-num { font-size: 15px; font-weight: 700; color: #1B4332; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #F0FDF4; font-weight: 700; } .tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; } .tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; } .tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; } .tb ol { padding-left: 18px; } .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; } .sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; } .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+  const css = '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    ' body { font-family: Georgia, "Times New Roman", serif; color: #111; background: #fff; font-size: 13px; line-height: 1.55; }' +
+    ' .page { max-width: 760px; margin: 0 auto; padding: 48px; }' +
+    ' @media print { .no-print { display: none !important; } @page { margin: 2cm; } body { font-size: 12px; } }' +
+    ' .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 3px double #1B4332; }' +
+    ' .co-name { font-size: 22px; font-weight: 700; color: #1B4332; }' +
+    ' .co-sub { font-size: 12px; color: #444; margin-top: 2px; }' +
+    ' .cn { text-align: right; font-size: 12px; color: #555; }' +
+    ' .cn-num { font-size: 14px; font-weight: 700; color: #1B4332; }' +
+    ' .title { text-align:center; font-size: 18px; font-weight: 700; color: #1B4332; margin: 18px 0 20px; text-transform: uppercase; letter-spacing: .05em; }' +
+    ' .intro { font-size: 13px; margin-bottom: 18px; line-height: 1.7; }' +
+    ' table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }' +
+    ' thead th { background: #1B4332; color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }' +
+    ' ul.terms { list-style: disc; padding-left: 20px; margin: 6px 0 6px 0; }' +
+    ' ul.terms li { margin-bottom: 6px; color: #333; font-size: 12.5px; line-height: 1.55; }' +
+    ' .section { margin-bottom: 16px; }' +
+    ' .section-num { font-weight: 700; color: #1B4332; font-size: 13.5px; margin-bottom: 6px; }' +
+    ' .agree-id { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 12px 14px; margin: 8px 0; font-size: 12.5px; }' +
+    ' .agree-id .row { margin-bottom: 6px; }' +
+    ' .agree-id .row:last-child { margin-bottom: 0; }' +
+    ' .agree-id .blank { display:inline-block; min-width: 60px; border-bottom: 1px solid #888; padding: 0 8px; margin: 0 4px; }' +
+    ' .pull-quote { font-style: italic; color: #555; font-size: 12px; margin: 6px 0 0 20px; line-height: 1.5; }' +
+    ' .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 22px; page-break-inside: avoid; }' +
+    ' .sg-block { font-size: 12px; }' +
+    ' .sg-block strong { display:block; margin-bottom: 4px; color: #1B4332; font-size: 13px; }' +
+    ' .fl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; }' +
+    ' .sl { border-bottom: 1px solid #111; height: 32px; margin: 6px 0 4px; }' +
+    ' .date-line { display:flex; align-items:center; gap:8px; margin: 14px 0 18px; font-size: 12.5px; }' +
+    ' .date-line .blank { flex:1; border-bottom: 1px solid #111; min-height: 18px; max-width: 240px; }' +
+    ' .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; font-family: -apple-system, sans-serif; }' +
+    ' .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:inherit; }' +
+    ' .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit; }' +
+    ' .footer-id { text-align:center; color:#9CA3AF; font-size:10px; margin-top: 20px; padding-top: 12px; border-top: 1px solid #E5E7EB; }';
 
   const parts = [
     '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-    '<title>Purchase Agreement — ' + esc(c.name) + '</title>',
+    '<title>Sales Agreement — ' + esc(buyerName) + '</title>',
     '<style>' + css + '</style></head><body>',
     '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
+      '<span style="color:#fff;font-size:13px;font-weight:600">&#128196; Agreement #' + contractNum + ' — ' + esc(buyerName) + '</span>',
       '<div>',
         '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
         '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
@@ -2071,77 +1826,164 @@ function generateContract(contactId) {
     '<div class="page">',
     '<div class="hdr">',
       '<div>',
-        '<div class="co-name">M&amp;G Nursery</div>',
-        '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-        '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-        '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div>',
+        '<div class="co-name">M &amp; G Nursery</div>',
+        '<div class="co-sub">39390 Road 116, Cutler, CA 93615</div>',
+        '<div class="co-sub">(559) 397-1401</div>',
+        '<div class="co-sub">mgfarmsinc@gmail.com</div>',
       '</div>',
       '<div class="cn">',
-        '<div class="cn-num">CONTRACT #' + contractNum + '</div>',
-        '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-        '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div>',
+        '<div class="cn-num">M&amp;G NURSERY / ' + esc(buyerName).toUpperCase() + '</div>',
+        '<div style="margin-top:6px">Date: ' + dateStr + '</div>',
       '</div>',
     '</div>',
-    '<h2>Parties</h2>',
-    '<div class="two">',
-      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Rafael Macias<br>39390 Rd 116, Cutler CA 93615</div></div>',
-      '<div><div class="fl">Buyer</div><div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
+
+    '<div class="title">Sales Agreement for Citrus Nursery Stock</div>',
+
+    '<p class="intro">This is a formal agreement of sale between <strong>M &amp; G Nursery</strong> ("Seller") and <strong>' + esc(buyerName) + '</strong> ("Buyer"), regarding the sale of citrus trees.</p>',
+
+    '<div class="section">',
+      '<div class="section-num">1. Sale Details</div>',
+      '<p style="margin-bottom:8px">This sale includes a total of <strong>' + trees.toLocaleString() + '</strong> citrus trees of the following variety/rootstock:</p>',
+      '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th><th style="text-align:right">Quantity</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
     '</div>',
-    '<h2>Order Details</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+
+    '<div class="section">',
+      '<div class="section-num">2. Pricing and Payment Terms</div>',
+      '<ul class="terms">',
+        '<li>The total cost per tree is <strong>$' + pricePerTree.toFixed(2) + '</strong>.</li>',
+        '<li>A <strong>$' + depositPerTree.toFixed(2) + ' deposit per tree</strong> must be paid when the order is placed (<strong>$' + totalDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>).</li>',
+        '<li>The remaining balance of <strong>$' + balancePerTree.toFixed(2) + ' per tree</strong> shall be due and payable at the time the nursery stock is made available to the buyer (<strong>$' + totalBalance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong>), approximately <strong>' + deliveryDate + '</strong>.</li>',
+        '<li>If the buyer fails to pick up and pay for the nursery stock within 30 days of notice of availability, the seller may dispose of the unclaimed nursery stock and retain the buyer&rsquo;s deposit as liquidated damages.</li>',
+        '<li><strong>Late Payment Penalty</strong>: Any unpaid balances beyond 30 days from due date will incur a late charge of <strong>1.5% per month</strong> until paid in full.</li>',
+      '</ul>',
+      '<div style="margin-top:8px;padding:8px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px"><strong>Total Contract Value:</strong> ' + trees.toLocaleString() + ' trees &times; $' + pricePerTree.toFixed(2) + ' = <strong>$' + totalContract.toLocaleString('en-US',{minimumFractionDigits:2}) + '</strong></div>',
     '</div>',
-    '<h2>Pricing &amp; Payment</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-    '</tbody></table>',
-    '<h2>Terms &amp; Conditions</h2>',
-    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
-      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
-      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
-      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
-      '<li>Delivery date is estimated. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
-      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
-      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
-      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
-      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> due to natural production variation.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
-      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
-      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
-      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
-      '<li>M&amp;G Nursery may cancel due to crop failure, disease, or force majeure — all deposits refunded in full.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
-      '<li>M&amp;G Nursery warrants trees are grown from certified budwood and free from known diseases per CDFA regulations.</li>',
-      '<li>No warranty is made as to performance after delivery.</li>',
-      '<li>Quality claims must be made within <strong>48 hours of delivery</strong>.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>5. General</h3><ol>',
-      '<li>This agreement constitutes the entire understanding between parties.</li>',
-      '<li>Governed by California law. Disputes resolved in Tulare County, California.</li>',
-    '</ol></div>',
-    '<h2>Signatures</h2>',
-    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms of this Nursery Purchase Agreement.</p>',
+
+    '<div class="section">',
+      '<div class="section-num">3. Agreement Identification</div>',
+      '<div class="agree-id">',
+        '<div class="row"><strong>Agreement Number:</strong> ' + contractNum + '</div>',
+        '<div class="row"><strong>New Agreement:</strong> Yes <span class="blank">&nbsp;</span> &nbsp; No <span class="blank">&nbsp;</span></div>',
+        '<div class="row"><strong>Replacement for Agreement Number:</strong> <span class="blank" style="min-width:140px">&nbsp;</span></div>',
+      '</div>',
+      '<p class="pull-quote">(If this section is filled out, this agreement shall supersede and replace all terms and conditions set forth in the original agreement number listed above.)</p>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">4. Title, Risk of Loss, and Buyer Pickup Responsibilities</div>',
+      '<ul class="terms">',
+        '<li>The prices set forth in this contract are for the nursery stock F.O.B. (Freight on Board) seller&rsquo;s nursery yard.</li>',
+        '<li>For trees that are picked up on time, title and responsibility for the trees pass to the buyer upon commencement of loading onto the buyer&rsquo;s chosen transportation method.</li>',
+        '<li>For trees not picked up within 30 days of notification, the seller retains the right to charge storage fees as outlined in Section 8. The seller is not liable for any deterioration or loss of trees left uncollected beyond the designated pickup period.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">5. Warranties and Establishment Support</div>',
+      '<ul class="terms">',
+        '<li>The seller warrants that, to the best of their knowledge, the nursery stock sold to the buyer will be of the varieties described in this contract and produced in compliance with applicable agricultural regulations.</li>',
+        '<li>The seller will conduct a follow-up review with the buyer approximately 30 days after planting or delivery to discuss tree establishment and field performance.</li>',
+        '<li>As part of M&amp;G Nursery&rsquo;s customer support program, the seller may, at its sole discretion, provide replacement trees for qualifying establishment losses reported during the initial establishment period.</li>',
+        '<li>Replacement consideration is intended to support normal orchard establishment and does not constitute a guarantee against losses caused by improper planting, irrigation issues, salinity, weather events, pests, disease, chemical exposure, mechanical damage, neglect, acts of nature, or other conditions outside the seller&rsquo;s control.</li>',
+        '<li>The buyer must notify the seller of any concerns regarding tree condition or losses within <strong>45 days</strong> of planting or receipt of nursery stock.</li>',
+        '<li>The seller reserves the right to inspect the planting and determine eligibility for replacement assistance.</li>',
+        '<li>Replacement trees, if approved, shall constitute the buyer&rsquo;s exclusive remedy, and the seller shall not be liable for consequential damages, lost profits, production losses, or field-development costs.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">6. Compliance with Agricultural Regulations</div>',
+      '<ul class="terms">',
+        '<li>The buyer must have a Grower &ldquo;ACP Compliance Agreement&rdquo; and ensure that trees are covered or enclosed during transportation to comply with pest and disease control regulations.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">7. Cancellation and Liquidated Damages</div>',
+      '<ul class="terms">',
+        '<li>If the buyer cancels the order prior to pickup, the seller shall retain the deposit as liquidated damages.</li>',
+        '<li>If the seller cannot provide the agreed nursery stock within 90 days of the estimated delivery date, the buyer may elect to cancel the agreement and receive a full refund of the deposit, with no further liability on either side.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">8. Failure to Pick Up Trees</div>',
+      '<ul class="terms">',
+        '<li>The buyer must pick up the trees within <strong>30 days</strong> of notice of availability.</li>',
+        '<li>If trees remain uncollected after 30 days, the buyer will be charged storage fees equal to the actual cost of care plus <strong>20% overhead</strong> for each day the trees remain at the seller&rsquo;s nursery.</li>',
+        '<li>If the buyer fails to pick up the trees within 30 days past the due pickup date (total of 60 days from notification), the seller reserves the right to retain the deposit and resell the trees.</li>',
+        '<li>The seller assumes no liability for the condition of trees left uncollected beyond the designated pickup period.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">9. Force Majeure</div>',
+      '<p style="font-size:12.5px;line-height:1.55;color:#333">Neither party shall be held liable for delays caused by acts of God, war, civil insurrection, natural disasters, pandemics, government regulations, or quarantine restrictions, including but not limited to Asian Citrus Psyllid and Huanglongbing disease restrictions.</p>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">10. Legal and Dispute Resolution</div>',
+      '<ul class="terms">',
+        '<li>This agreement shall be governed by the laws of the State of California.</li>',
+        '<li>Any disputes shall be resolved in the Superior Court of <strong>Tulare County, California</strong>.</li>',
+        '<li>The prevailing party in any dispute shall be entitled to recover reasonable attorney fees and costs.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">11. Assignment and Modification</div>',
+      '<ul class="terms">',
+        '<li>The buyer may not assign or transfer this agreement without the seller&rsquo;s prior written consent.</li>',
+        '<li>All amendments to this contract must be in writing and signed by both parties.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">12. Signature and Receipt of Initial Deposit</div>',
+      '<ul class="terms">',
+        '<li>Until signed by the authorized agent of the seller, this agreement is considered an offer to purchase, not a binding contract.</li>',
+        '<li>The buyer must remit both a signed copy of this agreement and the initial deposit within <strong>15 days</strong> of receipt.</li>',
+        '<li>If the buyer fails to do so, the offer to purchase shall be null and void unless the seller chooses to accept the late remittance.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="section">',
+      '<div class="section-num">13. Authority to Enter Agreement</div>',
+      '<ul class="terms">',
+        '<li>Each signatory represents that they have full authority to enter into this agreement and bind their respective party.</li>',
+        '<li>This agreement is legally binding upon receipt of the fully signed document and the initial deposit by the seller.</li>',
+      '</ul>',
+    '</div>',
+
+    '<div class="date-line">',
+      '<span>The signatures below confirm that both parties have read and accepted the terms and conditions of this agreement on</span>',
+      '<span class="blank">&nbsp;</span>',
+      '<span>.</span>',
+    '</div>',
+
     '<div class="sg">',
-      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">Rafael Macias, Owner</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
-      '<div><div class="fl">Buyer</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+      '<div class="sg-block">',
+        '<strong>SELLER</strong>',
+        'M &amp; G Nursery<br>',
+        '39390 Road 116, Cutler, CA 93615',
+        '<div style="margin-top:14px"><div class="fl">By</div><div class="sl"></div></div>',
+        '<div style="margin-top:8px"><div class="fl">Date</div><div class="sl"></div></div>',
+      '</div>',
+      '<div class="sg-block">',
+        '<strong>BUYER</strong>',
+        esc(buyerName) + '<br>',
+        buyerAddr ? esc(buyerAddr) : '<span style="color:#999">Street Address, City, State, Zip</span>',
+        '<div style="margin-top:14px"><div class="fl">By</div><div class="sl"></div>',
+        (c.company && c.company !== c.name ? '<div style="font-size:11px;color:#6B7280;margin-top:2px">' + esc(c.name) + '</div>' : ''),
+        '</div>',
+        '<div style="margin-top:8px"><div class="fl">Date</div><div class="sl"></div></div>',
+      '</div>',
     '</div>',
-    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
-      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
+
+    '<div class="footer-id">',
+      'M&amp;G Nursery &middot; Agreement #' + contractNum + ' &middot; Generated ' + dateStr,
     '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Contract #' + contractNum + ' · ' + dateStr + ' · AgCommand CRM',
-    '</div>',
+
     '</div>',
     '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
     '</body></html>'
@@ -2156,6 +1998,7 @@ function generateContract(contactId) {
     a.href = url; a.download = dlName; a.click();
   }
 }
+
 
 
 // ── CRM REPORTS ──────────────────────────────────────────────────────────
@@ -2439,7 +2282,7 @@ function buildTimelineHTML(){
   const horizon = new Date(today); horizon.setDate(today.getDate()+30);
   const horizonISO = horizon.toISOString().split('T')[0];
 
-  contacts.filter(c => c.followup && c.followup >= cutoffISO && c.followup <= horizonISO).forEach(c => {
+  contacts.filter(c => c.followup && c.followup >= cutoffISO && c.followup <= horizonISO && !c.followup_done).forEach(c => {
     events.push({
       date: c.followup,
       ts: c.followup + 'T09:00:00',
@@ -2450,6 +2293,8 @@ function buildTimelineHTML(){
       subtitle: c.status + (c.variety ? ' · ' + c.variety : '') + (c.trees ? ' · ' + c.trees.toLocaleString() + ' trees' : ''),
       contactId: c.id,
       status: c.status,
+      rid: 'fu-' + c.id,
+      priority: c.followup < todayISO ? 'high' : 'normal',
     });
   });
 
@@ -2498,6 +2343,14 @@ function buildTimelineHTML(){
     '</div>';
   }
 
+  // ── Overdue banner ───────────────────────────────────────────────────
+  const overdueCount = events.filter(e =>
+    !e.done && (e.type==='followup-overdue' || (e.type==='reminder' && e.date < todayISO))
+  ).length;
+  const overdueBanner = overdueCount > 0
+    ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin:12px 16px 0;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+overdueCount+' overdue item'+(overdueCount>1?'s':'')+' need your attention</div>'
+    : '';
+
   // ── Quick-add reminder bar ───────────────────────────────────────────
   const quickAdd =
     '<div style="display:flex;gap:8px;align-items:center;padding:12px 16px 16px;border-bottom:1px solid var(--bd)">' +
@@ -2511,6 +2364,7 @@ function buildTimelineHTML(){
     const isFut = e.date > todayISO;
     const isToday = e.date === todayISO;
     const isOverdue = (e.type==='followup-overdue' || (e.type==='reminder' && e.date < todayISO));
+    const isActionable = (e.type==='reminder' || e.type==='followup' || e.type==='followup-overdue') && !e.done && e.rid;
 
     let accentColor = 'var(--bd)';
     let labelColor = 'var(--muted)';
@@ -2526,6 +2380,12 @@ function buildTimelineHTML(){
 
     let overdueTag = isOverdue ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700">OVERDUE</span>' : '';
     let todayTag = isToday ? '<span style="font-size:10px;background:#FEF3C7;color:#92400E;border-radius:8px;padding:1px 6px;font-weight:700">TODAY</span>' : '';
+    let urgentTag = (e.priority==='high' && !e.done && !isOverdue) ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700">URGENT</span>' : '';
+    let fyiTag = (e.priority==='low' && !e.done) ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;font-weight:600">FYI</span>' : '';
+
+    const doneBtn = isActionable
+      ? '<button data-rid="'+e.rid+'" onclick="event.stopPropagation();completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">&#10003; Done</button>'
+      : '';
 
     return (
       '<div class="tl-event-row'+hoverClass+'"'+clickAttr+'>' +
@@ -2535,11 +2395,12 @@ function buildTimelineHTML(){
             '<span style="font-size:14px">'+e.icon+'</span>' +
             '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:'+labelColor+'">'+e.label+'</span>' +
             '<span style="font-size:11px;color:var(--muted)">· '+dayStr+'</span>' +
-            overdueTag + todayTag +
+            overdueTag + todayTag + urgentTag + fyiTag +
           '</div>' +
           '<div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;margin-bottom:2px;'+doneStyle+'">'+esc(e.title)+'</div>' +
           (e.subtitle ? '<div style="font-size:11px;color:var(--muted)">'+esc(e.subtitle)+'</div>' : '') +
         '</div>' +
+        (doneBtn ? '<div style="padding:10px 14px 10px 0;display:flex;align-items:flex-start">'+doneBtn+'</div>' : '') +
       '</div>'
     );
   }
@@ -2571,6 +2432,7 @@ function buildTimelineHTML(){
   }).join('');
 
   return '<div style="width:100%;overflow-y:auto">'+
+    overdueBanner+
     quickAdd+
     '<div style="padding:12px 12px 24px">'+sections+'</div>'+
   '</div>';
@@ -3266,8 +3128,9 @@ function exportBackup(){
       contacts: JSON.parse(localStorage.getItem('mg_v3')||'[]'),
       activities: JSON.parse(localStorage.getItem('mg_act_v3')||'[]'),
       orders: JSON.parse(localStorage.getItem('mg_ord_v3')||'[]'),
-      tasks: JSON.parse(localStorage.getItem('mg_tasks_v1')||'[]'),
       reminders: JSON.parse(localStorage.getItem('mg_reminders')||'[]'),
+      admin_tasks: JSON.parse(localStorage.getItem('mg_admin_tasks')||'[]'),
+      admin_staff: JSON.parse(localStorage.getItem('mg_admin_staff')||'[]'),
       deleted: JSON.parse(localStorage.getItem('mg_deleted_v1')||'[]'),
       exported_at: new Date().toISOString(),
       device: navigator.userAgent
@@ -3652,7 +3515,7 @@ function saveReminder(){
   });
   saveReminders();
   closeModal('modal-reminder');
-  renderReminders();
+  if(currentTab==='timeline') renderTimeline();
   toast('Reminder saved ✓');
 }
 
@@ -3666,7 +3529,7 @@ function completeReminder(rid){
     const r = reminders.find(x=>x.id===rid);
     if(r){ r.done=true; saveReminders(); }
   }
-  renderReminders();
+  if(currentTab==='timeline') renderTimeline();
   renderAll();
   toast('Marked as done ✓');
 }
@@ -3680,111 +3543,7 @@ function deleteReminder(rid){
     reminders = reminders.filter(x=>x.id!==rid);
     saveReminders();
   }
-  renderReminders();
-}
-
-function renderReminders(){
-  const today = new Date().toISOString().split('T')[0];
-  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-
-  // Combine standalone reminders + contact follow-ups
-  const allReminders = [];
-
-  // Standalone reminders
-  (reminders||[]).forEach(r => {
-    const daysUntilDue = Math.ceil((new Date(r.date) - todayDate) / 86400000);
-    allReminders.push({
-      id: r.id,
-      type: 'reminder',
-      note: r.note,
-      date: r.date,
-      priority: r.priority||'normal',
-      contactId: r.contactId||null,
-      contactName: r.contactId ? (contacts.find(c=>c.id===r.contactId)||{}).name||'' : '',
-      days: daysUntilDue,
-      done: r.done||false,
-    });
-  });
-
-  // Contact follow-ups (only if they have a reason/note)
-  contacts.filter(c=>c.followup&&!c.followup_done).forEach(c => {
-    const daysUntilDue = Math.ceil((new Date(c.followup) - todayDate) / 86400000);
-    // Only show follow-ups within next 14 days or overdue
-    if(daysUntilDue <= 14) {
-      allReminders.push({
-        id: 'fu-'+c.id,
-        type: 'followup',
-        note: c.followup_note || ('Follow up with ' + c.name + (c.status?' — '+c.status:'')),
-        date: c.followup,
-        priority: daysUntilDue < 0 ? 'high' : 'normal',
-        contactId: c.id,
-        contactName: c.name,
-        days: daysUntilDue,
-        done: false,
-      });
-    }
-  });
-
-  // Sort: overdue first, then by date, done at bottom
-  const active = allReminders.filter(r=>!r.done).sort((a,b)=>a.days-b.days);
-  const done = allReminders.filter(r=>r.done).slice(0,5);
-
-  function mkCard(r, cls) {
-    let status, statusCls;
-    if(r.done){ status='Done'; statusCls='upcoming'; }
-    else if(r.days<0){ status='Overdue '+Math.abs(r.days)+'d'; statusCls='overdue'; }
-    else if(r.days===0){ status='Due today'; statusCls='today'; }
-    else if(r.days===1){ status='Tomorrow'; statusCls='upcoming'; }
-    else { status='In '+r.days+' days'; statusCls='upcoming'; }
-
-    const priorityBadge = r.priority==='high'
-      ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:6px">URGENT</span>'
-      : r.priority==='low' ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;margin-left:6px">FYI</span>' : '';
-
-    const typeIcon = r.type==='followup' ? '&#128222;' : '&#128276;';
-
-    return '<div class="'+cls+'" style="border-left:3px solid '+(statusCls==='overdue'?'#EF4444':statusCls==='today'?'#D97706':'#D1FAE5')+'">'+
-      '<div style="display:flex;align-items:flex-start;gap:10px">'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-            '<span style="font-size:14px">'+typeIcon+'</span>'+
-            '<span style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.note)+'</span>'+
-            priorityBadge+
-          '</div>'+
-          (r.contactName?'<div style="font-size:12px;color:var(--tx3);margin-bottom:3px">&#128101; '+esc(r.contactName)+'</div>':'')+
-          '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
-            '<span class="r-when '+statusCls+'" style="font-size:11px">'+status+'</span>'+
-            '<span style="font-size:11px;color:var(--muted)">'+new Date(r.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</span>'+
-          '</div>'+
-        '</div>'+
-        '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
-          (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">&#10003; Done</button>':'') +
-          (r.contactId?'<button data-cid="'+r.contactId+'" onclick="openDetail(this.dataset.cid)" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">View contact</button>':'')+
-          '<button data-rid="'+r.id+'" onclick="deleteReminder(this.dataset.rid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px">&#x2715;</button>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }
-
-  const addBtn = '<button onclick="openReminderModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-bottom:16px">&#43; Add Reminder</button>';
-
-  const overdueBanner = active.filter(r=>r.days<0).length > 0
-    ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+active.filter(r=>r.days<0).length+' overdue reminder'+(active.filter(r=>r.days<0).length>1?'s':'')+' need your attention</div>'
-    : '';
-
-  const emptyState = active.length===0
-    ? '<div class="empty"><div class="empty-icon">&#128276;</div><p>No upcoming reminders.</p><p style="font-size:12px;color:var(--muted);margin-top:4px">Add a reminder or set follow-up dates on contacts.</p></div>'
-    : '';
-
-  const doneSection = done.length > 0
-    ? '<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">&#10003; Completed ('+done.length+')</div>'+done.map(r=>mkCard(r,'rrow')).join('')+'</div>'
-    : '';
-
-  const html = addBtn + overdueBanner + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
-  const dr=document.getElementById('dv-reminders'), mr=document.getElementById('mv-reminders');
-  const isD=window.innerWidth>=768;
-  if(isD){ if(dr)dr.innerHTML=html; if(mr)mr.innerHTML=''; }
-  else { if(mr)mr.innerHTML=html; if(dr)dr.innerHTML=''; }
+  if(currentTab==='timeline') renderTimeline();
 }
 
 
@@ -3854,10 +3613,14 @@ function renderDetOrder(c){
   const quoteDoc = docs.filter(d=>d.type==='quote');
   const contractDoc = docs.filter(d=>d.type==='contract');
   const trees = c.trees||0;
-  const price = c.price||12.5;
-  const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
-  const balance = total-deposit;
+  const pricePerTree = c.price||13.50;
+  const depositPerTree = c.deposit_per_tree||5.50;
+  const balancePerTree = +(pricePerTree-depositPerTree).toFixed(2);
+  const total = +(trees*pricePerTree).toFixed(2);
+  const deposit = +(trees*depositPerTree).toFixed(2);
+  const balance = +(trees*balancePerTree).toFixed(2);
+  // Compatibility aliases for downstream template code that may reference 'price'
+  const price = pricePerTree;
 
   let html = '<div style="padding:4px 0">';
 
@@ -4436,9 +4199,9 @@ function retryCloud(){
 
 function switchTab(tab){
   currentTab=tab;
-  const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
+  const titles={contacts:'Contacts',deliveries:'Deliveries',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','deliveries','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
+  ['contacts','deliveries','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -4447,20 +4210,15 @@ function switchTab(tab){
   document.getElementById('dv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('dv-deliveries').style.display=(tab==='deliveries'&&window.innerWidth>=768)?'flex':'none';
   const mvDel2=document.getElementById('mv-deliveries');if(mvDel2)mvDel2.style.display=(tab==='deliveries'&&window.innerWidth<768)?'block':'none';
-  document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
-  document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=(tab==='inventory'&&window.innerWidth>=768)?'flex':'none';
   const mvInv2=document.getElementById('mv-inventory');if(mvInv2)mvInv2.style.display=(tab==='inventory'&&window.innerWidth<768)?'block':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
-  document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
-  document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
   const mvAdmin=document.getElementById('mv-admin');if(mvAdmin)mvAdmin.style.display=tab==='admin'?'block':'none';
   const mvTL=document.getElementById('mv-timeline');if(mvTL)mvTL.style.display=tab==='timeline'?'block':'none';
   const mvInv=document.getElementById('mv-inventory');if(mvInv)mvInv.style.display=tab==='inventory'?'block':'none';
-  if(tab==='tasks')renderTasks();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
@@ -4474,8 +4232,8 @@ document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>
   if(e.target!==m) return; // only trigger if clicking the backdrop itself
   // These modals contain data entry — never close on outside click
   const safe=['modal-form','modal-voice-journal','modal-reminder',
-    'modal-activity','modal-order','modal-dictate','modal-inv-row','modal-inv-lot',
-    'modal-inv-log','modal-task-detail'];
+    'modal-activity','modal-order','modal-inv-row','modal-inv-lot',
+    'modal-inv-log'];
   if(safe.includes(m.id)) return;
   m.classList.remove('open');
 }));
@@ -4496,15 +4254,17 @@ document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible' && cloudOk){
     console.log('[visibility] page visible — refreshing');
     silentReload();
+    loadAdminData();
     // Re-subscribe in case iOS killed the WebSocket
     clearInterval(_pollTimer);
     subscribeRT();
+    subscribeAdminRT();
   }
 });
 
 // Also refresh on window focus (covers desktop tab switching)
 window.addEventListener('focus', function(){
-  if(cloudOk) silentReload();
+  if(cloudOk) { silentReload(); loadAdminData(); }
 });
 </script>
 
