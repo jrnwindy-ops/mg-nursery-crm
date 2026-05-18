@@ -2639,7 +2639,7 @@ function buildTimelineHTML(){
 
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
 // Pre-loaded inventory from House #2 spreadsheet (May 2026)
-// Adjusted totals = raw × 0.70 (30% cull factor)
+// Adjusted totals = raw × 0.85 (15% cull factor)
 // Orders pulled from contact records in CRM
 
 // ── LIVE INVENTORY FROM NURSERY TRACKER ──────────────────────────────────────
@@ -2832,7 +2832,7 @@ function saveInvOrders(){
   try{ localStorage.setItem(INV_ORDER_KEY, JSON.stringify(added)); }catch(e){}
 }
 
-const INV_CULL = 0.70; // yield after cull
+const INV_CULL = 0.85; // yield after cull
 
 // Master inventory data — raw counts from House #2 physical layout
 let INV_MASTER_2026 = [
