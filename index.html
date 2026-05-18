@@ -193,7 +193,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 .b-Quoted{background:var(--amber-bg);color:var(--amber)}
 .b-Deposit{background:var(--blue-bg);color:var(--blue)}
 .b-Production{background:var(--purple-bg);color:var(--purple)}
-.b-Ready{background:var(--g50);color:var(--g600);border:1px solid var(--g200)}
+.b-Ready{background:var(--g50);color:var(--g600);border:1px solid var(--g200)}.b-Fulfilled{background:#DCFCE7;color:#166534;border:1px solid #86EFAC}
 .ccard{background:var(--surf);border:1px solid var(--bd);border-radius:var(--r);padding:13px 14px;margin-bottom:9px;box-shadow:var(--sh);cursor:pointer;transition:box-shadow .15s}
 .ccard:active{box-shadow:none}
 .ccard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;gap:7px}
@@ -416,7 +416,7 @@ textarea.finput{height:70px;resize:none}
     <div id="dv-contacts" class="d-body">
       <div class="d-toolbar">
         <input id="d-search" placeholder="Search name or company..." oninput="renderAll()">
-        <select id="d-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+        <select id="d-listmode" onchange="setListMode(this.value)" style="min-width:120px"><option value="grouped">Grouped by client</option><option value="flat">All orders (flat)</option></select><select id="d-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option><option>Fulfilled</option></select>
         <select id="d-variety" onchange="renderAll()"><option value="">All varieties</option></select>
       </div>
       <div class="d-scroll">
@@ -462,7 +462,7 @@ textarea.finput{height:70px;resize:none}
   <div id="mv-contacts" class="mobile-only" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="m-srch">
       <input id="m-search" placeholder="Search..." oninput="renderAll()">
-      <select id="m-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select>
+      <select id="m-listmode" onchange="setListMode(this.value)" style="min-width:100px;font-size:13px"><option value="grouped">Grouped</option><option value="flat">All orders</option></select><select id="m-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option><option>Fulfilled</option></select>
       <select id="m-variety" onchange="renderAll()"><option value="">All varieties</option></select>
     </div>
     <div class="m-scroll" id="m-list"></div>
@@ -495,7 +495,7 @@ textarea.finput{height:70px;resize:none}
     <div><label class="flabel">Company / ranch</label><input class="finput" id="f-company" placeholder="Sunrise Farms"></div>
     <div><label class="flabel">Phone</label><input class="finput" id="f-phone" type="tel" placeholder="559-555-0100"></div>
     <div><label class="flabel">Email</label><input class="finput" id="f-email" type="email" placeholder="email@example.com"></div>
-    <div><label class="flabel">Stage</label><select class="finput" id="f-status"><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option></select></div>
+    <div><label class="flabel">Stage</label><select class="finput" id="f-status"><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option><option>Fulfilled</option></select></div>
     <div class="ffull" style="grid-column:1/-1">
       <label class="flabel">Varieties, Rootstocks &amp; Quantities</label>
       <div style="display:flex;gap:6px;margin-bottom:4px;padding:0 2px">
@@ -705,6 +705,15 @@ textarea.finput{height:70px;resize:none}
         <option value="low">Low — FYI</option>
       </select>
     </div>
+    <div>
+      <label class="flabel">Assign to</label>
+      <select class="finput" id="rem-assignee">
+        <option value="">— Unassigned —</option>
+        <option>Raffi</option>
+        <option>Abram</option>
+        <option>Father</option>
+      </select>
+    </div>
     <div class="ffull">
       <label class="flabel">Linked Contact (optional)</label>
       <select class="finput" id="rem-contact">
@@ -864,8 +873,9 @@ async function flushSyncQueue(){
 
 let contacts=[{"id": "c1001", "name": "Cyrstal Cove Farms (Gary)", "company": "Cyrstal Cove Farms (Gary)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Parent Washington", "rootstock": "Carrizo"}, {"variety": "Fukumoto", "rootstock": "Carrizo"}, {"variety": "Autumn Gold", "rootstock": "Carrizo"}], "variety": "Fukumoto, Tango, Parent Washington, Autumn Gold", "trees": 215, "price": 16.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1002 | Shipment: Spring | Trees: 215 | Deposit: $1,398", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1002 | Shipment: Spring | Trees: 215 | Deposit: $1,398", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1002", "name": "MilMar Ranches, C/O Dennis Veeh (John Kalender)", "company": "MilMar Ranches, C/O Dennis Veeh (John Kalender)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 1980, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1003 | Shipment: Spring | Trees: 1,980 | Deposit: $9,900", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1003 | Shipment: Spring | Trees: 1,980 | Deposit: $9,900", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1003", "name": "Vito Deleonardis", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 5425, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1008 | Shipment: Spring | Trees: 5,425 | Deposit: $27,125", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1008 | Shipment: Spring | Trees: 5,425 | Deposit: $27,125", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1004", "name": "John Yohannes", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 3830, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1009 | Shipment: Spring | Trees: 3,830 | Deposit: $19,150", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1009 | Shipment: Spring | Trees: 3,830 | Deposit: $19,150", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1005", "name": "Quality Grown Produce (Freddi Flores)", "company": "Quality Grown Produce (Freddi Flores)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}], "variety": "Tango", "trees": 4120, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1011 | Shipment: Spring | Trees: 4,120 | Deposit: $20,600", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1011 | Shipment: Spring | Trees: 4,120 | Deposit: $20,600", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1006", "name": "M&R Farm Management", "company": "M&R Farm Management", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Fukumoto", "rootstock": "Carrizo"}, {"variety": "Powell", "rootstock": "Carrizo"}, {"variety": "Gillette", "rootstock": "Carrizo"}, {"variety": "Palestine Sweet Lime", "rootstock": "Carrizo"}], "variety": "Fukumoto, Palestine Sweet Lime, Powell, Tango, Gillette", "trees": 8600, "price": 12.5, "date": "2026-09-15", "followup": "2026-08-01", "notes": "Contract(s): N/A | Shipment: Fall | Trees: 8,600 | INTERNAL \u2014 M&R own ranch planting", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Fall | Trees: 8,600 | INTERNAL \u2014 M&R own ranch planting", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1007", "name": "Jireh Nurseries", "company": "Jireh Nurseries", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Carrizo"}, {"variety": "Tango", "rootstock": "C35"}, {"variety": "Tango", "rootstock": "C35"}, {"variety": "Tango", "rootstock": "Rich 16-6"}, {"variety": "Tango", "rootstock": "Rich 16-6"}, {"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 34310, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): 26003, 26001, 26002, 26005, 26004 | Shipment: Summer | Trees: 34,310 | Deposit: $171,550", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 26003, 26001, 26002, 26005, 26004 | Shipment: Summer | Trees: 34,310 | Deposit: $171,550", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1008", "name": "Sandhu Bros Grower (Rupi)", "company": "Sandhu Bros Grower (Rupi)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 8168, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1017 | Shipment: Spring | Trees: 8,168 | Deposit: $40,840", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1017 | Shipment: Spring | Trees: 8,168 | Deposit: $40,840", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1009", "name": "Jaime Avila", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 2800, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): 1023 | Shipment: Summer | Trees: 2,800 | Deposit: $20,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1023 | Shipment: Summer | Trees: 2,800 | Deposit: $20,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1010", "name": "John Kalender", "company": null, "phone": null, "email": null, "status": "Lead", "varieties": [{"variety": "Tango", "rootstock": "C35"}], "variety": "Tango", "trees": 2000, "price": 12.5, "date": "2026-06-15", "followup": "2026-06-01", "notes": "Contract(s): N/A | Shipment: Summer | Trees: 2,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Summer | Trees: 2,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1011", "name": "Wells Farms (Charlie Dip)", "company": "Wells Farms (Charlie Dip)", "phone": null, "email": null, "status": "Deposit received", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 6510, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 6,510 | Deposit: $10,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 6,510 | Deposit: $10,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1012", "name": "Rigo Cedeno", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 1340, "price": 12.0, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1024 | Shipment: Spring | Trees: 1,340 | Deposit: $6,700", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1024 | Shipment: Spring | Trees: 1,340 | Deposit: $6,700", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1013", "name": "Rupi Sandhu", "company": null, "phone": null, "email": null, "status": "Deposit received", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 2800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 2,800 | Deposit: $14,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 2,800 | Deposit: $14,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1014", "name": "Tad Edwards", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Tango", "rootstock": "Rich 16-6"}], "variety": "Tango", "trees": 8500, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1028 | Shipment: Spring | Trees: 8,500 | Deposit: $42,500", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1028 | Shipment: Spring | Trees: 8,500 | Deposit: $42,500", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1015", "name": "LoBue Ranches, LLC (Robert LoBue)", "company": "LoBue Ranches, LLC (Robert LoBue)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Shiranui", "rootstock": "Rich 16-6"}], "variety": "Shiranui", "trees": 8500, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1010 | Shipment: Spring | Trees: 8,500 | Deposit: $40,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1010 | Shipment: Spring | Trees: 8,500 | Deposit: $40,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1016", "name": "R&N Citrus (Maribel)", "company": "R&N Citrus (Maribel)", "phone": null, "email": null, "status": "Lead", "varieties": [{"variety": "Parent Washington", "rootstock": "Carrizo"}], "variety": "Parent Washington", "trees": 140, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): N/A | Shipment: Spring | Trees: 140", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): N/A | Shipment: Spring | Trees: 140", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1017", "name": "Goehring Custom Farming (Mr. George)", "company": "Goehring Custom Farming (Mr. George)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Parent Washington", "rootstock": "Rich 16-6"}], "variety": "Parent Washington", "trees": 3924, "price": 12.5, "date": "2026-09-15", "followup": "2026-08-01", "notes": "Contract(s): 1021 | Shipment: Fall | Trees: 3,924 | Deposit: $19,620", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1021 | Shipment: Fall | Trees: 3,924 | Deposit: $19,620", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1018", "name": "Larson Ranch (Ken Larson)", "company": "Larson Ranch (Ken Larson)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Parent Washington", "rootstock": "Rubidoux"}], "variety": "Parent Washington", "trees": 1000, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1018 | Shipment: Spring | Trees: 1,000 | Deposit: $5,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1018 | Shipment: Spring | Trees: 1,000 | Deposit: $5,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1019", "name": "Kevin Howard", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Autumn Gold", "rootstock": "Rich 16-6"}], "variety": "Autumn Gold", "trees": 3025, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1012 | Shipment: Spring | Trees: 3,025 | Deposit: $15,125", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1012 | Shipment: Spring | Trees: 3,025 | Deposit: $15,125", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1020", "name": "Luis Avalos", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Powell", "rootstock": "Carrizo"}, {"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Powell, Olinda", "trees": 3800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1015 | Shipment: Spring | Trees: 3,800 | Deposit: $19,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1015 | Shipment: Spring | Trees: 3,800 | Deposit: $19,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1021", "name": "Johnny Jameson", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Late Lane", "rootstock": "Carrizo"}, {"variety": "Gillette", "rootstock": "Carrizo"}], "variety": "Late Lane, Gillette", "trees": 1872, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1005 | Shipment: Spring | Trees: 1,872 | Deposit: $9,360", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1005 | Shipment: Spring | Trees: 1,872 | Deposit: $9,360", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1022", "name": "Sanchez Farms", "company": "Sanchez Farms", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Olinda", "trees": 810, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1007 | Shipment: Spring | Trees: 810 | Deposit: $4,050", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1007 | Shipment: Spring | Trees: 810 | Deposit: $4,050", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1023", "name": "Rick Croker", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Carrizo"}], "variety": "Olinda", "trees": 800, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1016 | Shipment: Spring | Trees: 800 | Deposit: $4,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1016 | Shipment: Spring | Trees: 800 | Deposit: $4,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1024", "name": "Merryman Ranch (Glen Weerheim)", "company": "Merryman Ranch (Glen Weerheim)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 3200, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1006 | Shipment: Spring | Trees: 3,200 | Deposit: $16,000", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1006 | Shipment: Spring | Trees: 3,200 | Deposit: $16,000", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1025", "name": "Antonio Villapando", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 2300, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1014 | Shipment: Spring | Trees: 2,300 | Deposit: $11,500", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1014 | Shipment: Spring | Trees: 2,300 | Deposit: $11,500", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1026", "name": "Hillview Groves", "company": null, "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Olinda", "rootstock": "Rich 16-6"}], "variety": "Olinda", "trees": 3680, "price": 12.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1020 | Shipment: Spring | Trees: 3,680 | Deposit: $18,400", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1020 | Shipment: Spring | Trees: 3,680 | Deposit: $18,400", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}, {"id": "c1027", "name": "G&M Farms (Greg Willems)", "company": "G&M Farms (Greg Willems)", "phone": null, "email": null, "status": "In production", "varieties": [{"variety": "Australian Finger Lime", "rootstock": "Carrizo"}], "variety": "Australian Finger Lime", "trees": 375, "price": 16.5, "date": "2026-03-15", "followup": "2026-05-15", "notes": "Contract(s): 1001 | Shipment: Spring | Trees: 375 | Deposit: $2,438", "source": "Raffi network", "contact_log": [{"text": "Imported from nursery inventory. Contract(s): 1001 | Shipment: Spring | Trees: 375 | Deposit: $2,438", "ts": "2026-05-11T13:00:00.000Z", "by": "Isidro"}], "created_at": "2026-05-11T13:00:00.000Z"}],activities=[],orders=[],currentId=null,editingId=null,currentTab='contacts',currentDetTab='info';
 let sb=null,cloudOk=false;
-const STAGES=['Lead','Quoted','Deposit received','In production','Ready'];
-const BCLS={'Lead':'b-Lead','Quoted':'b-Quoted','Deposit received':'b-Deposit','In production':'b-Production','Ready':'b-Ready'};
+const STAGES=['Lead','Quoted','Deposit received','In production','Ready','Fulfilled'];
+const ADMINS=['Raffi','Abram','Father'];
+const BCLS={'Lead':'b-Lead','Quoted':'b-Quoted','Deposit received':'b-Deposit','In production':'b-Production','Ready':'b-Ready','Fulfilled':'b-Fulfilled'};
 const AICONS={'Call / voicemail':'📞','Email sent':'📧','In-person meeting':'🤝','Quote sent':'📋','Deposit received':'💰','Order confirmed':'✅','Production update':'🌱','Pickup scheduled':'🚛','General note':'📝'};
 const ACOLORS={'Call / voicemail':'#EFF6FF','Email sent':'#F5F3FF','In-person meeting':'#FFF7ED','Quote sent':'#FFFBEB','Deposit received':'#F0FDF4','Order confirmed':'#F0FDF4','Production update':'#F0FDF4','Pickup scheduled':'#EFF6FF','General note':'#F9FAFB'};
 const today=new Date();today.setHours(0,0,0,0);
@@ -3372,13 +3382,172 @@ function ensureVarieties(c){
 }
 
 
+function _groupKey(c){
+  // Group key: prefer company, then name. Trim and lowercase for matching.
+  return ((c.company||c.name||'').trim().toLowerCase());
+}
+function _groupContacts(list){
+  // Returns array of {key, label, contacts:[...], totalTrees, totalValue, anyOverdue}
+  const today=new Date().toISOString().split('T')[0];
+  const groups={};
+  const order=[];
+  list.forEach(c=>{
+    const key=_groupKey(c);
+    if(!groups[key]){
+      groups[key]={key, label: c.company||c.name||'Unknown', contacts:[], totalTrees:0, totalValue:0, anyOverdue:false};
+      order.push(key);
+    }
+    const g=groups[key];
+    g.contacts.push(c);
+    g.totalTrees += (parseInt(c.trees)||0);
+    g.totalValue += (parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+    if(c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production'&&c.status!=='Fulfilled'){
+      g.anyOverdue=true;
+    }
+  });
+  return order.map(k=>groups[k]);
+}
+// Toggle: which groups are expanded (by group key)
+window._expandedGroups = window._expandedGroups || new Set();
+function toggleGroup(key){
+  if(window._expandedGroups.has(key)) window._expandedGroups.delete(key);
+  else window._expandedGroups.add(key);
+  renderAll();
+}
+function setListMode(mode){
+  // mode: 'grouped' or 'flat'
+  localStorage.setItem('mg_list_mode', mode);
+  // Reset expanded groups when changing modes
+  if(mode==='flat') window._expandedGroups = new Set();
+  renderAll();
+}
+function getListMode(){
+  return localStorage.getItem('mg_list_mode') || 'grouped';
+}
+
+
+function _renderGroupedRows(filtered, today){
+  const groups = _groupContacts(filtered);
+  return groups.map(g => {
+    const isExpanded = window._expandedGroups.has(g.key);
+    const arrow = isExpanded ? '▼' : '▶';
+    if(g.contacts.length === 1){
+      // Single-contract group: render as a normal row, no expand arrow
+      const c = g.contacts[0];
+      const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+      const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production'&&c.status!=='Fulfilled';
+      return `<tr onclick="openDetail('${c.id}')" style="cursor:pointer">
+        <td style="font-weight:600;color:var(--g900)">${esc(c.name)}</td>
+        <td style="color:var(--tx2)">${esc(c.company||'—')}</td>
+        <td><span class="badge b-${c.status.replace(/ /g,'-')}">${esc(c.status)}</span></td>
+        <td style="font-size:12px;color:var(--tx2)">${esc(c.variety||'—')}</td>
+        <td style="text-align:right;font-weight:600;color:var(--g700)">${c.trees?Number(c.trees).toLocaleString():'—'}</td>
+        <td style="text-align:right;color:var(--tx2)">${val>0?'$'+val.toLocaleString():'—'}</td>
+        <td style="font-size:12px;color:var(--tx2)">${c.date||'—'}</td>
+        <td style="font-size:12px;color:${od?'#DC2626':'var(--tx2)'}">${od?'⚠ ':''}${c.followup||'—'}</td>
+        <td><button onclick="event.stopPropagation();openEdit('${c.id}')" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--tx2)">Edit</button></td>
+      </tr>`;
+    }
+    // Multi-contract group: parent row + (if expanded) child rows
+    const stages = [...new Set(g.contacts.map(c=>c.status))];
+    const stageBadges = stages.map(s=>`<span class="badge b-${s.replace(/ /g,'-')}" style="font-size:10px;margin-right:3px">${esc(s)}</span>`).join('');
+    const parentRow = `<tr onclick="toggleGroup('${esc(g.key).replace(/'/g,"\\'")}')" style="cursor:pointer;background:${isExpanded?'var(--g50)':'transparent'}">
+      <td style="font-weight:700;color:var(--g900)">
+        <span style="display:inline-block;width:14px;color:var(--tx3);font-size:10px">${arrow}</span>
+        ${esc(g.label)}
+        <span style="font-size:11px;background:var(--g100);color:var(--g700);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:600">${g.contacts.length} orders</span>
+      </td>
+      <td colspan="2" style="color:var(--tx2);font-size:11px">${stageBadges}</td>
+      <td colspan="2" style="font-size:12px;color:var(--tx2)">${g.contacts.length} contracts</td>
+      <td style="text-align:right;font-weight:600;color:var(--g700)">${g.totalTrees.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--tx2)">${g.totalValue>0?'$'+g.totalValue.toLocaleString():'—'}</td>
+      <td style="font-size:12px;color:${g.anyOverdue?'#DC2626':'var(--tx2)'}">${g.anyOverdue?'⚠ overdue':''}</td>
+      <td></td>
+    </tr>`;
+    const childRows = isExpanded ? g.contacts.map(c=>{
+      const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+      const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production'&&c.status!=='Fulfilled';
+      return `<tr onclick="openDetail('${c.id}')" style="cursor:pointer;background:var(--g50)">
+        <td style="padding-left:36px;color:var(--tx2);font-size:13px">↳ ${esc(c.variety||c.name)}</td>
+        <td style="color:var(--tx3);font-size:12px">${esc(c.company||'—')}</td>
+        <td><span class="badge b-${c.status.replace(/ /g,'-')}">${esc(c.status)}</span></td>
+        <td style="font-size:12px;color:var(--tx2)">${esc(c.variety||'—')}</td>
+        <td style="text-align:right;font-weight:600;color:var(--g700)">${c.trees?Number(c.trees).toLocaleString():'—'}</td>
+        <td style="text-align:right;color:var(--tx2)">${val>0?'$'+val.toLocaleString():'—'}</td>
+        <td style="font-size:12px;color:var(--tx2)">${c.date||'—'}</td>
+        <td style="font-size:12px;color:${od?'#DC2626':'var(--tx2)'}">${od?'⚠ ':''}${c.followup||'—'}</td>
+        <td><button onclick="event.stopPropagation();openEdit('${c.id}')" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--tx2)">Edit</button></td>
+      </tr>`;
+    }).join('') : '';
+    return parentRow + childRows;
+  }).join('');
+}
+
+function _renderGroupedCards(filtered, today){
+  const groups = _groupContacts(filtered);
+  return groups.map(g => {
+    const isExpanded = window._expandedGroups.has(g.key);
+    if(g.contacts.length === 1){
+      const c = g.contacts[0];
+      const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+      const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production'&&c.status!=='Fulfilled';
+      return `<div class="ccard" onclick="openDetail('${c.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+          <div style="font-size:15px;font-weight:700;color:var(--g900)">${esc(c.name)}</div>
+          <span class="badge b-${c.status.replace(/ /g,'-')}">${esc(c.status)}</span>
+        </div>
+        ${c.company&&c.company!==c.name?`<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">${esc(c.company)}</div>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--tx2)">
+          <span>${esc(c.variety||'—')}</span>
+          <span>${c.trees?Number(c.trees).toLocaleString()+' trees':''}</span>
+          <span>${val>0?'$'+val.toLocaleString():''}</span>
+        </div>
+      </div>`;
+    }
+    const arrow = isExpanded ? '▼' : '▶';
+    const header = `<div class="ccard" onclick="toggleGroup('${esc(g.key).replace(/'/g,"\\'")}')" style="background:${isExpanded?'var(--g50)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div style="font-size:15px;font-weight:700;color:var(--g900)">
+          <span style="color:var(--tx3);font-size:10px;margin-right:4px">${arrow}</span>
+          ${esc(g.label)}
+        </div>
+        <span style="font-size:11px;background:var(--g100);color:var(--g700);border-radius:8px;padding:1px 6px;font-weight:600">${g.contacts.length} orders</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--tx2)">
+        <span>${g.totalTrees.toLocaleString()} trees total</span>
+        <span>${g.totalValue>0?'$'+g.totalValue.toLocaleString()+' value':''}</span>
+        ${g.anyOverdue?'<span style="color:#DC2626">⚠ overdue</span>':''}
+      </div>
+    </div>`;
+    const children = isExpanded ? g.contacts.map(c=>{
+      const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
+      return `<div class="ccard" onclick="openDetail('${c.id}')" style="margin-left:24px;background:var(--g50)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+          <div style="font-size:13px;font-weight:600;color:var(--tx)">↳ ${esc(c.variety||'Order')}</div>
+          <span class="badge b-${c.status.replace(/ /g,'-')}" style="font-size:10px">${esc(c.status)}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--tx2)">
+          <span>${c.trees?Number(c.trees).toLocaleString()+' trees':''}</span>
+          <span>${val>0?'$'+val.toLocaleString():''}</span>
+          <span>${c.date||''}</span>
+        </div>
+      </div>`;
+    }).join('') : '';
+    return header + children;
+  }).join('');
+}
+
 function renderCards(filtered){
   const today=new Date().toISOString().split('T')[0];
+  const listMode=getListMode();
+  // Sync dropdown values to current mode
+  const dlm=document.getElementById('d-listmode'); if(dlm && dlm.value !== listMode) dlm.value=listMode;
+  const mlm=document.getElementById('m-listmode'); if(mlm && mlm.value !== listMode) mlm.value=listMode;
   const tbody=document.getElementById('d-tbody');
   if(tbody){
     tbody.innerHTML=!filtered.length
       ?'<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--tx2)">No contacts match your filter.</td></tr>'
-      :filtered.map(c=>{
+      :(listMode==='grouped' ? _renderGroupedRows(filtered, today) : filtered.map(c=>{
           const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
           const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production';
           return `<tr onclick="openDetail('${c.id}')" style="cursor:pointer">
@@ -3394,13 +3563,13 @@ function renderCards(filtered){
             </td>
             <td><button onclick="event.stopPropagation();openEdit('${c.id}')" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--bd);border-radius:6px;cursor:pointer;color:var(--tx2)">Edit</button></td>
           </tr>`;
-        }).join('');
+        }).join(''));
   }
   const mv=document.getElementById('m-list');
   if(mv){
     mv.innerHTML=!filtered.length
       ?'<div style="text-align:center;padding:32px;color:var(--tx2);font-size:14px">No contacts found.</div>'
-      :filtered.map(c=>{
+      :(listMode==='grouped' ? _renderGroupedCards(filtered, today) : filtered.map(c=>{
           const val=(parseInt(c.trees)||0)*(parseFloat(c.price)||0);
           const od=c.followup&&c.followup<today&&c.status!=='Ready'&&c.status!=='In production';
           return `<div class="ccard" onclick="openDetail('${c.id}')">
@@ -3420,7 +3589,7 @@ function renderCards(filtered){
             </div>
             ${od?`<div style="font-size:11px;color:#DC2626;margin-top:4px">⚠ Follow-up overdue: ${c.followup}</div>`:''}
           </div>`;
-        }).join('');
+        }).join(''));
   }
   const allVars=[...new Set(contacts.map(c=>c.variety).filter(Boolean))].sort();
   [document.getElementById('d-variety'),document.getElementById('m-variety')].forEach(sel=>{
@@ -3655,11 +3824,13 @@ function saveReminder(){
   const date = (document.getElementById('rem-date')||{}).value||'';
   const priority = (document.getElementById('rem-priority')||{}).value||'normal';
   const contactId = (document.getElementById('rem-contact')||{}).value||null;
+  const assignee = (document.getElementById('rem-assignee')||{}).value||'';
   if(!note.trim()){ alert('Please enter what you need to do.'); return; }
   if(!date){ alert('Please pick a date.'); return; }
   reminders.unshift({
     id: uid(), note: note.trim(), date, priority,
-    contactId: contactId||null, done: false, created_at: now()
+    contactId: contactId||null, assignee: assignee||null,
+    done: false, created_at: now()
   });
   saveReminders();
   closeModal('modal-reminder');
@@ -3712,6 +3883,7 @@ function renderReminders(){
       priority: r.priority||'normal',
       contactId: r.contactId||null,
       contactName: r.contactId ? (contacts.find(c=>c.id===r.contactId)||{}).name||'' : '',
+      assignee: r.assignee||null,
       days: daysUntilDue,
       done: r.done||false,
     });
@@ -3752,6 +3924,10 @@ function renderReminders(){
       ? '<span style="font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:6px">URGENT</span>'
       : r.priority==='low' ? '<span style="font-size:10px;background:#F3F4F6;color:#6B7280;border-radius:8px;padding:1px 6px;margin-left:6px">FYI</span>' : '';
 
+    const assigneeBadge = r.assignee
+      ? '<span style="font-size:10px;background:#DBEAFE;color:#1E40AF;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:6px">@'+r.assignee+'</span>'
+      : '';
+
     const typeIcon = r.type==='followup' ? '&#128222;' : '&#128276;';
 
     return '<div class="'+cls+'" style="border-left:3px solid '+(statusCls==='overdue'?'#EF4444':statusCls==='today'?'#D97706':'#D1FAE5')+'">'+
@@ -3760,7 +3936,7 @@ function renderReminders(){
           '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
             '<span style="font-size:14px">'+typeIcon+'</span>'+
             '<span style="font-size:13px;font-weight:700;color:var(--tx)">'+esc(r.note)+'</span>'+
-            priorityBadge+
+            priorityBadge+assigneeBadge+
           '</div>'+
           (r.contactName?'<div style="font-size:12px;color:var(--tx3);margin-bottom:3px">&#128101; '+esc(r.contactName)+'</div>':'')+
           '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
