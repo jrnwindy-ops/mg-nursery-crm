@@ -2639,14 +2639,13 @@ function buildTimelineHTML(){
 
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
 // Pre-loaded inventory from House #2 spreadsheet (May 2026)
-// Adjusted totals = raw × 0.85 (15% cull factor)
+// Adjusted totals = raw × 0.70 (30% cull factor)
 // Orders pulled from contact records in CRM
 
 // ── LIVE INVENTORY FROM NURSERY TRACKER ──────────────────────────────────────
 // NURSERY_INV is populated by loadNurseryInventory() which reads nursery_sections_v2.
 // If the load succeeds, it overrides the hardcoded INV_MASTER. Otherwise we fall back to the snapshot.
 let NURSERY_INV = null; // {variety, rootstock, raw, sellable}[] when loaded, else null
-let NURSERY_UNGRAFTED = null; // {raw, sellable} of seedlings without a grafted variety yet
 
 async function loadNurseryInventory(){
   if(!cloudOk || !sb) return;
@@ -2657,35 +2656,28 @@ async function loadNurseryInventory(){
       console.log('[inv] nursery_sections_v2 is empty — using INV_MASTER fallback');
       return;
     }
+    // Aggregate entries across all sections, grouped by variety + rootstock
     const agg = {};
-    let ungraftedRaw = 0, ungraftedSellable = 0;
     data.forEach(section => {
       const sectionTakeRate = section.take_rate || 70;
       (section.entries || []).forEach(e => {
-        const qty = parseInt(e.quantity) || 0;
-        if(qty === 0) return;
-        const rate = (e.takeRate !== undefined && e.takeRate !== null) ? e.takeRate : sectionTakeRate;
-        const sellable = Math.floor(qty * rate / 100);
+        // Normalize variety/rootstock to match CRM naming
         const variety = _normalizeVariety(e.scion);
         const rootstock = _normalizeRootstock(e.rootstock);
-        if(!variety){
-          ungraftedRaw += qty;
-          ungraftedSellable += sellable;
-          return;
-        }
+        if(!variety) return;
         const key = variety + '|' + rootstock;
         if(!agg[key]) agg[key] = {variety, rootstock, raw: 0, sellable: 0};
+        const qty = parseInt(e.quantity) || 0;
+        const rate = (e.takeRate !== undefined && e.takeRate !== null) ? e.takeRate : sectionTakeRate;
         agg[key].raw += qty;
-        agg[key].sellable += sellable;
+        agg[key].sellable += Math.floor(qty * rate / 100);
       });
     });
     NURSERY_INV = Object.values(agg).filter(item => item.raw > 0);
-    NURSERY_UNGRAFTED = {raw: ungraftedRaw, sellable: ungraftedSellable};
-    const totalRaw = NURSERY_INV.reduce((s,i)=>s+i.raw,0);
-    const totalSell = NURSERY_INV.reduce((s,i)=>s+i.sellable,0);
-    console.log('[inv] Loaded ' + NURSERY_INV.length + ' variety/rootstock combos (' +
-      totalRaw.toLocaleString() + ' grafted / ' + totalSell.toLocaleString() + ' sellable) plus ' +
-      ungraftedRaw.toLocaleString() + ' ungrafted seedlings');
+    console.log('[inv] Loaded ' + NURSERY_INV.length + ' variety/rootstock combos from nursery (' +
+      NURSERY_INV.reduce((s,i)=>s+i.raw,0).toLocaleString() + ' raw / ' +
+      NURSERY_INV.reduce((s,i)=>s+i.sellable,0).toLocaleString() + ' sellable trees)');
+    // Refresh the inventory display if it's currently visible
     if(typeof refreshInvMetrics === 'function') try { refreshInvMetrics(); } catch(e){}
     if(typeof renderInv === 'function') try { renderInv(); } catch(e){}
   } catch(e){ console.warn('Nursery inventory load failed:', e); }
@@ -2832,7 +2824,7 @@ function saveInvOrders(){
   try{ localStorage.setItem(INV_ORDER_KEY, JSON.stringify(added)); }catch(e){}
 }
 
-const INV_CULL = 0.85; // yield after cull
+const INV_CULL = 0.70; // yield after cull
 
 // Master inventory data — raw counts from House #2 physical layout
 let INV_MASTER_2026 = [
@@ -2965,7 +2957,7 @@ function buildInvShell(){
         '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
           '<div>' +
             '<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px">&#127807; Nursery Inventory</div>' +
-            '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">Live from nursery tracker  ·  per-entry take rates applied</div>' +
+            '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">House #2 — Active production  |  30% cull adjustment applied</div>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
             '<button onclick="openAddSpotOrder()" style="padding:6px 12px;background:#0369A1;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Spot Sale</button>' +
@@ -3044,20 +3036,17 @@ function refreshInvMetrics(){
   const avail = totalAdj - totalOrd;
   const shortfalls = master.filter(item => getInvAvail(item, invYear) < 0).length;
   const reviewCount = countContactsNeedingReview();
-  const ungraftedRaw = (usingLive && NURSERY_UNGRAFTED) ? NURSERY_UNGRAFTED.raw : 0;
   const mk = (label, val, color, sub) =>
     '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;min-width:90px">' +
       '<div style="font-size:20px;font-weight:800;color:' + color + '">' + val + '</div>' +
       '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:1px">' + label + '</div>' +
       (sub ? '<div style="font-size:10px;color:rgba(255,255,255,.5)">' + sub + '</div>' : '') +
     '</div>';
-  const rawLabel = usingLive ? 'GRAFTED INVENTORY' : 'RAW INVENTORY';
   const sellableLabel = usingLive ? 'SELLABLE (live)' : 'ADJUSTED (70%)';
-  const sourceBadge = usingLive ? 'Live · variety known' : 'May snapshot';
+  const sourceBadge = usingLive ? 'Live from nursery' : 'May snapshot';
   el.innerHTML =
-    mk(rawLabel, totalRaw.toLocaleString(), '#fff', sourceBadge) +
+    mk('RAW INVENTORY', totalRaw.toLocaleString(), '#fff', sourceBadge) +
     mk(sellableLabel, totalAdj.toLocaleString(), '#6EE7B7') +
-    (ungraftedRaw > 0 ? mk('SEEDLINGS', ungraftedRaw.toLocaleString(), '#C4B5FD', 'ungrafted rootstock') : '') +
     mk('COMMITTED ORDERS', totalOrd.toLocaleString(), '#93C5FD') +
     mk(avail < 0 ? 'OVERSOLD' : 'AVAILABLE', Math.abs(avail).toLocaleString(), avail < 0 ? '#FCA5A5' : '#A7F3D0', avail < 0 ? '⚠ check counts' : 'for spot sale') +
     (shortfalls > 0 ? mk('SHORTFALLS', shortfalls, '#FCA5A5', 'varieties oversold') : '') +
