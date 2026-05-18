@@ -881,6 +881,158 @@ const AICONS={'Call / voicemail':'📞','Email sent':'📧','In-person meeting':
 const ACOLORS={'Call / voicemail':'#EFF6FF','Email sent':'#F5F3FF','In-person meeting':'#FFF7ED','Quote sent':'#FFFBEB','Deposit received':'#F0FDF4','Order confirmed':'#F0FDF4','Production update':'#F0FDF4','Pickup scheduled':'#EFF6FF','General note':'#F9FAFB'};
 const today=new Date();today.setHours(0,0,0,0);
 
+// ── RESERVATIONS (Phase 2 — CRM↔Nursery integration) ────────────────────────
+// Auto-reserves variety/rootstock quantities when contracts move past "Quoted".
+// State machine:
+//   Lead, Quoted               → no reservation (cancel any existing)
+//   Deposit received, In production, Ready → reservations active
+//   Fulfilled                  → reservations marked fulfilled
+//   (contract deleted)         → reservations marked cancelled
+
+const RESERVATION_ACTIVE_STAGES = ['Deposit received', 'In production', 'Ready'];
+
+// reservations is loaded from Supabase and kept in memory for the inventory tiles
+let reservations_data = [];
+
+async function loadReservations(){
+  if(!cloudOk) return;
+  try {
+    const { data, error } = await sb.from('reservations').select('*').neq('status', 'cancelled');
+    if(error){ console.warn('Load reservations error:', error); return; }
+    reservations_data = data || [];
+    console.log('[reservations] Loaded ' + reservations_data.length + ' active+fulfilled reservations');
+    if(typeof refreshInvMetrics === 'function') try { refreshInvMetrics(); } catch(e){}
+    if(typeof renderInv === 'function') try { renderInv(); } catch(e){}
+  } catch(e){ console.warn('Load reservations failed:', e); }
+}
+
+// Sum committed quantities from reservations (active+fulfilled count, cancelled does not)
+function getReservedQty(variety, rootstock){
+  return (reservations_data || []).reduce((sum, r) => {
+    if(r.status === 'cancelled') return sum;
+    if(r.scion !== variety) return sum;
+    if((r.rootstock || '') !== (rootstock || '')) return sum;
+    return sum + (parseInt(r.quantity) || 0);
+  }, 0);
+}
+
+function getTotalReserved(){
+  return (reservations_data || []).reduce((sum, r) => {
+    if(r.status === 'cancelled') return sum;
+    return sum + (parseInt(r.quantity) || 0);
+  }, 0);
+}
+
+// Reconcile reservations for a single contact based on its current stage + varieties.
+// This is the core "sync" function — called whenever a contact is created, edited, stage-changed, or deleted.
+async function syncReservations(contact){
+  if(!cloudOk || !contact) return;
+  const status = contact.status || '';
+  // Determine the desired reservation status based on contract stage
+  let desiredStatus;
+  if(status === 'Fulfilled') desiredStatus = 'fulfilled';
+  else if(RESERVATION_ACTIVE_STAGES.includes(status)) desiredStatus = 'active';
+  else desiredStatus = 'cancelled'; // Lead, Quoted, or unknown → no reservation
+  
+  // Get existing reservations for this contract
+  let existing = [];
+  try {
+    const r = await sb.from('reservations').select('*').eq('contract_id', contact.id);
+    if(r.error) { console.warn('syncReservations select error:', r.error); return; }
+    existing = r.data || [];
+  } catch(e){ console.warn('syncReservations select exception:', e); return; }
+  
+  // Determine what reservations SHOULD exist based on contact.varieties
+  const desired = [];
+  if(desiredStatus !== 'cancelled'){
+    (contact.varieties || []).forEach(v => {
+      const qty = parseInt(v.qty) || 0;
+      // For single-variety contacts where v.qty isn't set, fall back to contact.trees
+      const finalQty = qty > 0 ? qty : ((contact.varieties && contact.varieties.length === 1) ? (parseInt(contact.trees) || 0) : 0);
+      if(finalQty > 0 && v.variety){
+        desired.push({
+          variety: v.variety,
+          rootstock: v.rootstock || '',
+          quantity: finalQty,
+        });
+      }
+    });
+  }
+  
+  // Reconcile: cancel old, upsert new
+  // Strategy: cancel ALL existing reservations for this contract, then create fresh desired ones.
+  // (Simpler than diffing — and contracts don't have so many varieties that this is wasteful.)
+  
+  // Cancel existing reservations that are active/fulfilled
+  for(const r of existing){
+    if(r.status === 'cancelled') continue;
+    if(desiredStatus === 'cancelled' || !desired.length){
+      // Whole contract cancelled
+      try {
+        await sb.from('reservations').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', r.id);
+      } catch(e){ console.warn('cancel reservation error:', e); }
+    }
+  }
+  
+  // For active/fulfilled: upsert each desired variety. Match by contract+scion+rootstock.
+  if(desiredStatus !== 'cancelled' && desired.length){
+    for(const d of desired){
+      // Look for an existing reservation matching this variety
+      const match = existing.find(r => r.scion === d.variety && (r.rootstock || '') === d.rootstock && r.status !== 'cancelled');
+      try {
+        if(match){
+          // Update existing
+          await sb.from('reservations').update({
+            quantity: d.quantity,
+            status: desiredStatus,
+            contract_num: contact.contract_num || null,
+            contract_name: contact.name || null,
+            fulfilled_at: desiredStatus === 'fulfilled' ? (match.fulfilled_at || new Date().toISOString()) : null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', match.id);
+        } else {
+          // Insert new
+          await sb.from('reservations').insert({
+            contract_id: contact.id,
+            contract_num: contact.contract_num || null,
+            contract_name: contact.name || null,
+            scion: d.variety,
+            rootstock: d.rootstock,
+            quantity: d.quantity,
+            status: desiredStatus,
+            fulfilled_at: desiredStatus === 'fulfilled' ? new Date().toISOString() : null,
+          });
+        }
+      } catch(e){ console.warn('upsert reservation error:', e); }
+    }
+    // Cancel any "leftover" reservations that don't match any desired entry (variety removed from contract)
+    for(const r of existing){
+      if(r.status === 'cancelled') continue;
+      const stillWanted = desired.find(d => d.variety === r.scion && d.rootstock === (r.rootstock || ''));
+      if(!stillWanted){
+        try {
+          await sb.from('reservations').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', r.id);
+        } catch(e){ console.warn('cancel leftover error:', e); }
+      }
+    }
+  }
+  
+  // Reload reservations into memory so the UI reflects changes
+  await loadReservations();
+}
+
+// Bulk-sync: when reservations are first introduced, run sync for every contact
+async function bulkSyncReservations(){
+  if(!cloudOk) return;
+  console.log('[reservations] Bulk syncing all contacts...');
+  for(const c of (contacts || [])){
+    if(c.id && c.status){
+      await syncReservations(c);
+    }
+  }
+  console.log('[reservations] Bulk sync complete. Total reserved: ' + getTotalReserved().toLocaleString());
+}
+
 function migrateContactVarieties(contactList){
   let migrated = 0, flaggedMulti = 0;
   (contactList||[]).forEach(c => {
@@ -993,6 +1145,14 @@ function showMain(){
         else{ console.log('[Supabase check] connected OK'); }
       }catch(e){ console.warn('[Supabase check] exception:',e); }
       loadNurseryInventory();
+      // Load existing reservations (Phase 2)
+      loadReservations().then(() => {
+        // First-time bootstrap: if no reservations exist yet but contacts do, run bulk sync
+        if((!reservations_data || reservations_data.length === 0) && contacts && contacts.length > 0){
+          console.log('[reservations] No reservations found, running first-time bulk sync...');
+          bulkSyncReservations().catch(e => console.warn('bulkSync error:', e));
+        }
+      });
     }
     loadAll();
   });
@@ -2639,13 +2799,14 @@ function buildTimelineHTML(){
 
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
 // Pre-loaded inventory from House #2 spreadsheet (May 2026)
-// Adjusted totals = raw × 0.70 (30% cull factor)
+// Adjusted totals = raw × 0.85 (15% cull factor)
 // Orders pulled from contact records in CRM
 
 // ── LIVE INVENTORY FROM NURSERY TRACKER ──────────────────────────────────────
 // NURSERY_INV is populated by loadNurseryInventory() which reads nursery_sections_v2.
 // If the load succeeds, it overrides the hardcoded INV_MASTER. Otherwise we fall back to the snapshot.
 let NURSERY_INV = null; // {variety, rootstock, raw, sellable}[] when loaded, else null
+let NURSERY_UNGRAFTED = null; // {raw, sellable} of seedlings without a grafted variety yet
 
 async function loadNurseryInventory(){
   if(!cloudOk || !sb) return;
@@ -2656,28 +2817,35 @@ async function loadNurseryInventory(){
       console.log('[inv] nursery_sections_v2 is empty — using INV_MASTER fallback');
       return;
     }
-    // Aggregate entries across all sections, grouped by variety + rootstock
     const agg = {};
+    let ungraftedRaw = 0, ungraftedSellable = 0;
     data.forEach(section => {
       const sectionTakeRate = section.take_rate || 70;
       (section.entries || []).forEach(e => {
-        // Normalize variety/rootstock to match CRM naming
+        const qty = parseInt(e.quantity) || 0;
+        if(qty === 0) return;
+        const rate = (e.takeRate !== undefined && e.takeRate !== null) ? e.takeRate : sectionTakeRate;
+        const sellable = Math.floor(qty * rate / 100);
         const variety = _normalizeVariety(e.scion);
         const rootstock = _normalizeRootstock(e.rootstock);
-        if(!variety) return;
+        if(!variety){
+          ungraftedRaw += qty;
+          ungraftedSellable += sellable;
+          return;
+        }
         const key = variety + '|' + rootstock;
         if(!agg[key]) agg[key] = {variety, rootstock, raw: 0, sellable: 0};
-        const qty = parseInt(e.quantity) || 0;
-        const rate = (e.takeRate !== undefined && e.takeRate !== null) ? e.takeRate : sectionTakeRate;
         agg[key].raw += qty;
-        agg[key].sellable += Math.floor(qty * rate / 100);
+        agg[key].sellable += sellable;
       });
     });
     NURSERY_INV = Object.values(agg).filter(item => item.raw > 0);
-    console.log('[inv] Loaded ' + NURSERY_INV.length + ' variety/rootstock combos from nursery (' +
-      NURSERY_INV.reduce((s,i)=>s+i.raw,0).toLocaleString() + ' raw / ' +
-      NURSERY_INV.reduce((s,i)=>s+i.sellable,0).toLocaleString() + ' sellable trees)');
-    // Refresh the inventory display if it's currently visible
+    NURSERY_UNGRAFTED = {raw: ungraftedRaw, sellable: ungraftedSellable};
+    const totalRaw = NURSERY_INV.reduce((s,i)=>s+i.raw,0);
+    const totalSell = NURSERY_INV.reduce((s,i)=>s+i.sellable,0);
+    console.log('[inv] Loaded ' + NURSERY_INV.length + ' variety/rootstock combos (' +
+      totalRaw.toLocaleString() + ' grafted / ' + totalSell.toLocaleString() + ' sellable) plus ' +
+      ungraftedRaw.toLocaleString() + ' ungrafted seedlings');
     if(typeof refreshInvMetrics === 'function') try { refreshInvMetrics(); } catch(e){}
     if(typeof renderInv === 'function') try { renderInv(); } catch(e){}
   } catch(e){ console.warn('Nursery inventory load failed:', e); }
@@ -2743,12 +2911,31 @@ function _inferCategory(variety){
 // Multi-variety contacts missing per-variety qty are skipped (they appear in the "Review needed" flag).
 function getInvOrdersDynamic(variety, rootstock, year){
   if(year === '2027') return [];
+  // Prefer reservations data (Phase 2) if available — that's the authoritative source
+  if(reservations_data && reservations_data.length){
+    const result = [];
+    reservations_data.forEach(r => {
+      if(r.status === 'cancelled') return;
+      if(r.status === 'fulfilled') return; // fulfilled orders are no longer "committed" in the active sense
+      if(r.scion !== variety) return;
+      if((r.rootstock || '') !== (rootstock || '')) return;
+      const c = (contacts || []).find(x => x.id === r.contract_id);
+      result.push({
+        variety, rootstock,
+        client: r.contract_name || (c ? c.name : 'Unknown'),
+        qty: parseInt(r.quantity) || 0,
+        price: c ? (parseFloat(c.price) || 0) : 0,
+        contract: r.contract_num || '',
+        shipment: ''
+      });
+    });
+    return result;
+  }
+  // Fallback: derive from contacts list (the pre-Phase-2 behavior)
   const result = [];
   (contacts || []).forEach(c => {
-    // Skip fulfilled or generic statuses that don't represent active orders
     if(c.status === 'Fulfilled') return;
     if(!c.varieties || !c.varieties.length){
-      // Legacy contact with only flat variety field — try a string match
       if(c.variety && c.variety.split(',')[0].trim() === variety){
         if(c.rootstock === rootstock){
           result.push({variety, rootstock, client: c.name, qty: parseInt(c.trees)||0,
@@ -2761,10 +2948,8 @@ function getInvOrdersDynamic(variety, rootstock, year){
       if(v.variety !== variety || (v.rootstock || '') !== rootstock) return;
       let qty = 0, price = parseFloat(v.price) || parseFloat(c.price) || 0;
       if(c.varieties.length === 1){
-        // Single-variety: use per-variety qty if set, else contact-level trees
         qty = parseInt(v.qty) || parseInt(c.trees) || 0;
       } else {
-        // Multi-variety: must have per-variety qty (else skip — counted in review-needed flag)
         qty = parseInt(v.qty) || 0;
         if(qty === 0) return;
       }
@@ -2824,7 +3009,7 @@ function saveInvOrders(){
   try{ localStorage.setItem(INV_ORDER_KEY, JSON.stringify(added)); }catch(e){}
 }
 
-const INV_CULL = 0.70; // yield after cull
+const INV_CULL = 0.85; // yield after cull
 
 // Master inventory data — raw counts from House #2 physical layout
 let INV_MASTER_2026 = [
@@ -2957,7 +3142,7 @@ function buildInvShell(){
         '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
           '<div>' +
             '<div style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px">&#127807; Nursery Inventory</div>' +
-            '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">House #2 — Active production  |  30% cull adjustment applied</div>' +
+            '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">Live from nursery tracker  ·  per-entry take rates applied</div>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
             '<button onclick="openAddSpotOrder()" style="padding:6px 12px;background:#0369A1;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Spot Sale</button>' +
@@ -3036,17 +3221,20 @@ function refreshInvMetrics(){
   const avail = totalAdj - totalOrd;
   const shortfalls = master.filter(item => getInvAvail(item, invYear) < 0).length;
   const reviewCount = countContactsNeedingReview();
+  const ungraftedRaw = (usingLive && NURSERY_UNGRAFTED) ? NURSERY_UNGRAFTED.raw : 0;
   const mk = (label, val, color, sub) =>
     '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;min-width:90px">' +
       '<div style="font-size:20px;font-weight:800;color:' + color + '">' + val + '</div>' +
       '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:1px">' + label + '</div>' +
       (sub ? '<div style="font-size:10px;color:rgba(255,255,255,.5)">' + sub + '</div>' : '') +
     '</div>';
+  const rawLabel = usingLive ? 'GRAFTED INVENTORY' : 'RAW INVENTORY';
   const sellableLabel = usingLive ? 'SELLABLE (live)' : 'ADJUSTED (70%)';
-  const sourceBadge = usingLive ? 'Live from nursery' : 'May snapshot';
+  const sourceBadge = usingLive ? 'Live · variety known' : 'May snapshot';
   el.innerHTML =
-    mk('RAW INVENTORY', totalRaw.toLocaleString(), '#fff', sourceBadge) +
+    mk(rawLabel, totalRaw.toLocaleString(), '#fff', sourceBadge) +
     mk(sellableLabel, totalAdj.toLocaleString(), '#6EE7B7') +
+    (ungraftedRaw > 0 ? mk('SEEDLINGS', ungraftedRaw.toLocaleString(), '#C4B5FD', 'ungrafted rootstock') : '') +
     mk('COMMITTED ORDERS', totalOrd.toLocaleString(), '#93C5FD') +
     mk(avail < 0 ? 'OVERSOLD' : 'AVAILABLE', Math.abs(avail).toLocaleString(), avail < 0 ? '#FCA5A5' : '#A7F3D0', avail < 0 ? '⚠ check counts' : 'for spot sale') +
     (shortfalls > 0 ? mk('SHORTFALLS', shortfalls, '#FCA5A5', 'varieties oversold') : '') +
@@ -4812,13 +5000,29 @@ async function saveContact(){
   renderAll();
   // Toast already shown inside insert/update blocks with cloud status
   // But ensure we always show something
+  // Auto-sync reservations based on contract's current stage + varieties
+  if(cloudOk){
+    const savedId = editingId || (typeof row !== 'undefined' && row ? row.id : null);
+    if(savedId){
+      const savedContact = contacts.find(x => x.id === savedId);
+      if(savedContact){
+        syncReservations(savedContact).catch(e => console.warn('syncReservations error:', e));
+      }
+    }
+  }
 }
 
 async function deleteContact(){
   if(!confirm('Delete this customer and all related data?'))return;
+  const cancelId = currentId;
   addDeletedId(currentId); // record so merge never re-adds this contact
   contacts=contacts.filter(x=>x.id!==currentId);activities=activities.filter(a=>a.contact_id!==currentId);orders=orders.filter(o=>o.contact_id!==currentId);
   if(cloudOk){try{await Promise.all([sb.from(CFG.table).delete().eq('id',currentId),sb.from(CFG.actTable).delete().eq('contact_id',currentId),sb.from(CFG.orderTable).delete().eq('contact_id',currentId)]);}catch(e){console.warn(e);}}
+  // Cancel any reservations for this contract
+  if(cloudOk){
+    try { await sb.from('reservations').update({status:'cancelled', updated_at: new Date().toISOString()}).eq('contract_id', cancelId).neq('status','cancelled'); } catch(e){ console.warn('reservation cancel error:', e); }
+    loadReservations().catch(e=>console.warn(e));
+  }
   saveLocal();closeModal('modal-detail');renderAll();toast('Customer deleted');
 }
 
@@ -4833,6 +5037,8 @@ async function nextStage(id){
   c.status=next;c.followup=fuDate;
   const update={status:next,followup:fuDate};
   if(cloudOk){try{await sb.from(CFG.table).update(update).eq('id',id);}catch(e){console.warn(e);}}
+  // Auto-reserve / cancel / fulfill based on new stage
+  syncReservations(c).catch(e=>console.warn('syncReservations error:',e));
   saveLocal();renderAll();
   toast('Moved to '+next+' · Follow-up set for '+fuDays+' days ✓');
 }
