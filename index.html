@@ -950,9 +950,12 @@ async function syncReservations(contact){
       // For single-variety contacts where v.qty isn't set, fall back to contact.trees
       const finalQty = qty > 0 ? qty : ((contact.varieties && contact.varieties.length === 1) ? (parseInt(contact.trees) || 0) : 0);
       if(finalQty > 0 && v.variety){
+        // Normalize variety/rootstock names to match nursery inventory
+        const normalizedVariety = _normalizeVariety(v.variety);
+        const normalizedRootstock = _normalizeRootstock(v.rootstock || '');
         desired.push({
-          variety: v.variety,
-          rootstock: v.rootstock || '',
+          variety: normalizedVariety,
+          rootstock: normalizedRootstock,
           quantity: finalQty,
         });
       }
@@ -1031,6 +1034,20 @@ async function bulkSyncReservations(){
     }
   }
   console.log('[reservations] Bulk sync complete. Total reserved: ' + getTotalReserved().toLocaleString());
+}
+
+// Wipe and rebuild ALL reservations — use when normalization rules change
+async function rebuildAllReservations(){
+  if(!cloudOk) return;
+  if(!confirm('This will delete ALL existing reservations and rebuild them from current contact data. Continue?')) return;
+  console.log('[reservations] Wiping existing reservations...');
+  try {
+    const { error } = await sb.from('reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if(error){ console.warn('Delete error:', error); alert('Failed to wipe reservations: '+error.message); return; }
+  } catch(e){ console.warn('Wipe exception:', e); alert('Failed to wipe reservations'); return; }
+  console.log('[reservations] Wipe complete, rebuilding...');
+  await bulkSyncReservations();
+  alert('Reservations rebuilt. Total: ' + getTotalReserved().toLocaleString() + ' trees');
 }
 
 function migrateContactVarieties(contactList){
@@ -2873,6 +2890,9 @@ function _normalizeRootstock(rootstock){
   const map = {
     'C-35': 'C35',
     'Rich 16-6 Trifoliate': 'Rich 16',
+    'Rich 16-6': 'Rich 16',
+    'Rich-16': 'Rich 16',
+    'Carrizo Citrange': 'Carrizo',
   };
   return map[r] || r;
 }
@@ -4670,20 +4690,68 @@ function addVarietyRow(variety, rootstock, qty, price){
   row.className = 'variety-row';
   row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap';
 
-  // Build selects using createElement so .value is reliable on iOS Safari
+  // Helper: figure out if a stored value matches a dropdown option or should be treated as Other+custom text
+  function _splitDropdownValue(stored, options){
+    if(!stored) return {selected:'', custom:''};
+    if(options.indexOf(stored) >= 0) return {selected: stored, custom:''};
+    // Stored value isn't in the dropdown — treat as "Other" with custom text
+    return {selected: 'Other', custom: stored};
+  }
+
+  const vSplit = _splitDropdownValue(variety, VARIETIES);
+  const rSplit = _splitDropdownValue(rootstock, ROOTSTOCKS);
+
+  // Build variety dropdown
   const vSel = document.createElement('select');
   vSel.className = 'finput vr-variety';
   vSel.style.cssText = 'flex:1.6;margin:0;min-width:110px;font-size:15px';
   vSel.innerHTML = '<option value="">Variety...</option>' +
     VARIETIES.map(v => '<option value="'+v+'">'+v+'</option>').join('');
-  if(variety) vSel.value = variety;
+  if(vSplit.selected) vSel.value = vSplit.selected;
 
+  // Custom text input for "Other" variety — hidden unless "Other" is selected
+  const vCustom = document.createElement('input');
+  vCustom.className = 'finput vr-variety-custom';
+  vCustom.type = 'text';
+  vCustom.placeholder = 'Type variety name';
+  vCustom.style.cssText = 'flex:1.6;margin:0;min-width:110px;font-size:15px;display:' + (vSplit.selected === 'Other' ? 'block' : 'none');
+  vCustom.value = vSplit.custom;
+
+  // Toggle vCustom visibility when dropdown changes
+  vSel.addEventListener('change', function(){
+    if(vSel.value === 'Other'){
+      vCustom.style.display = 'block';
+      vCustom.focus();
+    } else {
+      vCustom.style.display = 'none';
+      vCustom.value = '';
+    }
+  });
+
+  // Build rootstock dropdown
   const rSel = document.createElement('select');
   rSel.className = 'finput vr-rootstock';
   rSel.style.cssText = 'flex:1.1;margin:0;min-width:90px;font-size:15px';
   rSel.innerHTML = '<option value="">Rootstock...</option>' +
     ROOTSTOCKS.map(r => '<option value="'+r+'">'+r+'</option>').join('');
-  if(rootstock) rSel.value = rootstock;
+  if(rSplit.selected) rSel.value = rSplit.selected;
+
+  const rCustom = document.createElement('input');
+  rCustom.className = 'finput vr-rootstock-custom';
+  rCustom.type = 'text';
+  rCustom.placeholder = 'Type rootstock name';
+  rCustom.style.cssText = 'flex:1.1;margin:0;min-width:90px;font-size:15px;display:' + (rSplit.selected === 'Other' ? 'block' : 'none');
+  rCustom.value = rSplit.custom;
+
+  rSel.addEventListener('change', function(){
+    if(rSel.value === 'Other'){
+      rCustom.style.display = 'block';
+      rCustom.focus();
+    } else {
+      rCustom.style.display = 'none';
+      rCustom.value = '';
+    }
+  });
 
   const qInp = document.createElement('input');
   qInp.className = 'finput vr-qty';
@@ -4711,7 +4779,9 @@ function addVarietyRow(variety, rootstock, qty, price){
   delBtn.addEventListener('click', function(){ row.remove(); recalcVarietyTotal(); });
 
   row.appendChild(vSel);
+  row.appendChild(vCustom);
   row.appendChild(rSel);
+  row.appendChild(rCustom);
   row.appendChild(qInp);
   row.appendChild(pInp);
   row.appendChild(delBtn);
@@ -4855,14 +4925,23 @@ async function saveContact(){
   for(let i=0; i<_vRows.length; i++){
     const r = _vRows[i];
     const vEl = r.querySelector('.vr-variety');
+    const vCustomEl = r.querySelector('.vr-variety-custom');
     const rsEl = r.querySelector('.vr-rootstock');
+    const rsCustomEl = r.querySelector('.vr-rootstock-custom');
     const qEl = r.querySelector('.vr-qty');
     const pEl = r.querySelector('.vr-price');
-    const v = vEl && vEl.value ? String(vEl.value).trim() : '';
-    const rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
+    let v = vEl && vEl.value ? String(vEl.value).trim() : '';
+    let rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
+    // If "Other" is selected, use the custom text field's value
+    if(v === 'Other' && vCustomEl && vCustomEl.value.trim()){
+      v = String(vCustomEl.value).trim();
+    }
+    if(rs === 'Other' && rsCustomEl && rsCustomEl.value.trim()){
+      rs = String(rsCustomEl.value).trim();
+    }
     const qty = qEl && qEl.value ? (parseInt(qEl.value)||0) : 0;
     const price = pEl && pEl.value ? (parseFloat(pEl.value)||0) : 0;
-    if(v) varieties.push({variety:v, rootstock:rs, qty:qty, price:price});
+    if(v && v !== 'Other') varieties.push({variety:v, rootstock:rs, qty:qty, price:price});
   }
 
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
