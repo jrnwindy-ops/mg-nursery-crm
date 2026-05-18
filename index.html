@@ -499,9 +499,10 @@ textarea.finput{height:70px;resize:none}
     <div class="ffull" style="grid-column:1/-1">
       <label class="flabel">Varieties, Rootstocks &amp; Quantities</label>
       <div style="display:flex;gap:6px;margin-bottom:4px;padding:0 2px">
-        <div style="flex:2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Variety</div>
-        <div style="flex:1.2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Rootstock</div>
-        <div style="flex:0.6;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:center">Qty</div>
+        <div style="flex:1.6;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Variety</div>
+        <div style="flex:1.1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)">Rootstock</div>
+        <div style="flex:0.55;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:center">Qty</div>
+        <div style="flex:0.65;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:center">Price ($)</div>
         <div style="width:38px"></div>
       </div>
       <div id="f-varieties-list" style="display:flex;flex-direction:column;gap:0px;margin-bottom:8px"></div>
@@ -880,6 +881,42 @@ const AICONS={'Call / voicemail':'📞','Email sent':'📧','In-person meeting':
 const ACOLORS={'Call / voicemail':'#EFF6FF','Email sent':'#F5F3FF','In-person meeting':'#FFF7ED','Quote sent':'#FFFBEB','Deposit received':'#F0FDF4','Order confirmed':'#F0FDF4','Production update':'#F0FDF4','Pickup scheduled':'#EFF6FF','General note':'#F9FAFB'};
 const today=new Date();today.setHours(0,0,0,0);
 
+function migrateContactVarieties(contactList){
+  let migrated = 0, flaggedMulti = 0;
+  (contactList||[]).forEach(c => {
+    if(!c.varieties || !c.varieties.length) return;
+    const varCount = c.varieties.length;
+    c.varieties.forEach((v) => {
+      if(varCount === 1){
+        if((v.qty === undefined || v.qty === null || v.qty === 0) && c.trees){
+          v.qty = parseInt(c.trees)||0;
+          migrated++;
+        }
+        if((v.price === undefined || v.price === null || v.price === 0) && c.price){
+          v.price = parseFloat(c.price)||0;
+        }
+      }
+    });
+    if(varCount > 1){
+      const missingQty = c.varieties.some(v => !v.qty || v.qty === 0);
+      const missingPrice = c.varieties.some(v => !v.price || v.price === 0);
+      if(missingQty || missingPrice){ c._needsVarietyReview = true; flaggedMulti++; }
+      else { c._needsVarietyReview = false; }
+    }
+  });
+  if(migrated > 0) console.log('[migration] Backfilled ' + migrated + ' single-variety contacts');
+  if(flaggedMulti > 0) console.log('[migration] ' + flaggedMulti + ' multi-variety contacts need review');
+}
+
+function getContactTreesTrue(c){
+  if(!c) return 0;
+  if(c.varieties && c.varieties.length){
+    const sumQty = c.varieties.reduce((s,v) => s + (parseInt(v.qty)||0), 0);
+    if(sumQty > 0) return sumQty;
+  }
+  return parseInt(c.trees)||0;
+}
+
 function initSB(){
   return new Promise(function(resolve){
     var attempts=0;
@@ -955,6 +992,7 @@ function showMain(){
         if(ck.error){ console.warn('[Supabase check] read failed:', ck.error.message); }
         else{ console.log('[Supabase check] connected OK'); }
       }catch(e){ console.warn('[Supabase check] exception:',e); }
+      loadNurseryInventory();
     }
     loadAll();
   });
@@ -1019,7 +1057,7 @@ async function loadAll(){
     }catch(e){ contacts=preLoaded; }
     saveLocal(); // persist the merged result immediately
     setSyncBadge(false);
-    renderAll();
+    migrateContactVarieties(contacts); renderAll();
     return;
   }
   try{
@@ -1119,7 +1157,7 @@ async function loadAll(){
   await flushSyncQueue(); // push any contacts saved while offline
   setSyncBadge(true);
   subscribeRT();
-  renderAll();
+  migrateContactVarieties(contacts); renderAll();
   console.log('loadAll complete. contacts='+contacts.length);
 }
 
@@ -2604,6 +2642,146 @@ function buildTimelineHTML(){
 // Adjusted totals = raw × 0.70 (30% cull factor)
 // Orders pulled from contact records in CRM
 
+// ── LIVE INVENTORY FROM NURSERY TRACKER ──────────────────────────────────────
+// NURSERY_INV is populated by loadNurseryInventory() which reads nursery_sections_v2.
+// If the load succeeds, it overrides the hardcoded INV_MASTER. Otherwise we fall back to the snapshot.
+let NURSERY_INV = null; // {variety, rootstock, raw, sellable}[] when loaded, else null
+
+async function loadNurseryInventory(){
+  if(!cloudOk || !sb) return;
+  try {
+    const { data, error } = await sb.from('nursery_sections_v2').select('section_id, entries, take_rate');
+    if(error){ console.warn('Nursery inventory load error:', error); return; }
+    if(!data || data.length === 0){
+      console.log('[inv] nursery_sections_v2 is empty — using INV_MASTER fallback');
+      return;
+    }
+    // Aggregate entries across all sections, grouped by variety + rootstock
+    const agg = {};
+    data.forEach(section => {
+      const sectionTakeRate = section.take_rate || 70;
+      (section.entries || []).forEach(e => {
+        // Normalize variety/rootstock to match CRM naming
+        const variety = _normalizeVariety(e.scion);
+        const rootstock = _normalizeRootstock(e.rootstock);
+        if(!variety) return;
+        const key = variety + '|' + rootstock;
+        if(!agg[key]) agg[key] = {variety, rootstock, raw: 0, sellable: 0};
+        const qty = parseInt(e.quantity) || 0;
+        const rate = (e.takeRate !== undefined && e.takeRate !== null) ? e.takeRate : sectionTakeRate;
+        agg[key].raw += qty;
+        agg[key].sellable += Math.floor(qty * rate / 100);
+      });
+    });
+    NURSERY_INV = Object.values(agg).filter(item => item.raw > 0);
+    console.log('[inv] Loaded ' + NURSERY_INV.length + ' variety/rootstock combos from nursery (' +
+      NURSERY_INV.reduce((s,i)=>s+i.raw,0).toLocaleString() + ' raw / ' +
+      NURSERY_INV.reduce((s,i)=>s+i.sellable,0).toLocaleString() + ' sellable trees)');
+    // Refresh the inventory display if it's currently visible
+    if(typeof refreshInvMetrics === 'function') try { refreshInvMetrics(); } catch(e){}
+    if(typeof renderInv === 'function') try { renderInv(); } catch(e){}
+  } catch(e){ console.warn('Nursery inventory load failed:', e); }
+}
+
+function _normalizeVariety(scion){
+  if(!scion) return '';
+  const s = String(scion).trim();
+  // Nursery sometimes has typos
+  const map = {
+    'Fukomoto': 'Fukumoto',
+    'Tang': 'Tango',
+    'Parent Washington': 'P. Wash',
+    'Washington': 'P. Wash',
+    'Autumn Gold': 'A. Gold',
+    'Late Lane': 'L. Lane',
+    'Palestine Sweet Lime': 'P. S. Lime',
+    'Australian Finger Lime': 'A. F. Lime',
+  };
+  return map[s] || s;
+}
+function _normalizeRootstock(rootstock){
+  if(!rootstock) return '';
+  const r = String(rootstock).trim();
+  const map = {
+    'C-35': 'C35',
+    'Rich 16-6 Trifoliate': 'Rich 16',
+  };
+  return map[r] || r;
+}
+
+// Returns the live inventory if available, else the hardcoded snapshot.
+function getInvMaster(year){
+  if(NURSERY_INV && year !== '2027'){
+    // Map to the same shape: {variety, rootstock, raw, category}
+    return NURSERY_INV.map(item => ({
+      variety: item.variety, rootstock: item.rootstock,
+      raw: item.raw, sellable: item.sellable,
+      category: _inferCategory(item.variety),
+    }));
+  }
+  return year === '2027' ? INV_MASTER_2027 : INV_MASTER_2026;
+}
+
+function _inferCategory(variety){
+  if(!variety) return 'Other';
+  const v = variety.toLowerCase();
+  if(v.includes('tango') || v.includes('shiranui') || v.includes('w. murcott') ||
+     v.includes('cara cara') || v.includes('nules') || v.includes('m14')) return 'Mandarin';
+  if(v.includes('olinda') || v.includes('valencia') || v.includes('cutter')) return 'Valencia';
+  if(v.includes('navel') || v.includes('wash') || v.includes('powell') || v.includes('atwood') ||
+     v.includes('fukumoto') || v.includes('gillette') || v.includes('a. gold') ||
+     v.includes('autumn') || v.includes('fisher') || v.includes('l. lane') || v.includes('late lane') ||
+     v.includes('page')) return 'Navel';
+  if(v.includes('lime') || v.includes('lemon') || v.includes('grapefruit') || v.includes('star ruby') ||
+     v.includes('pummelo') || v.includes('eureka') || v.includes('lisbon')) return 'Specialty';
+  return 'Other';
+}
+
+// ── LIVE COMMITTED ORDERS FROM CRM CONTACTS ──────────────────────────────────
+// Single-variety contacts contribute their entire `trees` to that variety/rootstock pair.
+// Multi-variety contacts with per-variety quantities contribute their per-variety qty.
+// Multi-variety contacts missing per-variety qty are skipped (they appear in the "Review needed" flag).
+function getInvOrdersDynamic(variety, rootstock, year){
+  if(year === '2027') return [];
+  const result = [];
+  (contacts || []).forEach(c => {
+    // Skip fulfilled or generic statuses that don't represent active orders
+    if(c.status === 'Fulfilled') return;
+    if(!c.varieties || !c.varieties.length){
+      // Legacy contact with only flat variety field — try a string match
+      if(c.variety && c.variety.split(',')[0].trim() === variety){
+        if(c.rootstock === rootstock){
+          result.push({variety, rootstock, client: c.name, qty: parseInt(c.trees)||0,
+                       price: parseFloat(c.price)||0, contract: c.contract_num||'', shipment: ''});
+        }
+      }
+      return;
+    }
+    c.varieties.forEach(v => {
+      if(v.variety !== variety || (v.rootstock || '') !== rootstock) return;
+      let qty = 0, price = parseFloat(v.price) || parseFloat(c.price) || 0;
+      if(c.varieties.length === 1){
+        // Single-variety: use per-variety qty if set, else contact-level trees
+        qty = parseInt(v.qty) || parseInt(c.trees) || 0;
+      } else {
+        // Multi-variety: must have per-variety qty (else skip — counted in review-needed flag)
+        qty = parseInt(v.qty) || 0;
+        if(qty === 0) return;
+      }
+      if(qty > 0){
+        result.push({variety, rootstock, client: c.name, qty, price,
+                     contract: c.contract_num || '', shipment: ''});
+      }
+    });
+  });
+  return result;
+}
+
+// Count contacts that need per-variety review (multi-variety, missing qty/price)
+function countContactsNeedingReview(){
+  return (contacts || []).filter(c => c._needsVarietyReview).length;
+}
+
 
 // ── INVENTORY PERSISTENCE ─────────────────────────────────────────────────────
 const INV_RAW_KEY   = 'mg_inv_raw_v1';   // raw count overrides per variety/rootstock
@@ -2847,29 +3025,32 @@ function switchInvCategory(cat){
 
 function refreshInvMetrics(){
   const el = document.getElementById('inv-metrics'); if(!el) return;
-  const master = invYear === '2027' ? INV_MASTER_2027 : INV_MASTER_2026;
+  const master = getInvMaster(invYear);
+  const usingLive = NURSERY_INV && invYear !== '2027';
   let totalRaw = 0, totalAdj = 0, totalOrd = 0;
   master.forEach(item => {
     totalRaw += item.raw;
-    totalAdj += getInvAdj(item);
+    totalAdj += (item.sellable !== undefined) ? item.sellable : getInvAdj(item);
     totalOrd += getInvOrderQty(item.variety, item.rootstock, invYear);
   });
   const avail = totalAdj - totalOrd;
   const shortfalls = master.filter(item => getInvAvail(item, invYear) < 0).length;
-
+  const reviewCount = countContactsNeedingReview();
   const mk = (label, val, color, sub) =>
     '<div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;min-width:90px">' +
       '<div style="font-size:20px;font-weight:800;color:' + color + '">' + val + '</div>' +
       '<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:1px">' + label + '</div>' +
       (sub ? '<div style="font-size:10px;color:rgba(255,255,255,.5)">' + sub + '</div>' : '') +
     '</div>';
-
+  const sellableLabel = usingLive ? 'SELLABLE (live)' : 'ADJUSTED (70%)';
+  const sourceBadge = usingLive ? 'Live from nursery' : 'May snapshot';
   el.innerHTML =
-    mk('RAW INVENTORY', totalRaw.toLocaleString(), '#fff') +
-    mk('ADJUSTED (70%)', totalAdj.toLocaleString(), '#6EE7B7') +
+    mk('RAW INVENTORY', totalRaw.toLocaleString(), '#fff', sourceBadge) +
+    mk(sellableLabel, totalAdj.toLocaleString(), '#6EE7B7') +
     mk('COMMITTED ORDERS', totalOrd.toLocaleString(), '#93C5FD') +
     mk(avail < 0 ? 'OVERSOLD' : 'AVAILABLE', Math.abs(avail).toLocaleString(), avail < 0 ? '#FCA5A5' : '#A7F3D0', avail < 0 ? '⚠ check counts' : 'for spot sale') +
-    (shortfalls > 0 ? mk('SHORTFALLS', shortfalls, '#FCA5A5', 'varieties oversold') : '');
+    (shortfalls > 0 ? mk('SHORTFALLS', shortfalls, '#FCA5A5', 'varieties oversold') : '') +
+    (reviewCount > 0 ? mk('REVIEW NEEDED', reviewCount, '#FCD34D', 'multi-variety contacts') : '');
 }
 
 function renderInvContent(){
@@ -4286,10 +4467,11 @@ function clearForm(){
   const logInp=document.getElementById('f-new-log-entry');if(logInp)logInp.value='';
 }
 function openAdd(){editingId=null;document.getElementById('form-title').textContent='Add customer';clearForm();openModal('modal-form');}
-function addVarietyRow(variety, rootstock, qty){
+function addVarietyRow(variety, rootstock, qty, price){
   variety = variety || '';
   rootstock = rootstock || '';
   qty = qty || '';
+  price = price || '';
   const list = document.getElementById('f-varieties-list');
   if(!list) return;
 
@@ -4303,14 +4485,14 @@ function addVarietyRow(variety, rootstock, qty){
   // Build selects using createElement so .value is reliable on iOS Safari
   const vSel = document.createElement('select');
   vSel.className = 'finput vr-variety';
-  vSel.style.cssText = 'flex:2;margin:0;min-width:120px;font-size:15px';
+  vSel.style.cssText = 'flex:1.6;margin:0;min-width:110px;font-size:15px';
   vSel.innerHTML = '<option value="">Variety...</option>' +
     VARIETIES.map(v => '<option value="'+v+'">'+v+'</option>').join('');
   if(variety) vSel.value = variety;
 
   const rSel = document.createElement('select');
   rSel.className = 'finput vr-rootstock';
-  rSel.style.cssText = 'flex:1.5;margin:0;min-width:100px;font-size:15px';
+  rSel.style.cssText = 'flex:1.1;margin:0;min-width:90px;font-size:15px';
   rSel.innerHTML = '<option value="">Rootstock...</option>' +
     ROOTSTOCKS.map(r => '<option value="'+r+'">'+r+'</option>').join('');
   if(rootstock) rSel.value = rootstock;
@@ -4320,9 +4502,19 @@ function addVarietyRow(variety, rootstock, qty){
   qInp.type = 'number';
   qInp.min = '1';
   qInp.placeholder = 'Qty';
-  qInp.style.cssText = 'flex:0.8;margin:0;text-align:center;min-width:64px;font-size:15px';
+  qInp.style.cssText = 'flex:0.55;margin:0;text-align:center;min-width:58px;font-size:15px';
   qInp.value = qty;
   qInp.addEventListener('input', recalcVarietyTotal);
+
+  const pInp = document.createElement('input');
+  pInp.className = 'finput vr-price';
+  pInp.type = 'number';
+  pInp.min = '0';
+  pInp.step = '0.01';
+  pInp.placeholder = '$';
+  pInp.style.cssText = 'flex:0.65;margin:0;text-align:center;min-width:62px;font-size:15px';
+  pInp.value = price;
+  pInp.addEventListener('input', recalcVarietyTotal);
 
   const delBtn = document.createElement('button');
   delBtn.type = 'button';
@@ -4333,15 +4525,27 @@ function addVarietyRow(variety, rootstock, qty){
   row.appendChild(vSel);
   row.appendChild(rSel);
   row.appendChild(qInp);
+  row.appendChild(pInp);
   row.appendChild(delBtn);
   list.appendChild(row);
   recalcVarietyTotal();
 }
 
 function recalcVarietyTotal(){
-  const rows = document.querySelectorAll('.vr-qty');
-  let total = 0;
-  rows.forEach(r => { const v = parseInt(r.value)||0; total += v; });
+  const rows = document.querySelectorAll('.variety-row');
+  let total = 0, totalValue = 0, pricedQty = 0;
+  rows.forEach(row => {
+    const qEl = row.querySelector('.vr-qty');
+    const pEl = row.querySelector('.vr-price');
+    const qty = parseInt(qEl && qEl.value)||0;
+    const price = parseFloat(pEl && pEl.value)||0;
+    total += qty;
+    if(qty > 0 && price > 0){
+      totalValue += qty * price;
+      pricedQty += qty;
+    }
+  });
+  // Auto-fill trees total
   const treesEl = document.getElementById('f-trees');
   if(treesEl){
     if(total > 0){
@@ -4355,9 +4559,32 @@ function recalcVarietyTotal(){
       treesEl.title = '';
     }
   }
+  // Auto-fill contact-level price as weighted average across priced varieties
+  const priceEl = document.getElementById('f-price');
+  if(priceEl){
+    if(pricedQty > 0){
+      const avgPrice = totalValue / pricedQty;
+      priceEl.value = avgPrice.toFixed(2);
+      priceEl.style.background = 'var(--g50)';
+      priceEl.readOnly = true;
+      priceEl.title = 'Weighted average — set price per variety in rows above';
+    } else {
+      priceEl.readOnly = false;
+      priceEl.style.background = '';
+      priceEl.title = '';
+    }
+  }
   // Update total display
   const totEl = document.getElementById('f-variety-total');
-  if(totEl) totEl.textContent = total > 0 ? total.toLocaleString() + ' trees total' : '';
+  if(totEl){
+    if(total > 0){
+      let display = total.toLocaleString() + ' trees';
+      if(totalValue > 0) display += ' · $' + totalValue.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) + ' total';
+      totEl.textContent = display;
+    } else {
+      totEl.textContent = '';
+    }
+  }
 }
 function renderContactLog(log){
   const el=document.getElementById('f-contact-log');
@@ -4406,7 +4633,7 @@ function openEdit(id){
   if(vList){
     vList.innerHTML='';
     const varieties=c.varieties||(c.variety?[{variety:c.variety,rootstock:''}]:[]);
-    if(varieties.length){varieties.forEach(v=>addVarietyRow(v.variety||v,v.rootstock||'',v.qty||''));}
+    if(varieties.length){varieties.forEach(v=>addVarietyRow(v.variety||v,v.rootstock||'',v.qty||'',v.price||''));}
     else{addVarietyRow();}
   }
   // Populate contact log
@@ -4442,10 +4669,12 @@ async function saveContact(){
     const vEl = r.querySelector('.vr-variety');
     const rsEl = r.querySelector('.vr-rootstock');
     const qEl = r.querySelector('.vr-qty');
+    const pEl = r.querySelector('.vr-price');
     const v = vEl && vEl.value ? String(vEl.value).trim() : '';
     const rs = rsEl && rsEl.value ? String(rsEl.value).trim() : '';
     const qty = qEl && qEl.value ? (parseInt(qEl.value)||0) : 0;
-    if(v) varieties.push({variety:v, rootstock:rs, qty:qty});
+    const price = pEl && pEl.value ? (parseFloat(pEl.value)||0) : 0;
+    if(v) varieties.push({variety:v, rootstock:rs, qty:qty, price:price});
   }
 
   const newLogEntry=(document.getElementById('f-new-log-entry')||{}).value||'';
