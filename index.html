@@ -369,6 +369,7 @@ textarea.finput{height:70px;resize:none}
     </div>
     <nav class="sb-nav">
       <button class="sn-btn active" id="snav-contacts" onclick="switchTab('contacts')"><span class="sn-icon">&#128101;</span> Contacts</button>
+    <button class="sn-btn active" id="snav-leads" onclick="switchTab('leads')"><span class="sn-icon">&#128101;</span> Leads <span id="snav-leads-count" style="display:none;background:#DC2626;color:white;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
       <button class="sn-btn" id="snav-deliveries" onclick="switchTab('deliveries')"><span class="sn-icon">&#128666;</span> Deliveries</button>
       <button class="sn-btn" id="snav-reminders" onclick="switchTab('reminders')"><span class="sn-icon">&#128276;</span> Reminders</button>
       <button class="sn-btn" id="snav-timeline" onclick="switchTab('timeline')"><span class="sn-icon">&#128198;</span> Timeline</button>
@@ -406,6 +407,7 @@ textarea.finput{height:70px;resize:none}
     <div id="d-task-banner"></div>
     <div class="d-tabs">
       <button class="d-tab active" id="dtab-contacts" onclick="switchTab('contacts')">Contacts</button>
+    <button class="d-tab active" id="dtab-leads" onclick="switchTab('leads')">Leads <span id="dtab-leads-count" style="display:none;background:#DC2626;color:white;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
       <button class="d-tab" id="dtab-deliveries" onclick="switchTab('deliveries')">&#128666; Deliveries</button>
       <button class="d-tab" id="dtab-reminders" onclick="switchTab('reminders')">Reminders</button>
       <button class="d-tab" id="dtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
@@ -425,6 +427,14 @@ textarea.finput{height:70px;resize:none}
           <tbody id="d-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div id="dv-leads" class="d-body" style="display:none">
+      <div class="d-toolbar">
+        <div style="font-weight:700;font-size:14px;flex:1">Lead Inbox <span id="dv-leads-summary" style="color:var(--tx2);font-weight:500;margin-left:8px"></span></div>
+        <button onclick="loadLeads()" style="padding:8px 14px;border:1px solid var(--bd);background:#fff;border-radius:8px;font-family:inherit;cursor:pointer;font-size:13px;font-weight:500">&#8635; Refresh</button>
+      </div>
+      <div id="dv-leads-content" style="padding:14px 16px 80px;flex:1;overflow:auto"></div>
     </div>
     <div id="dv-deliveries" class="d-pipe" style="display:none"></div>
     <div id="dv-reminders" class="d-rem" style="display:none"></div>
@@ -452,6 +462,7 @@ textarea.finput{height:70px;resize:none}
   <div id="m-task-banner" class="mobile-only"></div>
   <div class="m-tabs mobile-only">
     <button class="m-tab active" id="mtab-contacts" onclick="switchTab('contacts')">Contacts</button>
+    <button class="m-tab active" id="mtab-leads" onclick="switchTab('leads')">Leads <span id="mtab-leads-count" style="display:none;background:#DC2626;color:white;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
     <button class="m-tab" id="mtab-deliveries" onclick="switchTab('deliveries')">Deliveries</button>
     <button class="m-tab" id="mtab-reminders" onclick="switchTab('reminders')">Reminders</button>
     <button class="m-tab" id="mtab-timeline" onclick="switchTab('timeline')">&#128198; Timeline</button>
@@ -467,6 +478,14 @@ textarea.finput{height:70px;resize:none}
     </div>
     <div class="m-scroll" id="m-list"></div>
   </div>
+
+  <div id="mv-leads" class="mobile-only" style="display:none;padding:14px 12px 80px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:16px;flex:1">Lead Inbox</div>
+      <button onclick="loadLeads()" style="padding:8px 12px;border:1px solid var(--bd);background:#fff;border-radius:8px;font-family:inherit;cursor:pointer;font-size:12px;font-weight:500">&#8635;</button>
+    </div>
+    <div id="mv-leads-content"></div>
+  </div>
   <div id="mv-deliveries" class="m-pipe mobile-only" style="display:none"></div>
   <div id="mv-reminders" class="m-rem mobile-only" style="display:none"></div>
   <div id="mv-tasks" class="m-rem mobile-only" style="display:none"></div>
@@ -476,6 +495,7 @@ textarea.finput{height:70px;resize:none}
   <button class="fab mobile-only" onclick="openAdd()">+</button>
   <div class="bnav mobile-only">
     <button class="bnav-btn active" id="mnav-contacts" onclick="switchTab('contacts')"><span class="bnav-icon">&#128101;</span><span class="bnav-label">Contacts</span></button>
+    <button class="bnav-btn" id="mnav-leads" onclick="switchTab('leads')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Leads <span id="mnav-leads-count" style="display:none;background:#DC2626;color:white;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;margin-left:2px"></span></span></button>
     <button class="bnav-btn" id="mnav-deliveries" onclick="switchTab('deliveries')"><span class="bnav-icon">&#128666;</span><span class="bnav-label">Deliveries</span></button>
     <button class="bnav-btn" id="mnav-reminders" onclick="switchTab('reminders')"><span class="bnav-icon">&#128276;</span><span class="bnav-label">Reminders</span></button>
     <button class="bnav-btn" id="mnav-timeline" onclick="switchTab('timeline')"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Timeline</span></button>
@@ -1336,6 +1356,9 @@ async function loadAll(){
   subscribeRT();
   migrateContactVarieties(contacts); renderAll();
   console.log('loadAll complete. contacts='+contacts.length);
+
+  // Load leads from mg_leads table (added 2026-05-20)
+  try { await loadLeads(); } catch(e) { console.warn("loadLeads failed:", e); }
 }
 
 function setSyncBadge(ok){
@@ -5139,7 +5162,7 @@ function switchTab(tab){
   currentTab=tab;
   const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
-  ['contacts','deliveries','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
+  ['contacts','leads','deliveries','reminders','tasks','admin','timeline','inventory'].forEach(t=>{
     document.getElementById('dtab-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('snav-'+t)?.classList.toggle('active',t===tab);
     document.getElementById('mtab-'+t)?.classList.toggle('active',t===tab);
@@ -5155,6 +5178,8 @@ function switchTab(tab){
   const dvInv=document.getElementById('dv-inventory');if(dvInv)dvInv.style.display=(tab==='inventory'&&window.innerWidth>=768)?'flex':'none';
   const mvInv2=document.getElementById('mv-inventory');if(mvInv2)mvInv2.style.display=(tab==='inventory'&&window.innerWidth<768)?'block':'none';
   document.getElementById('mv-contacts').style.display=tab==='contacts'?'flex':'none';
+  const dvL=document.getElementById('dv-leads');if(dvL)dvL.style.display=tab==='leads'?'flex':'none';
+  const mvL=document.getElementById('mv-leads');if(mvL)mvL.style.display=tab==='leads'?'block':'none';
   document.getElementById('mv-deliveries').style.display=tab==='deliveries'?'flex':'none';
   document.getElementById('mv-reminders').style.display=tab==='reminders'?'block':'none';
   document.getElementById('mv-tasks').style.display=tab==='tasks'?'block':'none';
@@ -5166,6 +5191,7 @@ function switchTab(tab){
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
   if(tab==='deliveries')renderDeliveries();
+  if(tab==='leads')renderLeads();
   renderAll();
 }
 
@@ -5207,6 +5233,237 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('focus', function(){
   if(cloudOk) silentReload();
 });
+
+
+// ════════════════════════════════════════════════════════════════════════
+// LEADS MODULE — reads from mg_leads table in Supabase
+// Added 2026-05-20 to receive submissions from mg-nursery-lead.netlify.app
+// ════════════════════════════════════════════════════════════════════════
+let _leads = [];
+
+async function loadLeads(){
+  if(!cloudOk || !sb){
+    _leads = [];
+    updateLeadsBadges();
+    return;
+  }
+  try{
+    const { data, error } = await sb.from('mg_leads').select('*').order('created_at', { ascending: false });
+    if(error){ console.warn('[leads] load error:', error); return; }
+    _leads = data || [];
+    console.log('[leads] loaded', _leads.length, 'leads,', _leads.filter(l=>l.status==='new').length, 'new');
+    updateLeadsBadges();
+    renderLeads();
+    renderLeadsAlert();
+  } catch(e){
+    console.warn('[leads] exception:', e);
+  }
+}
+
+function updateLeadsBadges(){
+  const newCount = _leads.filter(l => l.status === 'new').length;
+  ['mnav-leads-count','snav-leads-count','dtab-leads-count','mtab-leads-count'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(newCount > 0){
+      el.textContent = newCount;
+      el.style.display = 'inline-block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function renderLeadsAlert(){
+  // Show an inline banner at the top of Contacts view when there are new leads
+  const newLeads = _leads.filter(l => l.status === 'new');
+  ['dv-contacts','mv-contacts'].forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    let banner = document.getElementById(containerId + '-leads-banner');
+    if(newLeads.length === 0){
+      if(banner) banner.remove();
+      return;
+    }
+    const bannerHTML = '<div id="' + containerId + '-leads-banner" style="background:linear-gradient(90deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:10px;padding:12px 16px;margin:8px 16px 0;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="switchTab(\'leads\')">' +
+      '<div style="font-size:20px">&#128276;</div>' +
+      '<div style="flex:1"><div style="font-weight:700;font-size:14px;color:#92400E">' + newLeads.length + ' new lead' + (newLeads.length === 1 ? '' : 's') + ' from the website</div>' +
+      '<div style="font-size:12px;color:#78350F;margin-top:2px">Tap to review &rarr;</div></div>' +
+      '<div style="color:#92400E;font-size:18px">&rsaquo;</div>' +
+    '</div>';
+    if(banner){
+      banner.outerHTML = bannerHTML;
+    } else {
+      // Insert at top of container
+      container.insertAdjacentHTML('afterbegin', bannerHTML);
+    }
+  });
+}
+
+function renderLeads(){
+  const desktopEl = document.getElementById('dv-leads-content');
+  const mobileEl = document.getElementById('mv-leads-content');
+  const summaryEl = document.getElementById('dv-leads-summary');
+  
+  if(_leads.length === 0){
+    const empty = '<div style="padding:60px 20px;text-align:center;color:var(--tx2)">' +
+      '<div style="font-size:48px;margin-bottom:12px">&#128276;</div>' +
+      '<div style="font-weight:600;color:var(--tx1);margin-bottom:4px">No leads yet</div>' +
+      '<div style="font-size:13px">When someone submits the quote form at mg-nursery-lead.netlify.app, they\'ll appear here.</div>' +
+    '</div>';
+    if(desktopEl) desktopEl.innerHTML = empty;
+    if(mobileEl) mobileEl.innerHTML = empty;
+    if(summaryEl) summaryEl.textContent = '';
+    return;
+  }
+  
+  const newCount = _leads.filter(l => l.status === 'new').length;
+  const otherCount = _leads.length - newCount;
+  if(summaryEl){
+    summaryEl.textContent = '(' + newCount + ' new' + (otherCount > 0 ? ', ' + otherCount + ' reviewed' : '') + ')';
+  }
+  
+  const html = _leads.map(renderLeadCard).join('');
+  if(desktopEl) desktopEl.innerHTML = html;
+  if(mobileEl) mobileEl.innerHTML = html;
+}
+
+function renderLeadCard(lead){
+  const isNew = lead.status === 'new';
+  const ts = lead.created_at ? new Date(lead.created_at) : null;
+  const tsLabel = ts ? ts.toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : 'Unknown';
+  
+  const statusBadge = {
+    'new':       '<span style="background:#DC2626;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">NEW</span>',
+    'contacted': '<span style="background:#3B82F6;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Contacted</span>',
+    'quoted':    '<span style="background:#10B981;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Quoted</span>',
+    'converted': '<span style="background:#059669;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Converted</span>',
+    'lost':      '<span style="background:#6B7280;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Lost</span>',
+    'spam':      '<span style="background:#9CA3AF;color:white;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Spam</span>',
+  }[lead.status] || lead.status;
+  
+  const meta = [];
+  if(lead.planting_year) meta.push('<strong>Planting:</strong> ' + escapeHtml(lead.planting_year));
+  if(lead.tree_count) meta.push('<strong>Count:</strong> ' + escapeHtml(lead.tree_count));
+  if(lead.varieties) meta.push('<strong>Varieties:</strong> ' + escapeHtml(lead.varieties));
+  if(lead.rootstocks) meta.push('<strong>Rootstocks:</strong> ' + escapeHtml(lead.rootstocks));
+  if(lead.source) meta.push('<strong>Source:</strong> ' + escapeHtml(lead.source));
+  
+  const actions = isNew ? (
+    '<button onclick="promoteLeadToContact(\'' + lead.id + '\')" style="background:var(--g700);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#10003; Add to Contacts</button>' +
+    '<button onclick="markLeadStatus(\'' + lead.id + '\',\'spam\')" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit">Mark spam</button>'
+  ) : (
+    '<button onclick="markLeadStatus(\'' + lead.id + '\',\'new\')" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit">Mark as new</button>'
+  );
+  
+  return '<div style="background:#fff;border:1px solid var(--bd);border-left:4px solid ' + (isNew?'#DC2626':'#E5E7EB') + ';border-radius:10px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+      '<div style="font-weight:700;font-size:15px">' + escapeHtml(lead.name) + (lead.company ? ' &middot; <span style="font-weight:500;color:var(--tx2)">' + escapeHtml(lead.company) + '</span>' : '') + '</div>' +
+      statusBadge +
+    '</div>' +
+    '<div style="font-size:13px;color:var(--tx2);margin-bottom:8px">' +
+      '<a href="tel:' + escapeHtml(lead.phone) + '" style="color:var(--g700);text-decoration:none;margin-right:14px">&#128222; ' + escapeHtml(lead.phone) + '</a>' +
+      '<a href="mailto:' + escapeHtml(lead.email) + '" style="color:var(--g700);text-decoration:none">&#9993; ' + escapeHtml(lead.email) + '</a>' +
+    '</div>' +
+    (meta.length ? '<div style="font-size:13px;line-height:1.6;background:#F9FAFB;padding:8px 12px;border-radius:6px;margin-bottom:10px">' + meta.join('<br>') + '</div>' : '') +
+    (lead.notes ? '<div style="font-size:13px;color:var(--tx1);font-style:italic;margin-bottom:10px;padding-left:10px;border-left:2px solid var(--bd)">&ldquo;' + escapeHtml(lead.notes) + '&rdquo;</div>' : '') +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+      '<div style="font-size:11px;color:var(--tx2)">Received ' + tsLabel + '</div>' +
+      '<div style="display:flex;gap:6px">' + actions + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+async function markLeadStatus(leadId, newStatus){
+  if(!cloudOk) return;
+  try{
+    const { error } = await sb.from('mg_leads').update({
+      status: newStatus,
+      reviewed_at: new Date().toISOString(),
+    }).eq('id', leadId);
+    if(error){ alert('Could not update lead: ' + error.message); return; }
+    // Update local
+    const lead = _leads.find(l => l.id === leadId);
+    if(lead){
+      lead.status = newStatus;
+      lead.reviewed_at = new Date().toISOString();
+    }
+    updateLeadsBadges();
+    renderLeads();
+    renderLeadsAlert();
+  } catch(e){ console.warn('markLeadStatus error:', e); }
+}
+
+async function promoteLeadToContact(leadId){
+  const lead = _leads.find(l => l.id === leadId);
+  if(!lead){ alert('Lead not found'); return; }
+  if(!confirm('Add ' + lead.name + ' (' + (lead.company || 'no company') + ') to your contacts?\n\nThe lead will be marked as Contacted.')) return;
+  
+  // Build a new contact
+  const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('lead-' + Date.now() + '-' + Math.random().toString(36).slice(2,8));
+  
+  // Combine notes with planting metadata
+  let combinedNotes = lead.notes || '';
+  if(lead.planting_year){ combinedNotes += (combinedNotes ? '\n' : '') + '[Planting target: ' + lead.planting_year + ']'; }
+  if(lead.tree_count){ combinedNotes += (combinedNotes ? '\n' : '') + '[Est. tree count: ' + lead.tree_count + ']'; }
+  combinedNotes += (combinedNotes ? '\n' : '') + '[Source: ' + (lead.source || 'Landing page') + ' on ' + new Date(lead.created_at).toLocaleDateString() + ']';
+  
+  const newContact = {
+    id: newId,
+    name: lead.name,
+    company: lead.company || null,
+    phone: lead.phone || null,
+    email: lead.email || null,
+    status: 'Lead',
+    notes: combinedNotes,
+    source: 'Landing page',
+    variety: lead.varieties || null,
+    rootstock: lead.rootstocks || null,
+    varieties: null,
+    trees: null,
+    price: null,
+    date: null,
+    followup: null,
+    contract_num: null,
+    lot_num: null,
+    contact_log: [],
+    created_at: new Date().toISOString(),
+  };
+  
+  contacts.push(newContact);
+  saveLocal();
+  
+  // Try to sync to cloud if available
+  if(cloudOk && sb){
+    try{
+      await sb.from(CFG.table).upsert(newContact);
+    } catch(e){ console.warn('Cloud sync failed (kept in localStorage):', e); }
+  }
+  
+  // Mark the lead as 'contacted' and link to the new contact
+  try{
+    await sb.from('mg_leads').update({
+      status: 'contacted',
+      reviewed_at: new Date().toISOString(),
+      crm_contact_id: newId,
+    }).eq('id', leadId);
+    lead.status = 'contacted';
+    lead.crm_contact_id = newId;
+  } catch(e){ console.warn('Could not mark lead as contacted:', e); }
+  
+  updateLeadsBadges();
+  renderLeads();
+  renderLeadsAlert();
+  renderAll();  // refresh Contacts view too
+  
+  alert(lead.name + ' added to your contacts as a Lead. You can find them in the Contacts tab.');
+}
+
 </script>
 
 <!-- MODAL: INVENTORY COUNT UPDATE -->
