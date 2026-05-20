@@ -5308,7 +5308,7 @@ function renderLeads(){
   if(_leads.length === 0){
     const empty = '<div style="padding:60px 20px;text-align:center;color:var(--tx2)">' +
       '<div style="font-size:48px;margin-bottom:12px">&#128276;</div>' +
-      '<div style="font-weight:600;color:var(--tx1);margin-bottom:4px">No leads yet</div>' +
+      '<div style="font-weight:600;color:var(--tx);margin-bottom:4px">No leads yet</div>' +
       '<div style="font-size:13px">When someone submits the quote form at mg-nursery-lead.netlify.app, they\'ll appear here.</div>' +
     '</div>';
     if(desktopEl) desktopEl.innerHTML = empty;
@@ -5350,7 +5350,7 @@ function renderLeadCard(lead){
   if(lead.source) meta.push('<strong>Source:</strong> ' + escapeHtml(lead.source));
   
   const actions = isNew ? (
-    '<button onclick="promoteLeadToContact(\'' + lead.id + '\')" style="background:var(--g700);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#10003; Add to Contacts</button>' +
+    '<button onclick="promoteLeadToContact(\'' + lead.id + '\')" style="background:var(--g800);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">&#10003; Add to Contacts</button>' +
     '<button onclick="markLeadStatus(\'' + lead.id + '\',\'spam\')" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit">Mark spam</button>'
   ) : (
     '<button onclick="markLeadStatus(\'' + lead.id + '\',\'new\')" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit">Mark as new</button>'
@@ -5362,11 +5362,11 @@ function renderLeadCard(lead){
       statusBadge +
     '</div>' +
     '<div style="font-size:13px;color:var(--tx2);margin-bottom:8px">' +
-      '<a href="tel:' + escapeHtml(lead.phone) + '" style="color:var(--g700);text-decoration:none;margin-right:14px">&#128222; ' + escapeHtml(lead.phone) + '</a>' +
-      '<a href="mailto:' + escapeHtml(lead.email) + '" style="color:var(--g700);text-decoration:none">&#9993; ' + escapeHtml(lead.email) + '</a>' +
+      '<a href="tel:' + escapeHtml(lead.phone) + '" style="color:var(--g800);text-decoration:none;margin-right:14px">&#128222; ' + escapeHtml(lead.phone) + '</a>' +
+      '<a href="mailto:' + escapeHtml(lead.email) + '" style="color:var(--g800);text-decoration:none">&#9993; ' + escapeHtml(lead.email) + '</a>' +
     '</div>' +
     (meta.length ? '<div style="font-size:13px;line-height:1.6;background:#F9FAFB;padding:8px 12px;border-radius:6px;margin-bottom:10px">' + meta.join('<br>') + '</div>' : '') +
-    (lead.notes ? '<div style="font-size:13px;color:var(--tx1);font-style:italic;margin-bottom:10px;padding-left:10px;border-left:2px solid var(--bd)">&ldquo;' + escapeHtml(lead.notes) + '&rdquo;</div>' : '') +
+    (lead.notes ? '<div style="font-size:13px;color:var(--tx);font-style:italic;margin-bottom:10px;padding-left:10px;border-left:2px solid var(--bd)">&ldquo;' + escapeHtml(lead.notes) + '&rdquo;</div>' : '') +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
       '<div style="font-size:11px;color:var(--tx2)">Received ' + tsLabel + '</div>' +
       '<div style="display:flex;gap:6px">' + actions + '</div>' +
