@@ -2862,7 +2862,7 @@ async function loadNurseryInventory(){
     const agg = {};
     let ungraftedRaw = 0, ungraftedSellable = 0;
     data.forEach(section => {
-      const sectionTakeRate = section.take_rate || 70;
+      const sectionTakeRate = section.take_rate || 85;
       (section.entries || []).forEach(e => {
         const qty = parseInt(e.quantity) || 0;
         if(qty === 0) return;
