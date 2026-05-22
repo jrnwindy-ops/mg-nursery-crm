@@ -2107,7 +2107,21 @@ function generateQuote(contactId) {
   const trees = c.trees||0;
   const price = c.price||12.50;
   const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
+  // Deposit: default 40% of total, but let the user enter a custom amount.
+  // Raffi asked for "a space where you can just enter the amount."
+  const defaultDeposit = Math.round(total*0.40*100)/100;
+  let deposit = defaultDeposit;
+  const entered = prompt(
+    'Deposit amount for this quote?\n\n' +
+    'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Default (40%): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
+    'Enter a dollar amount (or leave as-is for 40%):',
+    defaultDeposit.toFixed(2)
+  );
+  if (entered === null) return;  // user cancelled
+  const parsedDeposit = parseFloat(String(entered).replace(/[^0-9.]/g,''));
+  if (!isNaN(parsedDeposit) && parsedDeposit >= 0) deposit = Math.round(parsedDeposit*100)/100;
+  const depositPct = total > 0 ? Math.round(deposit/total*100) : 40;
   const balance = total-deposit;
   const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'Spring 2026 — Exact date TBD';
   const validUntil = new Date(today); validUntil.setDate(today.getDate()+30);
@@ -2158,7 +2172,7 @@ function generateQuote(contactId) {
     '<h2>Pricing Summary</h2>',
     '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
       '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+trees.toLocaleString()+' trees &times; $'+price.toFixed(2)+' per tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$'+total.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (40%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (' + depositPct + '%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
       '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$'+balance.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
     '</tbody></table>',
     // NOTES
@@ -2304,7 +2318,20 @@ function generateContract(contactId) {
   const trees = c.trees || 0;
   const price = c.price || 12.50;
   const total = trees * price;
-  const deposit = Math.round(total * 0.40 * 100)/100;
+  // Deposit: default 40%, but let the user enter the agreed amount (matches the quote flow)
+  const defaultDeposit = Math.round(total * 0.40 * 100)/100;
+  let deposit = defaultDeposit;
+  const entered = prompt(
+    'Deposit amount for this contract?\n\n' +
+    'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
+    'Default (40%): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
+    'Enter the agreed deposit amount (or leave as-is for 40%):',
+    defaultDeposit.toFixed(2)
+  );
+  if (entered === null) return;  // cancelled
+  const parsedDeposit = parseFloat(String(entered).replace(/[^0-9.]/g,''));
+  if (!isNaN(parsedDeposit) && parsedDeposit >= 0) deposit = Math.round(parsedDeposit*100)/100;
+  const depositPct = total > 0 ? Math.round(deposit/total*100) : 40;
   const balance = Math.round((total - deposit)*100)/100;
   const deliveryDate = c.date
     ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
@@ -2357,12 +2384,12 @@ function generateContract(contactId) {
     '<h2>Pricing &amp; Payment</h2>',
     '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
       '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (40%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (' + depositPct + '%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
       '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
     '</tbody></table>',
     '<h2>Terms &amp; Conditions</h2>',
     '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>40% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
+      '<li>A non-refundable deposit of <strong>' + depositPct + '% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
       '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
       '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
       '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
