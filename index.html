@@ -584,10 +584,12 @@ textarea.finput{height:70px;resize:none}
   <p id="det-co" style="font-size:13px;color:var(--tx3);margin-bottom:13px"></p>
   <div class="dtab-row">
     <button class="dtab active" id="dt-info" onclick="detTab('info')">Info</button>
+    <button class="dtab" id="dt-delivery" onclick="detTab('delivery')">Delivery</button>
     <button class="dtab" id="dt-activity" onclick="detTab('activity')">Activity</button>
     <button class="dtab" id="dt-order" onclick="detTab('order')">Docs</button>
   </div>
   <div id="det-info-pane"></div>
+  <div id="det-delivery-pane" style="display:none"></div>
   <div id="det-activity-pane" style="display:none"></div>
   <div id="det-order-pane" style="display:none"></div>
   <div class="mact" style="flex-wrap:wrap;gap:6px">
@@ -899,8 +901,8 @@ let sb=null,cloudOk=false;
 const STAGES=['Lead','Quoted','Deposit received','In production','Ready','Fulfilled'];
 const ADMINS=['Raffi','Abram','Father'];
 const BCLS={'Lead':'b-Lead','Quoted':'b-Quoted','Deposit received':'b-Deposit','In production':'b-Production','Ready':'b-Ready','Fulfilled':'b-Fulfilled'};
-const AICONS={'Call / voicemail':'📞','Email sent':'📧','In-person meeting':'🤝','Quote sent':'📋','Deposit received':'💰','Order confirmed':'✅','Production update':'🌱','Pickup scheduled':'🚛','General note':'📝'};
-const ACOLORS={'Call / voicemail':'#EFF6FF','Email sent':'#F5F3FF','In-person meeting':'#FFF7ED','Quote sent':'#FFFBEB','Deposit received':'#F0FDF4','Order confirmed':'#F0FDF4','Production update':'#F0FDF4','Pickup scheduled':'#EFF6FF','General note':'#F9FAFB'};
+const AICONS={'Call / voicemail':'📞','Email sent':'📧','In-person meeting':'🤝','Quote sent':'📋','Deposit received':'💰','Order confirmed':'✅','Production update':'🌱','Pickup scheduled':'🚛','Reminder':'🔔','General note':'📝'};
+const ACOLORS={'Call / voicemail':'#EFF6FF','Email sent':'#F5F3FF','In-person meeting':'#FFF7ED','Quote sent':'#FFFBEB','Deposit received':'#F0FDF4','Order confirmed':'#F0FDF4','Production update':'#F0FDF4','Pickup scheduled':'#EFF6FF','Reminder':'#FEF9F0','General note':'#F9FAFB'};
 const today=new Date();today.setHours(0,0,0,0);
 
 // ── RESERVATIONS (Phase 2 — CRM↔Nursery integration) ────────────────────────
@@ -2512,7 +2514,7 @@ function generateCRMDailyReport() {
   // Recent log activity last 24h
   const since = new Date(Date.now()-24*60*60*1000).toISOString();
   const recentLogs = [];
-  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e.ts>since)recentLogs.push({name:c.name,status:c.status,...e});});});
+  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e && !e._delivery && !e._bins && e.ts>since)recentLogs.push({name:c.name,status:c.status,...e});});});
 
   const html = buildCRMReportHTML(
     'Daily Sales Report',
@@ -2594,7 +2596,7 @@ function generateCRMWeeklyReport() {
 
   // This week log activity
   const weekLogs = [];
-  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e.ts>=monday.toISOString())weekLogs.push({name:c.name,status:c.status,trees:c.trees,...e});});});
+  contacts.forEach(c=>{(c.contact_log||[]).forEach(e=>{if(e && !e._delivery && !e._bins && e.ts>=monday.toISOString())weekLogs.push({name:c.name,status:c.status,trees:c.trees,...e});});});
 
   // Variety breakdown
   const byVar={};
@@ -2616,7 +2618,7 @@ function generateCRMWeeklyReport() {
         title:'Overdue Follow-ups — Action Required', icon:'🔴',
         headers:['Client','Trees','Stage','Overdue Since','Contract #','Last Note'],
         rows: overdue.sort((a,b)=>a.followup.localeCompare(b.followup)).map(c=>{
-          const last=(c.contact_log||[])[0];
+          const last=(c.contact_log||[]).find(e=>e && !e._delivery && !e._bins && e.text);
           return[c.name,(c.trees||0).toLocaleString(),c.status,c.followup,c.contract_num||'—',
             last?last.text.substring(0,50)+'...':'No notes'];
         })
@@ -2690,6 +2692,7 @@ function buildTimelineHTML(){
   // Contact log entries
   contacts.forEach(c => {
     (c.contact_log||[]).forEach(entry => {
+      if(entry && entry._delivery) return;
       events.push({
         date: entry.ts.split('T')[0],
         ts: entry.ts,
@@ -4081,6 +4084,44 @@ function renderDeliveries(){
   }
 }
 
+// Bin accountability roll-up: every customer with outstanding bins + total liability
+function buildBinRollupHTML(){
+  const rows=[];
+  let totalOut=0;
+  contacts.forEach(c=>{
+    const b=_getBins(c);
+    const out=Math.max(0,(b.out||0)-(b.returned||0));
+    if(out>0){
+      totalOut+=out;
+      rows.push({name:c.name, id:c.id, out:out, total:(b.out||0), returned:(b.returned||0), ack:!!(b.acknowledgedBy)});
+    }
+  });
+  const totalLiability=totalOut*BIN_VALUE;
+
+  let html='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(rows.length?'10px':'0')+'">'+
+    '<div style="font-size:14px;font-weight:700;color:#1B4332">📦 Bins Out</div>'+
+    '<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:'+(totalOut>0?'#B45309':'#2D6A4F')+'">'+totalOut+' bin'+(totalOut===1?'':'s')+'</div>'+
+      (totalOut>0?'<div style="font-size:11px;color:#92400E">'+_fmtMoney(totalLiability)+' at risk</div>':'<div style="font-size:11px;color:var(--g700,#2D6A4F)">All accounted for</div>')+'</div>'+
+  '</div>';
+
+  if(rows.length){
+    rows.sort((a,b)=>b.out-a.out);
+    html+='<div style="display:flex;flex-direction:column;gap:6px">';
+    rows.forEach(r=>{
+      html+='<div onclick="openDetail(\''+r.id+'\',\'delivery\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:#FEF9F0;border:1px solid #FDE68A;border-radius:8px;cursor:pointer">'+
+        '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.name)+'</div>'+
+          '<div style="font-size:11px;color:var(--tx3)">'+r.returned+' of '+r.total+' returned'+(r.ack?' · ✓ signed':' · not signed')+'</div></div>'+
+        '<div style="text-align:right;flex:0 0 auto;margin-left:10px"><div style="font-size:14px;font-weight:700;color:#B45309">'+r.out+'</div>'+
+          '<div style="font-size:10px;color:var(--tx3)">'+_fmtMoney(r.out*BIN_VALUE)+'</div></div>'+
+      '</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  return html;
+}
+
 function buildDeliveriesHTML(){
   const SEASONS = [
     {key:'Spring',  label:'Spring',      color:'#16A34A', light:'#F0FDF4', border:'#BBF7D0'},
@@ -4149,6 +4190,9 @@ function buildDeliveriesHTML(){
     '</div>';
 
   html += '<div style="padding:12px 14px 100px">';
+
+  // Bin accountability roll-up — who has M&G's bins out
+  html += buildBinRollupHTML();
 
   // Build sections
   SEASONS.forEach(season => {
@@ -4442,17 +4486,17 @@ function renderReminders(){
 }
 
 
-function openDetail(id){
+function openDetail(id, tab){
   const c=contacts.find(x=>x.id===id);if(!c)return;
   currentId=id;
   document.getElementById('det-name').textContent=c.name;
   document.getElementById('det-co').textContent=c.company||'';
-  detTab('info');openModal('modal-detail');
+  detTab(tab||'info');openModal('modal-detail');
 }
 
 function detTab(tab){
   currentDetTab=tab;
-  ['info','activity','order'].forEach(t=>{
+  ['info','delivery','activity','order'].forEach(t=>{
     const btn=document.getElementById('dt-'+t);
     const pane=document.getElementById('det-'+t+'-pane');
     if(btn) btn.classList.toggle('active',t===tab);
@@ -4460,6 +4504,7 @@ function detTab(tab){
   });
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
   if(tab==='info')renderDetInfo(c);
+  if(tab==='delivery')renderDetDelivery(c);
   if(tab==='activity')renderDetActivity(c);
   if(tab==='order')renderDetOrder(c);
 }
@@ -4579,6 +4624,279 @@ function renderDetOrder(c){
 
   html += '</div>';
   document.getElementById('det-order-pane').innerHTML = html;
+}
+
+// ─── DELIVERY & PICKUP TAB ───────────────────────────────────────────────────
+// Delivery data is stored as a single tagged entry in contact_log (which syncs to
+// Supabase), so no schema change is needed and it works across devices.
+// The entry looks like: { _delivery:true, pickupDate, planting, hauling, depositPaid, ts, by }
+
+function _getDelivery(c){
+  const log=c.contact_log||[];
+  const e=log.find(x=>x && x._delivery);
+  return e || {};
+}
+
+function _setDelivery(c, patch){
+  c.contact_log=c.contact_log||[];
+  let e=c.contact_log.find(x=>x && x._delivery);
+  if(!e){
+    e={_delivery:true, ts:new Date().toISOString(), by:'Isidro'};
+    c.contact_log.push(e);
+  }
+  Object.assign(e, patch);
+  e.ts=new Date().toISOString();
+}
+
+// Deposit: prefer the tracked delivery value; fall back to parsing the imported notes.
+function _depositPaid(c){
+  const d=_getDelivery(c);
+  if(typeof d.depositPaid==='number') return d.depositPaid;
+  const m=(c.notes||'').match(/Deposit:\s*\$?([\d,]+(?:\.\d+)?)/i);
+  if(m) return parseFloat(m[1].replace(/,/g,''))||0;
+  return 0;
+}
+
+// ── BIN TRACKING ──
+// $250 per bin. Bin data stored as a tagged entry in contact_log (syncs to cloud).
+// Shape: { _bins:true, out, returned, acknowledgedBy, acknowledgedAt, ts, by }
+const BIN_VALUE = 250;
+function _getBins(c){
+  const log=c.contact_log||[];
+  const e=log.find(x=>x && x._bins);
+  return e || {};
+}
+function _setBins(c, patch){
+  c.contact_log=c.contact_log||[];
+  let e=c.contact_log.find(x=>x && x._bins);
+  if(!e){ e={_bins:true, out:0, returned:0, ts:new Date().toISOString(), by:'Isidro'}; c.contact_log.push(e); }
+  Object.assign(e, patch);
+  e.ts=new Date().toISOString();
+}
+// Outstanding bins for one contact
+function _binsOutstanding(c){
+  const b=_getBins(c);
+  return Math.max(0, (b.out||0)-(b.returned||0));
+}
+
+function _fmtMoney(n){ return '$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function _fmtDateNice(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'}) : ''; }
+
+function renderDetDelivery(c){
+  const d=_getDelivery(c);
+  const trees=c.trees||0;
+  const price=c.price||12.50;
+  const orderTotal=trees*price;
+  const depositPaid=_depositPaid(c);
+  const planting=!!d.planting;
+  const hauling=!!d.hauling;
+  const plantingFee=planting?trees*2:0;
+  const grandTotal=orderTotal+plantingFee;
+  const balance=Math.max(0, grandTotal-depositPaid);
+  const pickup=d.pickupDate||'';
+
+  // Bin data
+  const bins=_getBins(c);
+  const binsOut=bins.out||0;
+  const binsReturned=bins.returned||0;
+  const binsOutstanding=Math.max(0, binsOut-binsReturned);
+  const binLiability=binsOutstanding*BIN_VALUE;
+
+  // 15-days-before-pickup reminder date
+  let remindDate='';
+  if(pickup){ const dt=new Date(pickup+'T12:00:00'); dt.setDate(dt.getDate()-15); remindDate=dt.toISOString().split('T')[0]; }
+  const reminderIsSet = pickup && c.followup===remindDate;
+
+  let html='<div style="padding:2px 0">';
+
+  // ── Pickup / Delivery block ──
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Pickup / Delivery</div>'+
+    '<label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Pickup date</label>'+
+    '<input type="date" id="dlv-pickup" value="'+pickup+'" onchange="saveDelivery()" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:6px;box-sizing:border-box">'+
+    (pickup?'<div style="font-size:12px;color:var(--tx2)">📅 '+_fmtDateNice(pickup)+'</div>':'')+
+  '</div>';
+
+  // ── Services block: planting + hauling ──
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Services</div>'+
+    '<label style="display:flex;align-items:center;gap:9px;margin-bottom:10px;cursor:pointer">'+
+      '<input type="checkbox" id="dlv-planting" '+(planting?'checked':'')+' onchange="saveDelivery()" style="width:18px;height:18px;cursor:pointer">'+
+      '<span style="font-size:14px">M&amp;G is planting <span style="color:var(--tx3);font-size:12px">($2/tree)</span></span>'+
+    '</label>'+
+    (planting?'<div style="font-size:13px;color:var(--g700,#2D6A4F);font-weight:600;margin:-4px 0 10px 27px">+ '+_fmtMoney(plantingFee)+' planting service ('+trees.toLocaleString()+' trees)</div>':'')+
+    '<label style="display:flex;align-items:center;gap:9px;cursor:pointer">'+
+      '<input type="checkbox" id="dlv-hauling" '+(hauling?'checked':'')+' onchange="saveDelivery()" style="width:18px;height:18px;cursor:pointer">'+
+      '<span style="font-size:14px">Hauling needed <span style="color:var(--tx3);font-size:12px">(M&amp;G subcontracts)</span></span>'+
+    '</label>'+
+  '</div>';
+
+  // ── Payment status block ──
+  const pct = grandTotal>0 ? Math.round(depositPaid/grandTotal*100) : 0;
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Payment Status</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Trees ('+trees.toLocaleString()+' × '+_fmtMoney(price)+')</span><span style="font-weight:600">'+_fmtMoney(orderTotal)+'</span></div>'+
+    (planting?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Planting service</span><span style="font-weight:600">'+_fmtMoney(plantingFee)+'</span></div>':'')+
+    (planting?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;padding-top:6px;border-top:1px dashed var(--bd)"><span style="color:var(--tx3)">Grand total</span><span style="font-weight:700">'+_fmtMoney(grandTotal)+'</span></div>':'')+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Deposit / payments received</span><span style="font-weight:600;color:var(--g700,#2D6A4F)">'+_fmtMoney(depositPaid)+' <span style="font-weight:400;color:var(--tx3)">('+pct+'%)</span></span></div>'+
+    '<div style="height:1px;background:var(--bd);margin:8px 0"></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:15px"><span style="font-weight:700">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#B45309':'#2D6A4F')+'">'+_fmtMoney(balance)+'</span></div>'+
+    '<label style="display:block;font-size:12px;color:var(--tx3);margin:12px 0 4px">Update amount received</label>'+
+    '<div style="display:flex;gap:6px">'+
+      '<input type="number" id="dlv-deposit" value="'+depositPaid+'" min="0" step="0.01" style="flex:1;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box">'+
+      '<button onclick="saveDelivery()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Save</button>'+
+    '</div>'+
+  '</div>';
+
+  // ── Bin tracking block ──
+  const ack = bins.acknowledgedBy && bins.acknowledgedAt;
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Bins <span style="font-weight:400;text-transform:none">($'+BIN_VALUE+' each)</span></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:10px">'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Bins out</label>'+
+        '<input type="number" id="bin-out" value="'+binsOut+'" min="0" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box"></div>'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Returned</label>'+
+        '<input type="number" id="bin-returned" value="'+binsReturned+'" min="0" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box"></div>'+
+      '<div style="flex:0 0 auto;display:flex;align-items:flex-end"><button onclick="saveBins()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Save</button></div>'+
+    '</div>'+
+    // Outstanding summary
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:8px;background:'+(binsOutstanding>0?'#FEF9F0':'#F0FDF4')+';border:1px solid '+(binsOutstanding>0?'#FDE68A':'#BBF7D0')+'">'+
+      '<div><div style="font-size:13px;font-weight:700">'+binsOutstanding+' bin'+(binsOutstanding===1?'':'s')+' out</div>'+
+        (binsOutstanding>0?'<div style="font-size:11px;color:#92400E">'+_fmtMoney(binLiability)+' liability if not returned</div>':'<div style="font-size:11px;color:var(--g700,#2D6A4F)">All bins accounted for</div>')+
+      '</div>'+
+      (binsOut>0?'<div style="font-size:11px;color:var(--tx3);text-align:right">'+binsReturned+' of '+binsOut+' back</div>':'')+
+    '</div>';
+
+  // Checkout acknowledgment
+  html+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)">';
+  if(ack){
+    html+='<div style="font-size:12px;color:var(--g700,#2D6A4F);font-weight:600">✓ Checkout acknowledged</div>'+
+      '<div style="font-size:12px;color:var(--tx2);margin-top:2px">Signed: <strong>'+esc(bins.acknowledgedBy)+'</strong> · '+_fmtDateNice((bins.acknowledgedAt||'').split('T')[0])+'</div>'+
+      '<button onclick="clearBinAck()" style="margin-top:6px;background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--tx3)">Clear acknowledgment</button>';
+  } else if(binsOut>0){
+    html+='<label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Checkout acknowledgment</label>'+
+      '<input type="text" id="bin-ack-name" placeholder="Name of person receiving bins" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px">'+
+      '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px">'+
+        '<input type="checkbox" id="bin-ack-check" style="width:16px;height:16px;margin-top:2px;cursor:pointer;flex:0 0 auto">'+
+        '<span style="font-size:12px;color:var(--tx2)">I acknowledge receiving '+binsOut+' bin'+(binsOut===1?'':'s')+' valued at '+_fmtMoney(binsOut*BIN_VALUE)+', and agree to return them or be charged $'+BIN_VALUE+' per bin not returned.</span>'+
+      '</label>'+
+      '<button onclick="acknowledgeBins()" style="background:#D97706;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%">Record acknowledgment</button>';
+  } else {
+    html+='<div style="font-size:12px;color:var(--tx3);font-style:italic">Enter bins out above to record a checkout acknowledgment.</div>';
+  }
+  html+='</div></div>';
+
+  // ── Payment reminder block (rides existing follow-up system) ──
+  if(pickup){
+    html+='<div style="background:'+(reminderIsSet?'#F0FDF4':'#FEF9F0')+';border:1px solid '+(reminderIsSet?'#BBF7D0':'#FDE68A')+';border-radius:10px;padding:14px">'+
+      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">🔔 Payment reminder</div>'+
+      '<div style="font-size:12px;color:var(--tx2);margin-bottom:10px">15 days before pickup → <strong>'+_fmtDateNice(remindDate)+'</strong></div>'+
+      (reminderIsSet
+        ? '<div style="font-size:13px;color:var(--g700,#2D6A4F);font-weight:600">✓ Set as follow-up — shows in your daily list</div>'
+        : '<button onclick="setPickupReminder()" style="background:#D97706;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%">Set follow-up for '+_fmtDateNice(remindDate)+'</button>')+
+    '</div>';
+  } else {
+    html+='<div style="font-size:12px;color:var(--tx3);font-style:italic;padding:4px 2px">Set a pickup date above to enable the 15-day payment reminder.</div>';
+  }
+
+  html+='</div>';
+  document.getElementById('det-delivery-pane').innerHTML=html;
+}
+
+function saveBins(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const outEl=document.getElementById('bin-out');
+  const retEl=document.getElementById('bin-returned');
+  const patch={};
+  if(outEl){ const v=parseInt(outEl.value); patch.out=(!isNaN(v)&&v>=0)?v:0; }
+  if(retEl){ const v=parseInt(retEl.value); patch.returned=(!isNaN(v)&&v>=0)?v:0; }
+  _setBins(c, patch);
+  _syncContactRow(c);
+  saveLocal();
+  renderDetDelivery(c);
+  if(typeof renderAll==='function') renderAll();
+}
+
+async function acknowledgeBins(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const nameEl=document.getElementById('bin-ack-name');
+  const checkEl=document.getElementById('bin-ack-check');
+  const name=(nameEl&&nameEl.value||'').trim();
+  if(!name){ alert('Please enter the name of the person receiving the bins.'); return; }
+  if(!checkEl||!checkEl.checked){ alert('Please check the acknowledgment box to confirm.'); return; }
+  const b=_getBins(c);
+  _setBins(c, {acknowledgedBy:name, acknowledgedAt:new Date().toISOString()});
+  // Log a visible activity record
+  const act={id:uid(),contact_id:c.id,type:'Bin checkout',logged_by:'System',
+    note:name+' acknowledged receiving '+(b.out||0)+' bin'+((b.out||0)===1?'':'s')+' ('+_fmtMoney((b.out||0)*BIN_VALUE)+' value)',
+    created_at:now()};
+  activities.unshift(act);
+  if(typeof cloudOk!=='undefined' && cloudOk && typeof sb!=='undefined' && sb){
+    try{ await sb.from(CFG.actTable).insert(act); }catch(e){ console.warn('bin ack activity insert failed',e); }
+  }
+  _syncContactRow(c);
+  saveLocal();
+  renderDetDelivery(c);
+  if(typeof renderAll==='function') renderAll();
+}
+
+function clearBinAck(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  if(!confirm('Clear the bin checkout acknowledgment for this customer?')) return;
+  _setBins(c, {acknowledgedBy:null, acknowledgedAt:null});
+  _syncContactRow(c);
+  saveLocal();
+  renderDetDelivery(c);
+}
+
+function saveDelivery(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const pickupEl=document.getElementById('dlv-pickup');
+  const plantingEl=document.getElementById('dlv-planting');
+  const haulingEl=document.getElementById('dlv-hauling');
+  const depositEl=document.getElementById('dlv-deposit');
+  const patch={};
+  if(pickupEl) patch.pickupDate=pickupEl.value||'';
+  if(plantingEl) patch.planting=plantingEl.checked;
+  if(haulingEl) patch.hauling=haulingEl.checked;
+  if(depositEl){ const v=parseFloat(depositEl.value); if(!isNaN(v)&&v>=0) patch.depositPaid=Math.round(v*100)/100; }
+  _setDelivery(c, patch);
+  _syncContactRow(c);
+  saveLocal();
+  renderDetDelivery(c);
+}
+
+async function setPickupReminder(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const d=_getDelivery(c);
+  if(!d.pickupDate)return;
+  const dt=new Date(d.pickupDate+'T12:00:00'); dt.setDate(dt.getDate()-15);
+  c.followup=dt.toISOString().split('T')[0];
+  // Log a visible activity so there's a record Raffi can see in the Activity tab
+  const act={id:uid(),contact_id:c.id,type:'Reminder',logged_by:'System',
+    note:'Payment reminder set for '+_fmtDateNice(c.followup)+' (15 days before pickup '+_fmtDateNice(d.pickupDate)+')',
+    created_at:now()};
+  activities.unshift(act);
+  if(typeof cloudOk!=='undefined' && cloudOk && typeof sb!=='undefined' && sb){
+    try{ await sb.from(CFG.actTable).insert(act); }catch(e){ console.warn('reminder activity insert failed',e); }
+  }
+  _syncContactRow(c);
+  saveLocal();
+  renderDetDelivery(c);
+  if(typeof renderAll==='function') renderAll();
+}
+
+// Push a contact's synced fields (incl. contact_log + followup) to cloud, matching saveContact's pattern
+async function _syncContactRow(c){
+  if(typeof cloudOk!=='undefined' && cloudOk && typeof sb!=='undefined' && sb){
+    try{
+      const sbUpd={ followup:c.followup||null, contact_log:c.contact_log||[] };
+      const res=await sb.from(CFG.table).update(sbUpd).eq('id',c.id);
+      if(res && res.error){ queueSync('update',{...sbUpd,id:c.id}); }
+    }catch(e){ try{ queueSync('update',{followup:c.followup||null,contact_log:c.contact_log||[],id:c.id}); }catch(e2){} }
+  } else if(typeof queueSync==='function'){
+    queueSync('update',{followup:c.followup||null,contact_log:c.contact_log||[],id:c.id});
+  }
 }
 
 function fillTemplate(tmpl, c){
