@@ -388,6 +388,9 @@ textarea.finput{height:70px;resize:none}
         <button onclick="exportBackup()" title="Download backup file" style="flex:1;background:transparent;color:var(--g200);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">↓ Backup</button>
         <button onclick="restoreFromBackup()" title="Restore from backup file" style="flex:1;background:transparent;color:var(--g200);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">↑ Restore</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button onclick="exportXlsx()" title="Export orders to Excel" style="flex:1;background:transparent;color:var(--g200);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">📊 Excel Export</button>
+      </div>
       <button onclick="doLogout()">Sign out</button>
     </div>
   </div>
@@ -1954,6 +1957,7 @@ function buildAdminHTML(){
   const backupHtml =
     // Small mobile backup/restore footer at top of admin (mobile-only since desktop has sidebar buttons)
     '<div class="mobile-only" style="display:flex;gap:6px;padding:8px 16px 0;justify-content:flex-end">' +
+      '<button onclick="exportXlsx()" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">📊 Excel</button>' +
       '<button onclick="exportBackup()" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">↓ Backup</button>' +
       '<button onclick="restoreFromBackup()" style="background:transparent;color:var(--tx2);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">↑ Restore</button>' +
     '</div>';
@@ -3751,6 +3755,80 @@ function renderMetrics(){
 // ── Reconstruct varieties array from flat variety string if missing ──────────
 
 // ── BACKUP / EXPORT ──────────────────────────────────────────────────────────
+// Lazy-loads SheetJS only when an Excel export is requested.
+let _xlsxLoading = null;
+function _loadSheetJS(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_xlsxLoading) return _xlsxLoading;
+  _xlsxLoading = new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('XLSX failed to load'));
+    s.onerror=()=>reject(new Error('Could not load the Excel library. Check your internet connection.'));
+    document.head.appendChild(s);
+  });
+  return _xlsxLoading;
+}
+
+async function exportXlsx(){
+  let XLSX;
+  try{ XLSX=await _loadSheetJS(); }
+  catch(e){ alert(e.message||'Could not load the Excel library.'); return; }
+
+  // TAB: Orders — one row per customer with money + delivery + bins
+  const ordRows=[['Customer','Company','Status','Variety','Trees','Price','Order Total','Deposit Paid','Balance Due','Delivery Date','Pickup Date','Planting','Hauling','Bins Out','Bins Returned','Contract #']];
+  let totTrees=0,totRev=0,totDep=0,totBal=0;
+  contacts.forEach(c=>{
+    const trees=c.trees||0; const price=c.price||12.5; const total=trees*price;
+    const d=_getDelivery(c); const planting=!!d.planting; const plantFee=planting?trees*2:0;
+    const grand=total+plantFee; const dep=_depositPaid(c); const bal=Math.max(0,grand-dep);
+    const b=_getBins(c); const binsOut=Math.max(0,(b.out||0)-(b.returned||0));
+    totTrees+=trees; totRev+=grand; totDep+=dep; totBal+=bal;
+    ordRows.push([c.name,c.company||'',c.status,c.variety||'',trees,price,grand,dep,bal,
+      c.date||'',d.pickupDate||'',planting?'Yes':'',d.hauling?'Yes':'',
+      binsOut||'',(b.returned||''),c.contract_num||'']);
+  });
+
+  // TAB: Summary
+  const byStatus={};
+  contacts.forEach(c=>{ byStatus[c.status]=(byStatus[c.status]||0)+1; });
+  const sumRows=[
+    ['M&G Nursery — Orders Export'],
+    ['Generated', new Date().toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})],
+    [],
+    ['Metric','Value'],
+    ['Total Customers', contacts.length],
+    ['Total Trees', totTrees],
+    ['Total Order Value', Math.round(totRev*100)/100],
+    ['Deposits Received', Math.round(totDep*100)/100],
+    ['Balance Outstanding', Math.round(totBal*100)/100],
+    [],
+    ['By Status','Count']
+  ];
+  Object.keys(byStatus).sort().forEach(s=>sumRows.push([s,byStatus[s]]));
+
+  // TAB: Bins outstanding
+  const binRows=[['Customer','Bins Out','Returned','Outstanding','Liability ($250/bin)','Acknowledged By']];
+  let anyBins=false;
+  contacts.forEach(c=>{
+    const b=_getBins(c); const out=Math.max(0,(b.out||0)-(b.returned||0));
+    if(out>0){ anyBins=true; binRows.push([c.name,b.out||0,b.returned||0,out,out*BIN_VALUE,b.acknowledgedBy||'(not signed)']); }
+  });
+  if(!anyBins) binRows.push(['No bins currently out','','','','','']);
+
+  const wb=XLSX.utils.book_new();
+  const wsSum=XLSX.utils.aoa_to_sheet(sumRows); wsSum['!cols']=[{wch:22},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,wsSum,'Summary');
+  const wsOrd=XLSX.utils.aoa_to_sheet(ordRows);
+  wsOrd['!cols']=[{wch:28},{wch:24},{wch:14},{wch:18},{wch:9},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:9},{wch:9},{wch:9},{wch:11},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,wsOrd,'Orders');
+  const wsBin=XLSX.utils.aoa_to_sheet(binRows); wsBin['!cols']=[{wch:28},{wch:10},{wch:10},{wch:12},{wch:18},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsBin,'Bins');
+
+  XLSX.writeFile(wb,'mg_nursery_orders_'+new Date().toISOString().split('T')[0]+'.xlsx');
+  if(typeof toast==='function') toast('Excel exported · '+contacts.length+' orders');
+}
+
 function exportBackup(){
   try{
     const data = {
