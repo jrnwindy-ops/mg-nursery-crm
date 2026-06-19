@@ -592,11 +592,13 @@ textarea.finput{height:70px;resize:none}
   <div class="dtab-row">
     <button class="dtab active" id="dt-info" onclick="detTab('info')">Info</button>
     <button class="dtab" id="dt-delivery" onclick="detTab('delivery')">Delivery</button>
+    <button class="dtab" id="dt-pull" onclick="detTab('pull')">Pull</button>
     <button class="dtab" id="dt-activity" onclick="detTab('activity')">Activity</button>
     <button class="dtab" id="dt-order" onclick="detTab('order')">Docs</button>
   </div>
   <div id="det-info-pane"></div>
   <div id="det-delivery-pane" style="display:none"></div>
+  <div id="det-pull-pane" style="display:none"></div>
   <div id="det-activity-pane" style="display:none"></div>
   <div id="det-order-pane" style="display:none"></div>
   <div class="mact" style="flex-wrap:wrap;gap:6px">
@@ -4579,7 +4581,7 @@ function openDetail(id, tab){
 
 function detTab(tab){
   currentDetTab=tab;
-  ['info','delivery','activity','order'].forEach(t=>{
+  ['info','delivery','pull','activity','order'].forEach(t=>{
     const btn=document.getElementById('dt-'+t);
     const pane=document.getElementById('det-'+t+'-pane');
     if(btn) btn.classList.toggle('active',t===tab);
@@ -4588,8 +4590,110 @@ function detTab(tab){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
   if(tab==='info')renderDetInfo(c);
   if(tab==='delivery')renderDetDelivery(c);
+  if(tab==='pull')renderDetPull(c);
   if(tab==='activity')renderDetActivity(c);
   if(tab==='order')renderDetOrder(c);
+}
+
+// ── Pull / staging: record actual house/row source as Abraham pulls trees (#5) ──
+function _pullOrderedQty(c, idx){
+  const v=(c.varieties||[])[idx]; if(!v) return 0;
+  const q=parseInt(v.qty)||0;
+  return q>0 ? q : ((c.varieties&&c.varieties.length===1)?(parseInt(c.trees)||0):0);
+}
+function _pulledForLine(c, idx){
+  return (c.pulls||[]).filter(p=>p.li===idx).reduce((s,p)=>s+(parseInt(p.qty)||0),0);
+}
+function renderDetPull(c){
+  const lines=c.varieties||[];
+  const pane=document.getElementById('det-pull-pane');
+  if(!lines.length){
+    pane.innerHTML='<div style="font-size:13px;color:var(--tx3);font-style:italic;padding:8px 2px">No varieties on this order yet. Add them in Edit to record pulls.</div>';
+    return;
+  }
+  const ctx=[];
+  if(c.contract_num) ctx.push('Contract '+esc(c.contract_num));
+  if(c.date) ctx.push('Planting/ship '+_fmtDateNice(c.date));
+  let html='<div style="font-size:12px;color:var(--tx2);margin-bottom:12px">'+(ctx.join('  ·  ')||'Pull &amp; stage trees, recording the actual house/row source.')+'</div>';
+
+  let allDone=true;
+  html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Line items</div>';
+  lines.forEach((v,idx)=>{
+    const ordered=_pullOrderedQty(c,idx), pulled=_pulledForLine(c,idx), remaining=Math.max(0,ordered-pulled);
+    if(remaining>0) allDone=false;
+    const pct=ordered>0?Math.min(100,Math.round(pulled/ordered*100)):0;
+    const label=esc(v.variety||'—')+(v.rootstock?' / '+esc(v.rootstock):'');
+    html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-weight:600;font-size:14px">'+label+'</span>'+
+        '<span style="font-size:12px;color:'+(remaining>0?'#B45309':'#2D6A4F')+';font-weight:600">'+pulled.toLocaleString()+' / '+ordered.toLocaleString()+' pulled</span></div>'+
+      '<div style="height:6px;background:var(--bd);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(remaining>0?'#D97706':'#2D6A4F')+'"></div></div>'+
+      (remaining>0?'<div style="font-size:11px;color:var(--tx3);margin-top:4px">'+remaining.toLocaleString()+' remaining</div>':'<div style="font-size:11px;color:#2D6A4F;margin-top:4px">\u2713 fully pulled</div>')+
+    '</div>';
+  });
+
+  const opts=lines.map((v,idx)=>{
+    const remaining=Math.max(0,_pullOrderedQty(c,idx)-_pulledForLine(c,idx));
+    return '<option value="'+idx+'">'+esc(v.variety||'—')+(v.rootstock?' / '+esc(v.rootstock):'')+' \u2014 '+remaining.toLocaleString()+' left</option>';
+  }).join('');
+  const fld='padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box';
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin:12px 0">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Record a pull</div>'+
+    '<label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Line item</label>'+
+    '<select id="pull-line" style="width:100%;'+fld+';margin-bottom:8px">'+opts+'</select>'+
+    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">House</label><input id="pull-house" placeholder="e.g. N3" style="width:100%;'+fld+'"></div>'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Row</label><input id="pull-row" placeholder="e.g. 4" style="width:100%;'+fld+'"></div>'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Qty</label><input id="pull-qty" type="number" min="1" placeholder="250" style="width:100%;'+fld+'"></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;align-items:flex-end">'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Batch (optional)</label><input id="pull-batch" placeholder="lot/batch" style="width:100%;'+fld+'"></div>'+
+      '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Pulled by</label><input id="pull-by" value="Abraham" style="width:100%;'+fld+'"></div>'+
+      '<button onclick="savePull()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex:0 0 auto">Record</button>'+
+    '</div>'+
+  '</div>';
+
+  const pulls=(c.pulls||[]).slice().sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  if(pulls.length){
+    html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin:4px 0 8px">Recorded pulls</div>';
+    pulls.forEach(p=>{
+      const v=(c.varieties||[])[p.li];
+      const label=v?(esc(v.variety||'—')+(v.rootstock?' / '+esc(v.rootstock):'')):esc(p.variety||'—');
+      const where=[p.house?('House '+esc(p.house)):'',p.row?('Row '+esc(p.row)):'',p.batch?('Batch '+esc(p.batch)):''].filter(Boolean).join(' \u00b7 ')||'—';
+      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;background:var(--card,#fff);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:6px">'+
+        '<div><div style="font-size:13px;font-weight:600">'+(parseInt(p.qty)||0).toLocaleString()+' \u00d7 '+label+'</div>'+
+          '<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+where+'</div>'+
+          '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+esc(p.by||'')+(p.ts?' \u00b7 '+_fmtDateNice((p.ts||'').split('T')[0]):'')+'</div>'+
+        '</div>'+
+        '<button onclick="removePull(\''+p.id+'\')" style="background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--tx3);flex:0 0 auto">Remove</button>'+
+      '</div>';
+    });
+  }
+  if(allDone){
+    html+='<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:#F0FDF4;border:1px solid #BBF7D0;font-size:12px;color:#2D6A4F"><b>\u2713 All lines fully pulled.</b> Set the stage to Fulfilled in Info once shipped.</div>';
+  }
+  html+='<div style="margin-top:10px;font-size:11px;color:var(--tx3);font-style:italic">Pulls record the actual source for fulfillment. Physical nursery counts are reconciled in the tracker.</div>';
+  pane.innerHTML=html;
+}
+function savePull(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const li=parseInt((document.getElementById('pull-line')||{}).value);
+  const qty=parseInt((document.getElementById('pull-qty')||{}).value)||0;
+  const house=((document.getElementById('pull-house')||{}).value||'').trim();
+  if(isNaN(li)){toast('Pick a line item');return;}
+  if(qty<=0){toast('Enter a quantity');return;}
+  if(!house){toast('Enter a house');return;}
+  const v=(c.varieties||[])[li]||{};
+  c.pulls=c.pulls||[];
+  c.pulls.push({id:uid(),li:li,variety:v.variety||null,rootstock:v.rootstock||null,
+    house:house,row:((document.getElementById('pull-row')||{}).value||'').trim()||null,
+    batch:((document.getElementById('pull-batch')||{}).value||'').trim()||null,
+    qty:qty,by:((document.getElementById('pull-by')||{}).value||'').trim()||null,ts:now()});
+  saveLocal();detTab('pull');toast('Pull recorded \u2713');
+}
+function removePull(pid){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  c.pulls=(c.pulls||[]).filter(p=>p.id!==pid);
+  saveLocal();detTab('pull');toast('Pull removed');
 }
 
 function renderDetInfo(c){
