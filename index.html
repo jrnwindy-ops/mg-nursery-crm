@@ -2882,7 +2882,7 @@ function buildTimelineHTML(){
 
 // ── INVENTORY MODULE ─────────────────────────────────────────────────────────
 // Pre-loaded inventory from House #2 spreadsheet (May 2026)
-// Adjusted totals = raw × 0.85 (15% cull factor)
+// Adjusted totals = raw × 0.70 (30% cull factor)
 // Orders pulled from contact records in CRM
 
 // ── LIVE INVENTORY FROM NURSERY TRACKER ──────────────────────────────────────
@@ -3099,7 +3099,7 @@ function saveInvOrders(){
   try{ localStorage.setItem(INV_ORDER_KEY, JSON.stringify(added)); }catch(e){}
 }
 
-const INV_CULL = 0.85; // yield after cull
+const INV_CULL = 0.70; // yield after cull
 
 // Master inventory data — raw counts from House #2 physical layout
 let INV_MASTER_2026 = [
@@ -4331,6 +4331,14 @@ function buildDeliveriesHTML(){
           (status==='In production'?'#065F46':status==='Deposit received'?'#1E40AF':status==='Ready'?'#14532D':'#374151')+
         '">'+status+'</span>' : '';
 
+      let acpBadge='';
+      if(contact){
+        const _dlv=_getDelivery(contact);
+        if(_dlv.acpReceived) acpBadge='<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#D1FAE5;color:#065F46">✓ ACP</span>';
+        else if(_dlv.acpNumber) acpBadge='<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#FEF3C7;color:#92400E">ACP pending</span>';
+        else acpBadge='<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#F3F4F6;color:#9CA3AF">ACP ✗</span>';
+      }
+
       html +=
         '<div style="padding:10px 12px;'+(isLast?'':'border-bottom:0.5px solid var(--bd)')+
           (contact ? ';cursor:pointer' : '')+'" '+
@@ -4347,9 +4355,9 @@ function buildDeliveriesHTML(){
               '<div style="font-size:11px;color:var(--tx2)">$'+Math.round(data.rev/1000)+'K</div>' +
             '</div>' +
           '</div>' +
-          (statusBadge || balance > 0 ?
-            '<div style="display:flex;gap:6px;align-items:center;margin-top:5px">' +
-              statusBadge +
+          (statusBadge || acpBadge || balance > 0 ?
+            '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:5px">' +
+              statusBadge + acpBadge +
               (balance > 0 ? '<span style="font-size:10px;color:var(--tx2)">$'+balance.toLocaleString()+' bal. outstanding</span>' : '') +
             '</div>' : '') +
         '</div>';
@@ -4816,7 +4824,7 @@ function renderDetOrder(c){
 // ─── DELIVERY & PICKUP TAB ───────────────────────────────────────────────────
 // Delivery data is stored as a single tagged entry in contact_log (which syncs to
 // Supabase), so no schema change is needed and it works across devices.
-// The entry looks like: { _delivery:true, pickupDate, planting, hauling, depositPaid, ts, by }
+// The entry looks like: { _delivery:true, pickupDate, planting, hauling, depositPaid, acpNumber, acpReceived, acpReceivedDate, ts, by }
 
 function _getDelivery(c){
   const log=c.contact_log||[];
@@ -4916,6 +4924,24 @@ function renderDetDelivery(c){
       '<input type="checkbox" id="dlv-hauling" '+(hauling?'checked':'')+' onchange="saveDelivery()" style="width:18px;height:18px;cursor:pointer">'+
       '<span style="font-size:14px">Hauling needed <span style="color:var(--tx3);font-size:12px">(M&amp;G subcontracts)</span></span>'+
     '</label>'+
+  '</div>';
+
+  // ── ACP compliance block ──
+  const acpNumber=d.acpNumber||''; const acpReceived=!!d.acpReceived; const acpDate=d.acpReceivedDate||'';
+  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">ACP Compliance</div>'+
+    '<label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Compliance number</label>'+
+    '<input type="text" id="dlv-acp-number" value="'+esc(acpNumber)+'" placeholder="Compliance agreement #" onchange="saveDelivery()" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">'+
+    '<label style="display:flex;align-items:center;gap:9px;cursor:pointer">'+
+      '<input type="checkbox" id="dlv-acp-received" '+(acpReceived?'checked':'')+' onchange="saveDelivery()" style="width:18px;height:18px;cursor:pointer">'+
+      '<span style="font-size:14px">Compliance document received</span>'+
+    '</label>'+
+    (acpReceived?
+      '<div style="margin-top:10px"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Date received</label>'+
+      '<input type="date" id="dlv-acp-date" value="'+acpDate+'" onchange="saveDelivery()" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box">'+
+      (acpDate?'<div style="font-size:12px;color:var(--g700,#2D6A4F);font-weight:600;margin-top:6px">✓ Received '+_fmtDateNice(acpDate)+'</div>':'')+
+      '</div>'
+      :'')+
   '</div>';
 
   // ── Payment status block ──
@@ -5047,6 +5073,12 @@ function saveDelivery(){
   if(plantingEl) patch.planting=plantingEl.checked;
   if(haulingEl) patch.hauling=haulingEl.checked;
   if(depositEl){ const v=parseFloat(depositEl.value); if(!isNaN(v)&&v>=0) patch.depositPaid=Math.round(v*100)/100; }
+  const acpNumEl=document.getElementById('dlv-acp-number');
+  const acpRecEl=document.getElementById('dlv-acp-received');
+  const acpDateEl=document.getElementById('dlv-acp-date');
+  if(acpNumEl) patch.acpNumber=acpNumEl.value||'';
+  if(acpRecEl){ patch.acpReceived=acpRecEl.checked; if(!acpRecEl.checked) patch.acpReceivedDate=''; }
+  if(acpDateEl) patch.acpReceivedDate=acpDateEl.value||'';
   _setDelivery(c, patch);
   _syncContactRow(c);
   saveLocal();
