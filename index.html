@@ -2125,15 +2125,15 @@ function generateQuote(contactId) {
   const trees = c.trees||0;
   const price = c.price||12.50;
   const total = trees*price;
-  // Deposit: default 40% of total, but let the user enter a custom amount.
+  // Deposit: default $5.50/tree, but let the user enter a custom amount.
   // Raffi asked for "a space where you can just enter the amount."
-  const defaultDeposit = Math.round(total*0.40*100)/100;
+  const defaultDeposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   let deposit = defaultDeposit;
   const entered = prompt(
     'Deposit amount for this quote?\n\n' +
     'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
-    'Default (40%): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
-    'Enter a dollar amount (or leave as-is for 40%):',
+    'Default ($' + DEPOSIT_PER_TREE.toFixed(2) + '/tree): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
+    'Enter a dollar amount (or leave as-is for $5.50/tree):',
     defaultDeposit.toFixed(2)
   );
   if (entered === null) return;  // user cancelled
@@ -2190,7 +2190,7 @@ function generateQuote(contactId) {
     '<h2>Pricing Summary</h2>',
     '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
       '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">'+trees.toLocaleString()+' trees &times; $'+price.toFixed(2)+' per tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$'+total.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit (' + depositPct + '%) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280">Required Deposit ($' + (trees>0?(deposit/trees).toFixed(2):'0.00') + '/tree) — due within 14 days to secure order</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right;color:#6B7280">$'+deposit.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
       '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$'+balance.toLocaleString('en-US',{minimumFractionDigits:2})+'</td></tr>',
     '</tbody></table>',
     // NOTES
@@ -2255,7 +2255,7 @@ function emailContract(contactId) {
   const trees = c.trees||0;
   const price = c.price||12.5;
   const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
+  const deposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   const varieties = (c.varieties&&c.varieties.length>0) ? c.varieties.map(v=>v.variety).join(', ') : (c.variety||'citrus trees');
   const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Spring 2026';
   const contractNum = c.contract_num || 'TBD';
@@ -2270,7 +2270,7 @@ function emailContract(contactId) {
     'Quantity: ' + trees.toLocaleString() + ' trees\n' +
     'Price: $' + price.toFixed(2) + '/tree\n' +
     'Total: $' + total.toLocaleString() + '\n' +
-    'Deposit Required (40%): $' + deposit.toLocaleString() + '\n' +
+    'Deposit Required ($' + (trees>0?(deposit/trees).toFixed(2):'0.00') + '/tree): $' + deposit.toLocaleString() + '\n' +
     'Estimated Delivery: ' + deliveryDate + '\n' +
     'Contract #: ' + contractNum + '\n\n' +
     'NEXT STEPS\n' +
@@ -2336,14 +2336,14 @@ function generateContract(contactId) {
   const trees = c.trees || 0;
   const price = c.price || 12.50;
   const total = trees * price;
-  // Deposit: default 40%, but let the user enter the agreed amount (matches the quote flow)
-  const defaultDeposit = Math.round(total * 0.40 * 100)/100;
+  // Deposit: default $5.50/tree, but let the user enter the agreed amount (matches the quote flow)
+  const defaultDeposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   let deposit = defaultDeposit;
   const entered = prompt(
     'Deposit amount for this contract?\n\n' +
     'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
-    'Default (40%): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
-    'Enter the agreed deposit amount (or leave as-is for 40%):',
+    'Default ($' + DEPOSIT_PER_TREE.toFixed(2) + '/tree): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
+    'Enter the agreed deposit amount (or leave as-is for $5.50/tree):',
     defaultDeposit.toFixed(2)
   );
   if (entered === null) return;  // cancelled
@@ -2402,12 +2402,12 @@ function generateContract(contactId) {
     '<h2>Pricing &amp; Payment</h2>',
     '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
       '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required (' + depositPct + '%)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
+      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required ($' + (trees>0?(deposit/trees).toFixed(2):'0.00') + '/tree)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
       '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
     '</tbody></table>',
     '<h2>Terms &amp; Conditions</h2>',
     '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>' + depositPct + '% of the total contract value</strong> is due within 14 days of contract execution to secure the order.</li>',
+      '<li>A non-refundable deposit of <strong>$' + (trees>0?(deposit/trees).toFixed(2):'0.00') + ' per tree</strong> is due within 14 days of contract execution to secure the order.</li>',
       '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
       '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
       '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
@@ -4682,7 +4682,18 @@ function renderDetPull(c){
     });
   }
   if(allDone){
-    html+='<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:#F0FDF4;border:1px solid #BBF7D0;font-size:12px;color:#2D6A4F"><b>\u2713 All lines fully pulled.</b> Set the stage to Fulfilled in Info once shipped.</div>';
+    const _fdel=_getDelivery(c); const _fAt=_fdel.fulfilledAt||'';
+    if(c.status==='Fulfilled'){
+      html+='<div style="margin-top:10px;padding:12px;border-radius:8px;background:#DCFCE7;border:1px solid #86EFAC">'+
+        '<div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:8px">\u2713 Order fulfilled'+(_fAt?' \u00b7 '+_fmtDateNice((_fAt||'').split('T')[0]):'')+'</div>'+
+        '<button onclick="reopenFulfillment()" style="background:none;border:1px solid #86EFAC;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#166534">Reopen</button>'+
+      '</div>';
+    } else {
+      html+='<div style="margin-top:10px;padding:12px;border-radius:8px;background:#F0FDF4;border:1px solid #BBF7D0">'+
+        '<div style="font-size:12px;color:#2D6A4F;margin-bottom:8px"><b>\u2713 All lines fully pulled.</b> Mark the order fulfilled to close it out and release the reservation.</div>'+
+        '<button onclick="markFulfilled()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Mark as fulfilled</button>'+
+      '</div>';
+    }
   }
   html+='<div style="margin-top:10px;font-size:11px;color:var(--tx3);font-style:italic">Pulls record the actual source for fulfillment. Physical nursery counts are reconciled in the tracker.</div>';
   pane.innerHTML=html;
@@ -4755,7 +4766,7 @@ function renderDetOrder(c){
   const trees = c.trees||0;
   const price = c.price||12.5;
   const total = trees*price;
-  const deposit = Math.round(total*0.40*100)/100;
+  const deposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   const balance = total-deposit;
 
   let html = '<div style="padding:4px 0">';
@@ -4969,32 +4980,6 @@ function renderDetDelivery(c){
       :'')+
   '</div>';
 
-  // ── Fulfillment block: house / row allocation ──
-  const fulfillLots = Array.isArray(d.fulfillLots) ? d.fulfillLots : [];
-  const allocated = fulfillLots.reduce((s,l)=>s+(parseInt(l.qty)||0),0);
-  const isFulfilled = c.status==='Fulfilled';
-  const fulfilledAt = d.fulfilledAt||'';
-  html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
-    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Fulfillment — house / row allocation</div>'+
-    (isFulfilled?'<div style="font-size:13px;color:var(--g700,#2D6A4F);font-weight:600;margin-bottom:10px">✓ Fulfilled'+(fulfilledAt?' · '+_fmtDateNice(fulfilledAt.split("T")[0]):'')+'</div>':'')+
-    fulfillLots.map((l,i)=>
-      '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
-        '<input type="text" class="flot-house" value="'+esc(l.house||'')+'" placeholder="House" onchange="saveFulfillLots()" style="flex:1;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">'+
-        '<input type="text" class="flot-row" value="'+esc(l.row||'')+'" placeholder="Row" onchange="saveFulfillLots()" style="width:66px;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">'+
-        '<input type="number" class="flot-qty" value="'+(l.qty||'')+'" placeholder="Qty" min="0" onchange="saveFulfillLots()" style="width:80px;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">'+
-        '<button onclick="removeFulfillLot('+i+')" style="flex:0 0 auto;background:none;border:1px solid var(--bd);border-radius:6px;width:30px;height:34px;cursor:pointer;color:var(--tx3);font-size:16px;line-height:1;font-family:inherit">×</button>'+
-      '</div>'
-    ).join('')+
-    '<button onclick="addFulfillLot()" style="background:none;border:1px dashed var(--bd);border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--tx3);margin-bottom:10px">+ Add lot</button>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;background:'+(allocated===trees&&trees>0?'#F0FDF4':allocated>trees?'#FEF2F2':'#FEF9F0')+';border:1px solid '+(allocated===trees&&trees>0?'#BBF7D0':allocated>trees?'#FECACA':'#FDE68A')+';margin-bottom:10px">'+
-      '<span style="font-size:12px;color:var(--tx2)">Allocated</span>'+
-      '<span style="font-size:13px;font-weight:700">'+allocated.toLocaleString()+' / '+trees.toLocaleString()+(allocated===trees&&trees>0?' ✓':allocated>trees?' (over '+(allocated-trees)+')':' ('+(trees-allocated)+' left)')+'</span>'+
-    '</div>'+
-    (isFulfilled
-      ? '<button onclick="reopenFulfillment()" style="background:none;border:1px solid var(--bd);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--tx3);width:100%">Reopen — mark not fulfilled</button>'
-      : '<button onclick="markFulfilled()" '+(allocated>0?'':'disabled')+' style="background:'+(allocated>0?'var(--g700,#2D6A4F)':'#9CA3AF')+';color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:'+(allocated>0?'pointer':'not-allowed')+';font-family:inherit;width:100%">Mark as fulfilled</button>')+
-  '</div>';
-
   // ── Payment status block ──
   const pct = grandTotal>0 ? Math.round(depositPaid/grandTotal*100) : 0;
   html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
@@ -5165,33 +5150,12 @@ function saveDelivery(){
   renderDetDelivery(c);
 }
 
-function saveFulfillLots(){
-  const c=contacts.find(x=>x.id===currentId);if(!c)return;
-  const houses=[...document.querySelectorAll('.flot-house')];
-  const rows=[...document.querySelectorAll('.flot-row')];
-  const qtys=[...document.querySelectorAll('.flot-qty')];
-  const lots=houses.map((hEl,i)=>({house:hEl.value||'', row:(rows[i]?rows[i].value:'')||'', qty:parseInt(qtys[i]?qtys[i].value:0)||0}));
-  _setDelivery(c,{fulfillLots:lots}); saveLocal();
-}
-function addFulfillLot(){
-  const c=contacts.find(x=>x.id===currentId);if(!c)return;
-  saveFulfillLots();
-  const d=_getDelivery(c); const lots=Array.isArray(d.fulfillLots)?d.fulfillLots.slice():[];
-  lots.push({house:'',row:'',qty:0}); _setDelivery(c,{fulfillLots:lots}); saveLocal(); renderDetDelivery(c);
-}
-function removeFulfillLot(i){
-  const c=contacts.find(x=>x.id===currentId);if(!c)return;
-  saveFulfillLots();
-  const d=_getDelivery(c); const lots=Array.isArray(d.fulfillLots)?d.fulfillLots.slice():[];
-  lots.splice(i,1); _setDelivery(c,{fulfillLots:lots}); saveLocal(); renderDetDelivery(c);
-}
 function markFulfilled(){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
-  saveFulfillLots();
   c.status='Fulfilled'; _setDelivery(c,{fulfilledAt:new Date().toISOString()});
   _syncContactRow(c); saveLocal();
   if(typeof syncReservations==='function'){ try{ syncReservations(c); }catch(e){} }
-  renderDetDelivery(c);
+  if(typeof renderDetPull==='function'){ try{ renderDetPull(c); }catch(e){} }
   if(typeof renderAll==='function'){ try{ renderAll(); }catch(e){} }
 }
 function reopenFulfillment(){
@@ -5199,7 +5163,7 @@ function reopenFulfillment(){
   c.status='Ready'; _setDelivery(c,{fulfilledAt:''});
   _syncContactRow(c); saveLocal();
   if(typeof syncReservations==='function'){ try{ syncReservations(c); }catch(e){} }
-  renderDetDelivery(c);
+  if(typeof renderDetPull==='function'){ try{ renderDetPull(c); }catch(e){} }
   if(typeof renderAll==='function'){ try{ renderAll(); }catch(e){} }
 }
 
@@ -6363,6 +6327,65 @@ async function promoteLeadToContact(leadId){
   </div>
 </div>
 </div>
+
+<!-- HELP SYSTEM (rebuilt) -->
+<style>
+#helpFab{position:fixed;right:18px;bottom:18px;z-index:45;width:46px;height:46px;border-radius:50%;background:#1B4332;color:#fff;border:none;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(27,67,50,.35);font-family:inherit}
+#helpFab:hover{background:#2D6A4F}
+@media(max-width:767px){#helpFab{bottom:calc(128px + env(safe-area-inset-bottom,0px))}}
+#helpOverlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1200;opacity:0;pointer-events:none;transition:opacity .2s}
+#helpOverlay.open{opacity:1;pointer-events:auto}
+#helpPanel{position:fixed;top:0;right:0;height:100%;width:380px;max-width:90vw;background:#fff;z-index:1210;box-shadow:-4px 0 24px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column}
+#helpPanel.open{transform:translateX(0)}
+#helpPanel .hp-head{padding:16px 18px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between}
+#helpSearch{margin:12px 18px 6px;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;width:calc(100% - 36px)}
+#helpBody{flex:1;overflow-y:auto;padding:6px 18px 28px}
+.hp-topic{border-bottom:1px solid #F0F0F0;padding:12px 0}
+.hp-topic h4{margin:0 0 5px;font-size:14px;color:#1B4332}
+.hp-topic p{margin:0;font-size:13px;color:#4B5563;line-height:1.5}
+.hp-empty{color:#9CA3AF;font-size:13px;padding:22px 0;text-align:center}
+</style>
+<button id="helpFab" onclick="openHelp()" title="Help" aria-label="Help">?</button>
+<div id="helpOverlay" onclick="closeHelp()"></div>
+<div id="helpPanel" role="dialog" aria-label="Help and guide">
+  <div class="hp-head"><strong style="font-size:15px">Help &amp; Guide</strong><button onclick="closeHelp()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#6B7280;line-height:1;font-family:inherit">&times;</button></div>
+  <input id="helpSearch" placeholder="Search help..." oninput="filterHelp(this.value)">
+  <div id="helpBody"></div>
+</div>
+<script>
+(function(){
+  var HELP_TOPICS=[
+    {t:"Getting started",k:"overview start basics intro",b:"The CRM tracks every customer order from first contact to delivery. Add customers with the + button, then move them through the pipeline stages as the deal progresses."},
+    {t:"Pipeline stages",k:"stage lead quoted deposit production ready fulfilled status pipeline",b:"Orders move Lead, Quoted, Deposit received, In production, Ready, then Fulfilled. The committed stages (Deposit received, In production, Ready) reserve inventory automatically."},
+    {t:"Adding a customer",k:"add new contact customer create order",b:"Tap + Add customer. Enter the name, varieties with rootstock and quantity, price per tree, and the planting or ship date. Order value and committed trees calculate automatically."},
+    {t:"Trusted customers",k:"trusted no deposit commit reserve hold",b:"Check Trusted customer to reserve inventory from the Quoted stage without a deposit. The full balance still shows as owed; only the inventory hold happens early."},
+    {t:"Generating a quote",k:"quote price generate document send",b:"On a customer Order tab, tap Generate Quote. The deposit defaults to $5.50 per tree but you can enter any amount at generation. The quote downloads as a formatted document."},
+    {t:"Quote to contract",k:"approve contract convert agreement purchase",b:"Once a quote is sent and the customer agrees, tap Approve to Contract. This moves the stage to Deposit received and generates the formal purchase agreement."},
+    {t:"Deposits",k:"deposit 5.50 per tree payment down secure",b:"The standard deposit is $5.50 per tree, due within 14 days to secure the order. It is editable per deal when you generate the quote or contract."},
+    {t:"Deliveries tab",k:"delivery pickup logistics tab",b:"Open a customer and use the Delivery tab for pickup date, whether the nursery is planting, hauling, ACP compliance, payment status, the payment schedule, and bins."},
+    {t:"ACP compliance",k:"acp compliance quarantine permit shipping psyllid",b:"Record the ACP compliance number and tick received once the document is in hand. The Deliveries list shows a badge per order: green received, amber pending, grey not tracked."},
+    {t:"Planting service",k:"planting plant per tree block cross streets crew",b:"Tick the planting option to add the planting service. Set the rate per tree (default $2), the block or location, and cross streets so the crew can find the site."},
+    {t:"Pull and fulfillment",k:"pull fulfill house row stage trees fulfilled abraham source",b:"On the Pull tab, record which house and row trees come from as they are pulled, per line item. When every line is fully pulled, tap Mark as fulfilled to close the order and release the reservation."},
+    {t:"Payment schedule",k:"payment schedule installment deposit balance due paid",b:"On the Delivery tab, generate a default schedule (deposit plus balance) or add installments with due dates. Tick each as paid; the summary tracks scheduled versus paid versus outstanding."},
+    {t:"Cash Flow forecast",k:"cash flow forecast projected scheduled month money inflow",b:"The Cash Flow tab shows expected inflows by month. Scheduled is money from entered payment schedules; Projected adds implied balances on committed orders that do not have a schedule yet."},
+    {t:"Inventory",k:"inventory available variety rootstock committed sellable trees",b:"The Inventory tab shows live availability by variety and rootstock (total, committed, sellable), pulled from the nursery tracker and your reservations."},
+    {t:"Leads inbox",k:"leads public form qr website capture inbox",b:"Leads from the public web form land in the Leads inbox. Review them and convert promising ones into full customer records."},
+    {t:"Year filter",k:"year 2026 2027 season filter planting",b:"Use the year dropdown in Contacts to separate customers by planting year (derived from the delivery date), so current-season and next-season orders do not mix."},
+    {t:"Bins",k:"bins 250 checkout return container accountability",b:"Track $250 bins out and returned per customer on the Delivery tab, with a checkout acknowledgment, so missing bins can be followed up."},
+    {t:"Reminders and follow-ups",k:"reminder followup payment 15 day pickup",b:"Set follow-up dates on customers. A 15-day-before-pickup payment reminder is offered automatically once a pickup date is set."},
+    {t:"Backup and restore",k:"backup restore export download data save excel",b:"Use Backup in the sidebar to download a copy of all data before any big change, and Restore to load one back. Excel Export sends orders to a spreadsheet."}
+  ];
+  function render(list){
+    var body=document.getElementById('helpBody');
+    if(!body)return;
+    if(!list.length){ body.innerHTML='<div class="hp-empty">No help topics match that search.</div>'; return; }
+    body.innerHTML=list.map(function(x){ return '<div class="hp-topic"><h4>'+x.t+'</h4><p>'+x.b+'</p></div>'; }).join('');
+  }
+  window.openHelp=function(){ var o=document.getElementById('helpOverlay'),p=document.getElementById('helpPanel'),s=document.getElementById('helpSearch'); if(o)o.classList.add('open'); if(p)p.classList.add('open'); if(s)s.value=''; render(HELP_TOPICS); };
+  window.closeHelp=function(){ var o=document.getElementById('helpOverlay'),p=document.getElementById('helpPanel'); if(o)o.classList.remove('open'); if(p)p.classList.remove('open'); };
+  window.filterHelp=function(q){ q=(q||'').toLowerCase().trim(); if(!q){ render(HELP_TOPICS); return; } render(HELP_TOPICS.filter(function(x){ return (x.t+' '+x.b+' '+x.k).toLowerCase().indexOf(q)>=0; })); };
+})();
+</script>
 
 </body>
 </html>
