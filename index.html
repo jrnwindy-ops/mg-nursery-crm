@@ -4894,6 +4894,26 @@ function _binsOutstanding(c){
 function _fmtMoney(n){ return '$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function _fmtDateNice(d){ return d ? new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'}) : ''; }
 
+function _haulEstimate(trees, haulerQuotePerLoad, wrapBins, adminFeePerLoad){
+  trees=Math.max(0,parseInt(trees)||0);
+  wrapBins=Math.max(0,parseInt(wrapBins)||0);
+  const fee=(typeof adminFeePerLoad==='number'&&adminFeePerLoad>=0)?adminFeePerLoad:50;
+  const hauler=Math.max(0,parseFloat(haulerQuotePerLoad)||0);
+  const treeBins=Math.ceil(trees/120);
+  const totalBins=treeBins+wrapBins;
+  const loads=Math.ceil(treeBins/22);
+  const customerPricePerLoad=hauler+fee;
+  const customerTotal=Math.round(customerPricePerLoad*loads*100)/100;
+  return {trees:trees,treeBins:treeBins,totalBins:totalBins,loads:loads,customerPricePerLoad:customerPricePerLoad,customerTotal:customerTotal,_internal:{haulerQuotePerLoad:hauler,haulerTotal:Math.round(hauler*loads*100)/100,adminFeePerLoad:fee,adminFeeTotal:Math.round(fee*loads*100)/100}};
+}
+function _haulTotalFor(d, fallbackTrees){
+  if(!d||!d.hauling) return 0;
+  const t=(typeof d.haulTrees==='number'&&d.haulTrees>0)?d.haulTrees:(fallbackTrees||0);
+  const q=(typeof d.haulQuote==='number'&&d.haulQuote>=0)?d.haulQuote:0;
+  const w=(typeof d.haulWrap==='number'&&d.haulWrap>=0)?d.haulWrap:0;
+  const fe=(typeof d.haulFee==='number'&&d.haulFee>=0)?d.haulFee:50;
+  return _haulEstimate(t,q,w,fe).customerTotal;
+}
 function renderDetDelivery(c){
   const d=_getDelivery(c);
   const trees=c.trees||0;
@@ -4909,7 +4929,14 @@ function renderDetDelivery(c){
   const acpNumber=d.acpNumber||'';
   const acpReceived=!!d.acpReceived;
   const acpDate=d.acpReceivedDate||'';
-  const grandTotal=orderTotal+plantingFee;
+  const haulTrees=(typeof d.haulTrees==='number'&&d.haulTrees>0)?d.haulTrees:trees;
+  const haulQuote=(typeof d.haulQuote==='number'&&d.haulQuote>=0)?d.haulQuote:0;
+  const haulFee=(typeof d.haulFee==='number'&&d.haulFee>=0)?d.haulFee:50;
+  const haulWrap=(typeof d.haulWrap==='number'&&d.haulWrap>=0)?d.haulWrap:0;
+  const haulDate=d.haulDate||'';
+  const haul=_haulEstimate(haulTrees, haulQuote, haulWrap, haulFee);
+  const haulCustomerTotal=hauling?haul.customerTotal:0;
+  const grandTotal=orderTotal+plantingFee+haulCustomerTotal;
   const balance=Math.max(0, grandTotal-depositPaid);
   const pickup=d.pickupDate||'';
 
@@ -4957,10 +4984,33 @@ function renderDetDelivery(c){
         (acpNumber?'<div style="font-size:11px;color:var(--tx2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--bd)">ACP compliance #: <strong style="color:var(--tx)">'+esc(acpNumber)+'</strong>'+(acpReceived?' <span style="color:var(--g700,#2D6A4F)">✓</span>':'')+'</div>':'')+
       '</div>'
       :'')+
-    '<label style="display:flex;align-items:center;gap:9px;cursor:pointer">'+
+    '<label style="display:flex;align-items:center;gap:9px;cursor:pointer'+(hauling?';margin-bottom:10px':'')+'">'+
       '<input type="checkbox" id="dlv-hauling" '+(hauling?'checked':'')+' onchange="saveDelivery()" style="width:18px;height:18px;cursor:pointer">'+
       '<span style="font-size:14px">Hauling needed <span style="color:var(--tx3);font-size:12px">(M&amp;G subcontracts)</span></span>'+
     '</label>'+
+    (hauling?
+      '<div style="margin:2px 0 0 27px;padding:10px 12px;background:var(--bg2,#F6F8F6);border:1px solid var(--bd);border-radius:8px">'+
+        '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+          '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Trees to haul</label><input type="number" id="dlv-haul-trees" value="'+haulTrees+'" min="0" onchange="saveDelivery()" style="width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>'+
+          '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Wrap bins</label><input type="number" id="dlv-haul-wrap" value="'+haulWrap+'" min="0" onchange="saveDelivery()" style="width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>'+
+        '</div>'+
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:8px 10px;margin-bottom:8px">'+
+          '<div style="font-size:12px;color:var(--tx2);margin-bottom:3px">'+haul.treeBins+' tree bin'+(haul.treeBins===1?'':'s')+(haulWrap>0?' + '+haulWrap+' wrap':'')+' \u00b7 '+haul.loads+' load'+(haul.loads===1?'':'s')+'</div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#1B4332"><span>Customer hauling</span><span>'+_fmtMoney(haul.customerTotal)+'</span></div>'+
+          '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+_fmtMoney(haul.customerPricePerLoad)+'/load \u00d7 '+haul.loads+'</div>'+
+        '</div>'+
+        '<div style="border:1px dashed #D97706;border-radius:6px;padding:8px 10px;background:#FFFBEB">'+
+          '<div style="font-size:10px;font-weight:700;color:#B45309;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Internal \u2014 not shown to customer</div>'+
+          '<div style="display:flex;gap:8px;margin-bottom:6px">'+
+            '<div style="flex:1"><label style="display:block;font-size:11px;color:var(--tx3);margin-bottom:3px">Hauler quote $/load</label><input type="number" id="dlv-haul-quote" value="'+haulQuote+'" min="0" step="0.01" onchange="saveDelivery()" style="width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>'+
+            '<div style="flex:1"><label style="display:block;font-size:11px;color:var(--tx3);margin-bottom:3px">Admin fee $/load</label><input type="number" id="dlv-haul-fee" value="'+haulFee+'" min="0" step="0.01" onchange="saveDelivery()" style="width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>'+
+          '</div>'+
+          '<div style="font-size:11px;color:var(--tx3)">Hauler '+_fmtMoney(haul._internal.haulerTotal)+' + fee '+_fmtMoney(haul._internal.adminFeeTotal)+' = customer '+_fmtMoney(haul.customerTotal)+'</div>'+
+        '</div>'+
+        '<label style="display:block;font-size:12px;color:var(--tx3);margin:8px 0 4px">Hauling date</label>'+
+        '<input type="date" id="dlv-haul-date" value="'+haulDate+'" onchange="saveDelivery()" style="width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">'+
+      '</div>'
+      :'')+
   '</div>';
 
   // ── ACP compliance block ──
@@ -4986,7 +5036,8 @@ function renderDetDelivery(c){
     '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Payment Status</div>'+
     '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Trees ('+trees.toLocaleString()+' × '+_fmtMoney(price)+')</span><span style="font-weight:600">'+_fmtMoney(orderTotal)+'</span></div>'+
     (planting?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Planting service</span><span style="font-weight:600">'+_fmtMoney(plantingFee)+'</span></div>':'')+
-    (planting?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;padding-top:6px;border-top:1px dashed var(--bd)"><span style="color:var(--tx3)">Grand total</span><span style="font-weight:700">'+_fmtMoney(grandTotal)+'</span></div>':'')+
+    (hauling?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Hauling</span><span style="font-weight:600">'+_fmtMoney(haulCustomerTotal)+'</span></div>':'')+
+    ((planting||hauling)?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;padding-top:6px;border-top:1px dashed var(--bd)"><span style="color:var(--tx3)">Grand total</span><span style="font-weight:700">'+_fmtMoney(grandTotal)+'</span></div>':'')+
     '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Deposit / payments received</span><span style="font-weight:600;color:var(--g700,#2D6A4F)">'+_fmtMoney(depositPaid)+' <span style="font-weight:400;color:var(--tx3)">('+pct+'%)</span></span></div>'+
     '<div style="height:1px;background:var(--bd);margin:8px 0"></div>'+
     '<div style="display:flex;justify-content:space-between;font-size:15px"><span style="font-weight:700">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#B45309':'#2D6A4F')+'">'+_fmtMoney(balance)+'</span></div>'+
@@ -5137,6 +5188,16 @@ function saveDelivery(){
   if(plantPriceEl){ const v=parseFloat(plantPriceEl.value); if(!isNaN(v)&&v>=0) patch.plantPrice=Math.round(v*100)/100; }
   if(plantBlockEl) patch.blockLocation=plantBlockEl.value||'';
   if(plantCrossEl) patch.crossStreets=plantCrossEl.value||'';
+  const haulTreesEl=document.getElementById('dlv-haul-trees');
+  const haulWrapEl=document.getElementById('dlv-haul-wrap');
+  const haulQuoteEl=document.getElementById('dlv-haul-quote');
+  const haulFeeEl=document.getElementById('dlv-haul-fee');
+  const haulDateEl=document.getElementById('dlv-haul-date');
+  if(haulTreesEl){ const v=parseInt(haulTreesEl.value); if(!isNaN(v)&&v>=0) patch.haulTrees=v; }
+  if(haulWrapEl){ const v=parseInt(haulWrapEl.value); if(!isNaN(v)&&v>=0) patch.haulWrap=v; }
+  if(haulQuoteEl){ const v=parseFloat(haulQuoteEl.value); if(!isNaN(v)&&v>=0) patch.haulQuote=Math.round(v*100)/100; }
+  if(haulFeeEl){ const v=parseFloat(haulFeeEl.value); if(!isNaN(v)&&v>=0) patch.haulFee=Math.round(v*100)/100; }
+  if(haulDateEl) patch.haulDate=haulDateEl.value||'';
   if(depositEl){ const v=parseFloat(depositEl.value); if(!isNaN(v)&&v>=0) patch.depositPaid=Math.round(v*100)/100; }
   const acpNumEl=document.getElementById('dlv-acp-number');
   const acpRecEl=document.getElementById('dlv-acp-received');
@@ -5194,7 +5255,7 @@ function genDefaultSchedule(){
   const trees=c.trees||0, price=c.price||12.5;
   const d=_getDelivery(c);
   const planting=!!d.planting; const plantPrice=(typeof d.plantPrice==='number'&&d.plantPrice>=0)?d.plantPrice:2;
-  const grand=trees*price + (planting?Math.round(trees*plantPrice*100)/100:0);
+  const grand=trees*price + (planting?Math.round(trees*plantPrice*100)/100:0) + _haulTotalFor(d, trees);
   const deposit=Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   const balance=Math.max(0, Math.round((grand-deposit)*100)/100);
   const depDue=(()=>{const dt=new Date();dt.setDate(dt.getDate()+14);return dt.toISOString().split('T')[0];})();
@@ -5884,7 +5945,7 @@ function renderCashflow(){
     const d=_getDelivery(c);
     const trees=c.trees||0, price=c.price||12.5;
     const planting=!!d.planting, plantPrice=(typeof d.plantPrice==='number'&&d.plantPrice>=0)?d.plantPrice:2;
-    const grand=trees*price+(planting?Math.round(trees*plantPrice*100)/100:0);
+    const grand=trees*price+(planting?Math.round(trees*plantPrice*100)/100:0)+_haulTotalFor(d, trees);
     const sched=Array.isArray(d.paySchedule)?d.paySchedule:[];
     if(sched.length){
       sched.forEach(p=>{ if(p.paid)return; const amt=parseFloat(p.amount)||0; if(amt<=0)return; mb((p.dueDate||'').slice(0,7)).scheduled+=amt; });
