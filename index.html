@@ -6139,7 +6139,7 @@ window.addEventListener('focus', function(){
 
 // ════════════════════════════════════════════════════════════════════════
 // LEADS MODULE — reads from mg_leads table in Supabase
-// Added 2026-05-20 to receive submissions from mg-nursery-lead.netlify.app
+// Added 2026-05-20 to receive submissions from mgnurserylead.netlify.app
 // ════════════════════════════════════════════════════════════════════════
 let _leads = [];
 
@@ -6211,7 +6211,7 @@ function renderLeads(){
     const empty = '<div style="padding:60px 20px;text-align:center;color:var(--tx2)">' +
       '<div style="font-size:48px;margin-bottom:12px">&#128276;</div>' +
       '<div style="font-weight:600;color:var(--tx);margin-bottom:4px">No leads yet</div>' +
-      '<div style="font-size:13px">When someone submits the quote form at mg-nursery-lead.netlify.app, they\'ll appear here.</div>' +
+      '<div style="font-size:13px">When someone submits the quote form at mgnurserylead.netlify.app, they\'ll appear here.</div>' +
     '</div>';
     if(desktopEl) desktopEl.innerHTML = empty;
     if(mobileEl) mobileEl.innerHTML = empty;
