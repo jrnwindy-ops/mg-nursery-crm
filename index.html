@@ -4759,6 +4759,23 @@ function renderDetActivity(c){
   document.getElementById('det-activity-pane').innerHTML='<button class="act-add-btn" onclick="openLogActivity()">+ Log activity</button>'+logHtml;
 }
 
+function _reconcileCount(contracted, finalApproved, unitPrice, depositReceived){
+  contracted=parseInt(contracted)||0;
+  const hasFinal=(finalApproved!==null && finalApproved!=='' && !isNaN(parseInt(finalApproved)));
+  const fin=hasFinal?(parseInt(finalApproved)||0):contracted;
+  const price=parseFloat(unitPrice)||0;
+  const dep=parseFloat(depositReceived)||0;
+  const variance=fin-contracted;
+  const direction=variance<0?'credit':(variance>0?'additional':'match');
+  return {contracted:contracted, finalApproved:fin, hasFinal:hasFinal, variance:variance, direction:direction,
+    invoiceAdjustment:Math.round(variance*price*100)/100, newContractValue:Math.round(fin*price*100)/100,
+    balanceAfter:Math.round((fin*price-dep)*100)/100, needsInventoryCheck:variance>0, inventoryDeductionQty:fin};
+}
+function _billTrees(c){
+  const d=_getDelivery(c);
+  const fin=(typeof d.finalCount==='number'&&d.finalCount>0)?d.finalCount:0;
+  return fin>0?fin:(parseInt(c.trees)||0);
+}
 function renderDetOrder(c){
   const docs = c.docs || [];
   const quoteDoc = docs.filter(d=>d.type==='quote');
@@ -4817,6 +4834,35 @@ function renderDetOrder(c){
   html += '</div>';
   html += '</div></div>';
 
+  // ── Final count reconciliation ──
+  const _rd=_getDelivery(c);
+  const _official=(typeof _rd.officialCount==='number')?_rd.officialCount:'';
+  const _finalC=(typeof _rd.finalCount==='number')?_rd.finalCount:'';
+  const _cnote=_rd.countNote||'';
+  const _depPaid=_depositPaid(c);
+  const _rec=_reconcileCount(trees, (_finalC===''?null:_finalC), price, _depPaid);
+  const _fld='width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box';
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Final Count Reconciliation</div>';
+  html += '<div style="background:var(--g50);border:1px solid var(--bd);border-radius:8px;padding:12px">';
+  html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span style="color:var(--tx3)">Contracted</span><span style="font-weight:600">'+trees.toLocaleString()+' trees</span></div>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:8px">';
+  html += '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Official (marked)</label><input type="number" id="ord-official" value="'+_official+'" placeholder="count" onchange="saveCountRecon()" style="'+_fld+'"></div>';
+  html += '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Final (approved)</label><input type="number" id="ord-final" value="'+_finalC+'" placeholder="grower-approved" onchange="saveCountRecon()" style="'+_fld+'"></div>';
+  html += '</div>';
+  html += '<input type="text" id="ord-count-note" value="'+esc(_cnote)+'" placeholder="Adjustment note (optional)" onchange="saveCountRecon()" style="'+_fld+'">';
+  if(_rec.hasFinal && _rec.variance!==0){
+    const _isCredit=_rec.direction==='credit';
+    html += '<div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:'+(_isCredit?'#FEF3C7':'#DBEAFE')+';border:1px solid '+(_isCredit?'#FDE68A':'#BFDBFE')+'">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:'+(_isCredit?'#92400E':'#1D4ED8')+'"><span>'+(_isCredit?'Credit to customer':'Additional invoice')+'</span><span>'+(_rec.invoiceAdjustment<0?'−':'+')+'$'+Math.abs(_rec.invoiceAdjustment).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>';
+    html += '<div style="font-size:11px;color:var(--tx2);margin-top:4px">'+Math.abs(_rec.variance).toLocaleString()+' '+(_isCredit?'fewer':'more')+' trees vs contracted · new contract value $'+_rec.newContractValue.toLocaleString('en-US',{minimumFractionDigits:2})+'</div>';
+    if(_rec.needsInventoryCheck){ html += '<div style="font-size:11px;color:#B45309;font-weight:600;margin-top:4px">⚠ Confirm inventory for the additional '+_rec.variance.toLocaleString()+' trees</div>'; }
+    html += '</div>';
+  } else if(_rec.hasFinal){
+    html += '<div style="margin-top:10px;font-size:12px;color:#2D6A4F;font-weight:600">✓ Final matches contracted — no adjustment.</div>';
+  }
+  html += '</div></div>';
+
   // Doc history
   if(docs.length>0){
     html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px">Document History</div>';
@@ -4836,11 +4882,23 @@ function renderDetOrder(c){
   html += '</div>';
   document.getElementById('det-order-pane').innerHTML = html;
 }
+function saveCountRecon(){
+  const c=contacts.find(x=>x.id===currentId);if(!c)return;
+  const offEl=document.getElementById('ord-official');
+  const finEl=document.getElementById('ord-final');
+  const noteEl=document.getElementById('ord-count-note');
+  const patch={};
+  if(offEl){ const v=parseInt(offEl.value); patch.officialCount=(offEl.value===''||isNaN(v))?null:v; }
+  if(finEl){ const v=parseInt(finEl.value); patch.finalCount=(finEl.value===''||isNaN(v))?null:v; }
+  if(noteEl) patch.countNote=noteEl.value||'';
+  _setDelivery(c,patch); saveLocal();
+  renderDetOrder(c);
+}
 
 // ─── DELIVERY & PICKUP TAB ───────────────────────────────────────────────────
 // Delivery data is stored as a single tagged entry in contact_log (which syncs to
 // Supabase), so no schema change is needed and it works across devices.
-// The entry looks like: { _delivery:true, pickupDate, planting, plantPrice, blockLocation, crossStreets, hauling, depositPaid, acpNumber, acpReceived, acpReceivedDate, fulfillLots, fulfilledAt, paySchedule, ts, by }
+// The entry looks like: { _delivery:true, pickupDate, planting, plantPrice, blockLocation, crossStreets, hauling, depositPaid, acpNumber, acpReceived, acpReceivedDate, fulfillLots, fulfilledAt, paySchedule, haulTrees, haulQuote, haulFee, haulWrap, haulDate, officialCount, finalCount, countNote, ts, by }
 
 function _getDelivery(c){
   const log=c.contact_log||[];
@@ -4918,7 +4976,8 @@ function renderDetDelivery(c){
   const d=_getDelivery(c);
   const trees=c.trees||0;
   const price=c.price||12.50;
-  const orderTotal=trees*price;
+  const billTrees=_billTrees(c);
+  const orderTotal=billTrees*price;
   const depositPaid=_depositPaid(c);
   const planting=!!d.planting;
   const hauling=!!d.hauling;
@@ -5034,7 +5093,7 @@ function renderDetDelivery(c){
   const pct = grandTotal>0 ? Math.round(depositPaid/grandTotal*100) : 0;
   html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
     '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:10px">Payment Status</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Trees ('+trees.toLocaleString()+' × '+_fmtMoney(price)+')</span><span style="font-weight:600">'+_fmtMoney(orderTotal)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Trees ('+billTrees.toLocaleString()+' × '+_fmtMoney(price)+')'+(billTrees!==trees?'<span style="color:#B45309;font-size:11px"> · from '+trees.toLocaleString()+' contracted</span>':'')+'</span><span style="font-weight:600">'+_fmtMoney(orderTotal)+'</span></div>'+
     (planting?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Planting service</span><span style="font-weight:600">'+_fmtMoney(plantingFee)+'</span></div>':'')+
     (hauling?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--tx3)">Hauling</span><span style="font-weight:600">'+_fmtMoney(haulCustomerTotal)+'</span></div>':'')+
     ((planting||hauling)?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;padding-top:6px;border-top:1px dashed var(--bd)"><span style="color:var(--tx3)">Grand total</span><span style="font-weight:700">'+_fmtMoney(grandTotal)+'</span></div>':'')+
@@ -5255,7 +5314,7 @@ function genDefaultSchedule(){
   const trees=c.trees||0, price=c.price||12.5;
   const d=_getDelivery(c);
   const planting=!!d.planting; const plantPrice=(typeof d.plantPrice==='number'&&d.plantPrice>=0)?d.plantPrice:2;
-  const grand=trees*price + (planting?Math.round(trees*plantPrice*100)/100:0) + _haulTotalFor(d, trees);
+  const grand=_billTrees(c)*price + (planting?Math.round(trees*plantPrice*100)/100:0) + _haulTotalFor(d, trees);
   const deposit=Math.round(trees*DEPOSIT_PER_TREE*100)/100;
   const balance=Math.max(0, Math.round((grand-deposit)*100)/100);
   const depDue=(()=>{const dt=new Date();dt.setDate(dt.getDate()+14);return dt.toISOString().split('T')[0];})();
@@ -5945,7 +6004,7 @@ function renderCashflow(){
     const d=_getDelivery(c);
     const trees=c.trees||0, price=c.price||12.5;
     const planting=!!d.planting, plantPrice=(typeof d.plantPrice==='number'&&d.plantPrice>=0)?d.plantPrice:2;
-    const grand=trees*price+(planting?Math.round(trees*plantPrice*100)/100:0)+_haulTotalFor(d, trees);
+    const grand=_billTrees(c)*price+(planting?Math.round(trees*plantPrice*100)/100:0)+_haulTotalFor(d, trees);
     const sched=Array.isArray(d.paySchedule)?d.paySchedule:[];
     if(sched.length){
       sched.forEach(p=>{ if(p.paid)return; const amt=parseFloat(p.amount)||0; if(amt<=0)return; mb((p.dueDate||'').slice(0,7)).scheduled+=amt; });
