@@ -723,6 +723,19 @@ textarea.finput{height:70px;resize:none}
 </div>
 
 <!-- MODAL: ADD REMINDER -->
+<div class="modal-bg" id="modal-allocate">
+<div class="modal">
+  <div class="mhandle"></div>
+  <h2>Allocate from inventory</h2>
+  <div style="font-size:13px;color:var(--tx3);margin-bottom:12px">Choose which nursery lots these trees come out of. Confirming decrements nursery inventory and closes the order.</div>
+  <div id="allocate-body"></div>
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button onclick="closeModal('modal-allocate')" style="flex:1;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--tx3)">Cancel</button>
+    <button onclick="confirmAllocation()" style="flex:2;background:#2D6A4F;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Confirm &amp; fulfill</button>
+  </div>
+  <div style="text-align:center;margin-top:8px"><button onclick="fulfillNoAlloc()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">Fulfill without decrementing inventory</button></div>
+</div>
+</div>
 <div class="modal-bg" id="modal-reminder">
 <div class="modal">
   <div class="mhandle"></div>
@@ -2951,6 +2964,7 @@ function buildTimelineHTML(){
 // If the load succeeds, it overrides the hardcoded INV_MASTER. Otherwise we fall back to the snapshot.
 let NURSERY_INV = null; // {variety, rootstock, raw, sellable}[] when loaded, else null
 let NURSERY_UNGRAFTED = null; // {raw, sellable} of seedlings without a grafted variety yet
+let NURSERY_SECTIONS_RAW = null; // raw nursery_sections_v2 rows retained for allocation/decrement
 
 async function loadNurseryInventory(){
   if(!cloudOk || !sb) return;
@@ -2961,6 +2975,7 @@ async function loadNurseryInventory(){
       console.log('[inv] nursery_sections_v2 is empty — using INV_MASTER fallback');
       return;
     }
+    NURSERY_SECTIONS_RAW = data;
     const agg = {};
     let ungraftedRaw = 0, ungraftedSellable = 0;
     data.forEach(section => {
@@ -4781,7 +4796,7 @@ function renderDetPull(c){
     } else {
       html+='<div style="margin-top:10px;padding:12px;border-radius:8px;background:#F0FDF4;border:1px solid #BBF7D0">'+
         '<div style="font-size:12px;color:#2D6A4F;margin-bottom:8px"><b>\u2713 All lines fully pulled.</b> Mark the order fulfilled to close it out and release the reservation.</div>'+
-        '<button onclick="markFulfilled()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Mark as fulfilled</button>'+
+        '<button onclick="openAllocateModal()" style="background:var(--g700,#2D6A4F);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Allocate &amp; fulfill</button>'+
       '</div>';
     }
   }
@@ -5363,6 +5378,122 @@ function saveDelivery(){
   saveLocal();
   renderDetDelivery(c);
 }
+
+// ── FULFILLMENT ALLOCATION (decrement nursery_sections_v2 by chosen lot) ─────
+function _availableLots(variety, rootstock){
+  if(!NURSERY_SECTIONS_RAW) return [];
+  const nv=_normalizeVariety(variety), nr=_normalizeRootstock(rootstock);
+  const lots=[];
+  NURSERY_SECTIONS_RAW.forEach(section=>{
+    const secRate=section.take_rate||70;
+    (section.entries||[]).forEach((e,ei)=>{
+      if(e.type==='Sleeve'||e.type==='Seedling') return;
+      const q=parseInt(e.quantity)||0; if(q<=0) return;
+      if(_normalizeVariety(e.scion)!==nv) return;
+      if(nr && _normalizeRootstock(e.rootstock)!==nr) return;
+      const rate=(e.takeRate!==undefined&&e.takeRate!==null)?e.takeRate:secRate;
+      lots.push({sectionId:section.section_id, entryIdx:ei, raw:q, sellable:Math.floor(q*rate/100)});
+    });
+  });
+  return lots.sort((a,b)=>b.raw-a.raw);
+}
+function _reaggregateInv(){
+  if(!NURSERY_SECTIONS_RAW) return;
+  const agg={};
+  NURSERY_SECTIONS_RAW.forEach(section=>{
+    const secRate=section.take_rate||70;
+    (section.entries||[]).forEach(e=>{
+      const qty=parseInt(e.quantity)||0; if(qty===0) return;
+      if(e.type==='Sleeve') return;
+      const rate=(e.takeRate!==undefined&&e.takeRate!==null)?e.takeRate:secRate;
+      const sellable=Math.floor(qty*rate/100);
+      const variety=_normalizeVariety(e.scion), rootstock=_normalizeRootstock(e.rootstock);
+      if(e.type==='Seedling'||!variety) return;
+      const key=variety+'|'+rootstock;
+      if(!agg[key]) agg[key]={variety,rootstock,raw:0,sellable:0};
+      agg[key].raw+=qty; agg[key].sellable+=sellable;
+    });
+  });
+  NURSERY_INV=Object.values(agg).filter(i=>i.raw>0);
+  if(typeof refreshInvMetrics==='function'){try{refreshInvMetrics();}catch(e){}}
+  if(typeof renderInv==='function'){try{renderInv();}catch(e){}}
+}
+let _allocState=null;
+function openAllocateModal(){
+  const c=contacts.find(x=>x.id===currentId); if(!c) return;
+  const vars=(c.varieties||[]); const single=vars.length===1;
+  const lines=vars.map(v=>{
+    let need=parseInt(v.qty)||0; if(!need && single) need=parseInt(c.trees)||0;
+    const lots=_availableLots(v.variety,v.rootstock).map(l=>({sectionId:l.sectionId,entryIdx:l.entryIdx,raw:l.raw,sellable:l.sellable,alloc:0}));
+    let rem=need; lots.forEach(l=>{ if(rem<=0)return; const take=Math.min(rem,l.sellable); l.alloc=take; rem-=take; });
+    return {variety:v.variety||'', rootstock:v.rootstock||'', need:need, lots:lots, short:Math.max(0,rem)};
+  });
+  _allocState={cid:c.id, lines:lines};
+  renderAllocateBody();
+  openModal('modal-allocate');
+}
+function renderAllocateBody(){
+  if(!_allocState) return;
+  const cloudNote=(!cloudOk||!sb)?'<div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:8px 10px;font-size:12px;color:#92400E;margin-bottom:12px">Offline \u2014 inventory decrements locally and syncs to the nursery tracker when reconnected.</div>':'';
+  let html=cloudNote;
+  _allocState.lines.forEach((ln,li)=>{
+    const allocSum=ln.lots.reduce((s,l)=>s+(l.alloc||0),0);
+    html+='<div style="border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="font-weight:700;font-size:14px">'+esc(ln.variety||'\u2014')+(ln.rootstock?' <span style="font-weight:400;color:var(--tx3)">/ '+esc(ln.rootstock)+'</span>':'')+'</span><span style="font-size:12px;color:var(--tx3)">need '+ln.need.toLocaleString()+' \u00b7 <span id="alloc-sum-'+li+'" style="font-weight:700;color:'+(allocSum>=ln.need?'#2D6A4F':'#B45309')+'">'+allocSum.toLocaleString()+'</span> allocated</span></div>';
+    if(!ln.lots.length){
+      html+='<div style="font-size:12px;color:#B45309">No matching grafted nursery lots found.</div>';
+    } else {
+      ln.lots.forEach((l,i)=>{
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:5px 0">'+
+          '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">Lot '+esc(String(l.sectionId))+'</div>'+
+          '<div style="font-size:11px;color:var(--tx3)">'+l.sellable.toLocaleString()+' sellable \u00b7 '+l.raw.toLocaleString()+' on hand</div></div>'+
+          '<input type="number" id="alloc-'+li+'-'+i+'" value="'+(l.alloc||0)+'" min="0" max="'+l.raw+'" oninput="recalcAlloc('+li+')" style="width:92px;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit;text-align:right;box-sizing:border-box">'+
+        '</div>';
+      });
+    }
+    if(ln.short>0) html+='<div style="font-size:11px;color:#B45309;margin-top:4px">\u26a0 '+ln.short.toLocaleString()+' short \u2014 not enough grafted inventory to fully cover this line.</div>';
+    html+='</div>';
+  });
+  document.getElementById('allocate-body').innerHTML=html;
+}
+function recalcAlloc(li){
+  if(!_allocState||!_allocState.lines[li])return;
+  const ln=_allocState.lines[li]; let sum=0;
+  ln.lots.forEach((l,i)=>{ const el=document.getElementById('alloc-'+li+'-'+i); const v=el?Math.max(0,Math.min(parseInt(el.value)||0,l.raw)):0; l.alloc=v; sum+=v; });
+  const s=document.getElementById('alloc-sum-'+li); if(s){ s.textContent=sum.toLocaleString(); s.style.color=(sum>=ln.need?'#2D6A4F':'#B45309'); }
+}
+async function confirmAllocation(){
+  if(!_allocState) return;
+  const c=contacts.find(x=>x.id===_allocState.cid); if(!c){ closeModal('modal-allocate'); return; }
+  _allocState.lines.forEach(recalcAllocState);
+  const changed={}; const audit=[];
+  _allocState.lines.forEach(ln=>{
+    ln.lots.forEach(l=>{
+      if(!l.alloc||l.alloc<=0) return;
+      const section=(NURSERY_SECTIONS_RAW||[]).find(s=>s.section_id===l.sectionId); if(!section) return;
+      const entry=(section.entries||[])[l.entryIdx]; if(!entry) return;
+      entry.quantity=Math.max(0,(parseInt(entry.quantity)||0)-l.alloc);
+      changed[section.section_id]=section;
+      audit.push({sectionId:l.sectionId, variety:ln.variety, rootstock:ln.rootstock, qty:l.alloc, ts:new Date().toISOString()});
+    });
+  });
+  const changedSections=Object.values(changed);
+  _setDelivery(c,{allocation:audit});
+  let synced=false;
+  if(cloudOk && sb && changedSections.length){
+    try{ const {error}=await sb.from('nursery_sections_v2').upsert(changedSections); if(!error){synced=true;} else {console.warn('alloc upsert error',error);} }
+    catch(e){ console.warn('alloc upsert exception',e); }
+  }
+  _reaggregateInv();
+  closeModal('modal-allocate');
+  markFulfilled();
+  const total=audit.reduce((s,a)=>s+a.qty,0);
+  toast(changedSections.length ? ('Fulfilled \u2713 \u00b7 '+total.toLocaleString()+' trees decremented'+(synced?'':' (local)')) : 'Fulfilled \u2713');
+}
+function recalcAllocState(ln,li){
+  ln.lots.forEach((l,i)=>{ const el=document.getElementById('alloc-'+li+'-'+i); if(el){ l.alloc=Math.max(0,Math.min(parseInt(el.value)||0,l.raw)); } });
+}
+function fulfillNoAlloc(){ closeModal('modal-allocate'); markFulfilled(); toast('Fulfilled \u2713'); }
 
 function markFulfilled(){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
