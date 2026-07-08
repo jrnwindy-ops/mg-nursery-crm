@@ -4622,6 +4622,20 @@ function exportCalendarICS(){
   toast(evs.length+' event'+(evs.length>1?'s':'')+' exported \u2713 \u00b7 open the file to add to Google Calendar');
 }
 
+function gcalReminder(rid){
+  let title, date, det=[];
+  const r=(reminders||[]).find(x=>x.id===rid);
+  if(r){
+    title=(r.note||'Task').replace(/\s+/g,' ').trim().slice(0,90); date=r.date;
+    if(r.assignee) det.push('Assigned to: '+r.assignee);
+    if(r.contactId){ const c=contacts.find(x=>x.id===r.contactId); if(c) det.push('Customer: '+c.name); }
+  } else if(String(rid).indexOf('fu-')===0){
+    const c=contacts.find(x=>x.id===String(rid).replace('fu-','')); if(!c){toast('Not found');return;}
+    title='Follow up \u2014 '+c.name; date=c.followup; if(c.followup_note) det.push(c.followup_note);
+  }
+  if(!date){ toast('No date on this item'); return; }
+  window.open(_gcalUrl({title:title, date:date, details:det.join(' \u00b7 ')}), '_blank');
+}
 function renderReminders(){
   const today = new Date().toISOString().split('T')[0];
   const todayDate = new Date(); todayDate.setHours(0,0,0,0);
@@ -4704,6 +4718,7 @@ function renderReminders(){
         '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
           (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">'+(r.type==='followup'?'&#10003; Reached out':'&#10003; Done')+'</button>':'') +
           (r.contactId?'<button data-cid="'+r.contactId+'" onclick="openDetail(this.dataset.cid)" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">View contact</button>':'')+
+          '<button data-rid="'+r.id+'" onclick="gcalReminder(this.dataset.rid)" style="background:#fff;border:1px solid #4285F4;color:#1a73e8;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">📅 Calendar</button>'+
           '<button data-rid="'+r.id+'" onclick="deleteReminder(this.dataset.rid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px">&#x2715;</button>'+
         '</div>'+
       '</div>'+
@@ -6832,6 +6847,7 @@ async function promoteLeadToContact(leadId){
     {t:"Year filter",k:"year 2026 2027 season filter planting",b:"Use the year dropdown in Contacts to separate customers by planting year (derived from the delivery date), so current-season and next-season orders do not mix."},
     {t:"Bins",k:"bins 250 checkout return container accountability",b:"Track $250 bins out and returned per customer on the Delivery tab, with a checkout acknowledgment, so missing bins can be followed up."},
     {t:"Reminders and follow-ups",k:"reminder followup payment 15 day pickup",b:"Set follow-up dates on customers. A 15-day-before-pickup payment reminder is offered automatically once a pickup date is set."},
+    {t:"Google Calendar \u2014 add tasks & put them on staff calendars",k:"google calendar staff assign task reminder sync shared invite add schedule ics",b:"Any dated item can go to Google Calendar. On a customer's Delivery tab, Add to Google Calendar adds the pickup; on the Reminders tab each task has a Calendar button, and Export to calendar downloads every upcoming item as a file you can import. To get assigned tasks onto a staff member's calendar, set up a shared calendar once: in Google Calendar create a calendar such as \'M&G Tasks\', then under Settings, Share with specific people, add each staff member's Gmail and have them accept the invite. After that, when you tap a task's Calendar button, switch the calendar from your own to \'M&G Tasks\' before saving \u2014 everyone it is shared with, including the assignee, will then see it. To send it to just one person, add that person's email as a guest on the event and Google places it on their calendar. Note: the CRM opens a pre-filled event that you save in one tap; it does not silently push to each person's personal Google account, which would require a full Google sign-in integration (a possible future upgrade)."},
     {t:"Backup and restore",k:"backup restore export download data save excel",b:"Use Backup in the sidebar to download a copy of all data before any big change, and Restore to load one back. Excel Export sends orders to a spreadsheet."}
   ];
   function render(list){
