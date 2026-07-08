@@ -4565,6 +4565,63 @@ function deleteReminder(rid){
   renderReminders();
 }
 
+// ── GOOGLE CALENDAR / ICS (one-click add + bulk export, no OAuth) ────────────
+function _gcalDates(dateStr){
+  const start=dateStr.replace(/-/g,'');
+  const n=new Date(dateStr+'T00:00:00'); n.setDate(n.getDate()+1);
+  return start+'/'+n.toISOString().split('T')[0].replace(/-/g,'');
+}
+function _gcalUrl(o){
+  const e=encodeURIComponent;
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+e(o.title||'')+
+    '&dates='+_gcalDates(o.date)+(o.details?'&details='+e(o.details):'')+(o.location?'&location='+e(o.location):'');
+}
+function _pickupEvent(c){
+  const d=_getDelivery(c); if(!d.pickupDate) return null;
+  const vs=(c.varieties||[]).map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).filter(Boolean).join(', ');
+  const parts=[]; if(c.trees) parts.push(Number(c.trees).toLocaleString()+' trees'); if(vs) parts.push(vs);
+  if(d.planting) parts.push('Planting service'); if(d.hauling) parts.push('Hauling');
+  const loc=[d.blockLocation,d.crossStreets].filter(Boolean).join(', ');
+  return {uid:'pickup-'+c.id+'@mgcrm', title:'M&G pickup \u2014 '+(c.name||'Customer'), date:d.pickupDate, details:parts.join(' \u00b7 '), location:loc};
+}
+function addPickupToGCal(id){ const c=contacts.find(x=>x.id===id); const ev=c&&_pickupEvent(c); if(!ev){toast('Set a pickup date first');return;} window.open(_gcalUrl(ev),'_blank'); }
+function _icsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n'); }
+function _icsEvent(ev){
+  const start=ev.date.replace(/-/g,'');
+  const n=new Date(ev.date+'T00:00:00'); n.setDate(n.getDate()+1); const end=n.toISOString().split('T')[0].replace(/-/g,'');
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  let out=['BEGIN:VEVENT','UID:'+(ev.uid||('mg-'+Math.random().toString(36).slice(2)+'@mgcrm')),'DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+start,'DTEND;VALUE=DATE:'+end,'SUMMARY:'+_icsEsc(ev.title)];
+  if(ev.details) out.push('DESCRIPTION:'+_icsEsc(ev.details));
+  if(ev.location) out.push('LOCATION:'+_icsEsc(ev.location));
+  out.push('END:VEVENT'); return out.join('\r\n');
+}
+function _downloadICS(filename, events){
+  if(!events||!events.length){ toast('Nothing upcoming to export'); return; }
+  const cal=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//M&G Nursery CRM//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH']
+    .concat(events.map(_icsEvent)).concat(['END:VCALENDAR']).join('\r\n');
+  const blob=new Blob([cal],{type:'text/calendar;charset=utf-8'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function pickupICS(id){ const c=contacts.find(x=>x.id===id); const ev=c&&_pickupEvent(c); if(!ev){toast('Set a pickup date first');return;} _downloadICS('pickup-'+String(c.name||'customer').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.ics',[ev]); }
+function exportCalendarICS(){
+  const t=new Date(); t.setHours(0,0,0,0); const horizon=new Date(); horizon.setDate(horizon.getDate()+120);
+  const inWindow=ds=>{ const x=new Date(ds+'T00:00:00'); return x>=t && x<=horizon; };
+  const evs=[];
+  contacts.forEach(c=>{
+    const d=_getDelivery(c);
+    if(d.pickupDate && inWindow(d.pickupDate)){ const ev=_pickupEvent(c); if(ev) evs.push(ev); }
+    if(c.followup && !c.followup_done && inWindow(c.followup)){
+      evs.push({uid:'fu-'+c.id+'@mgcrm', title:'Follow up \u2014 '+(c.name||''), date:c.followup, details:(c.followup_note||('Stage: '+(c.status||''))), location:''});
+    }
+  });
+  (reminders||[]).forEach(r=>{ if(!r.done && r.date && inWindow(r.date)){ evs.push({uid:'rem-'+r.id+'@mgcrm', title:String(r.note||'Reminder').replace(/\s+/g,' ').trim().slice(0,80), date:r.date, details:'', location:''}); } });
+  evs.sort((a,b)=>a.date.localeCompare(b.date));
+  if(!evs.length){ toast('Nothing upcoming to export'); return; }
+  _downloadICS('mg-nursery-calendar.ics', evs);
+  toast(evs.length+' event'+(evs.length>1?'s':'')+' exported \u2713 \u00b7 open the file to add to Google Calendar');
+}
+
 function renderReminders(){
   const today = new Date().toISOString().split('T')[0];
   const todayDate = new Date(); todayDate.setHours(0,0,0,0);
@@ -4653,7 +4710,7 @@ function renderReminders(){
     '</div>';
   }
 
-  const addBtn = '<button onclick="openReminderModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-bottom:16px">&#43; Add Reminder</button>';
+  const addBtn = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"><button onclick="openReminderModal()" style="background:#1B4332;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">&#43; Add Reminder</button><button onclick="exportCalendarICS()" style="background:#fff;border:1px solid #4285F4;color:#1a73e8;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📅 Export to calendar</button></div>';
 
   const overdueBanner = active.filter(r=>r.days<0).length > 0
     ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#991B1B;font-weight:600">&#9888; '+active.filter(r=>r.days<0).length+' overdue reminder'+(active.filter(r=>r.days<0).length>1?'s':'')+' need your attention</div>'
@@ -5126,6 +5183,7 @@ function renderDetDelivery(c){
     '<label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Pickup date</label>'+
     '<input type="date" id="dlv-pickup" value="'+pickup+'" onchange="saveDelivery()" style="width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:6px;box-sizing:border-box">'+
     (pickup?'<div style="font-size:12px;color:var(--tx2)">📅 '+_fmtDateNice(pickup)+'</div>':'')+
+    (pickup?'<div style="display:flex;gap:6px;margin-top:8px"><button onclick="addPickupToGCal(\''+c.id+'\')" style="flex:1;background:#fff;border:1px solid #4285F4;color:#1a73e8;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📅 Add to Google Calendar</button><button onclick="pickupICS(\''+c.id+'\')" style="background:#fff;border:1px solid var(--bd);color:var(--tx3);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">.ics</button></div>':'')+
   '</div>';
 
   // ── Services block: planting + hauling ──
