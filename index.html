@@ -392,7 +392,7 @@ textarea.finput{height:70px;resize:none}
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <button onclick="exportXlsx()" title="Export orders to Excel" style="flex:1;background:transparent;color:var(--g200);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit">📊 Excel Export</button>
       </div>
-      <button onclick="doLogout()">Sign out</button>
+      <span class="role-badge" style="display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#2D6A4F;border-radius:8px;padding:2px 8px;margin-right:8px;letter-spacing:.02em;vertical-align:middle">Full access</span><button onclick="doLogout()">Sign out</button>
     </div>
   </div>
 
@@ -460,7 +460,7 @@ textarea.finput{height:70px;resize:none}
       </div>
       <div style="display:flex;gap:7px;align-items:center">
         <button class="m-logout" id="mic-btn-m" onclick="openDictate()" style="background:var(--g800);border-color:var(--g600)">&#127908;</button>
-        <button class="m-logout" onclick="doLogout()">Sign out</button>
+        <span class="role-badge" style="display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#2D6A4F;border-radius:8px;padding:2px 8px;margin-right:8px;letter-spacing:.02em;vertical-align:middle">Full access</span><button class="m-logout" onclick="doLogout()">Sign out</button>
       </div>
     </div>
   </div>
@@ -872,6 +872,7 @@ textarea.finput{height:70px;resize:none}
 <script>
 const CFG={
   password:'mgnursery2025',
+  fieldPassword:'mgfield2025',
   url:'https://nlfovnxjzyfircvpgsrz.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sZm92bnhqenlmaXJjdnBnc3J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODI2MzMsImV4cCI6MjA5MzE1ODYzM30.fu5Hh-HSdVJhD_OkUBlEvPs8q1AW2c1iznsFcWZUc9Q',
   table:'contacts',actTable:'activities',orderTable:'orders',CAPACITY:415000
@@ -928,6 +929,9 @@ const today=new Date();today.setHours(0,0,0,0);
 //   (contract deleted)         → reservations marked cancelled
 
 const RESERVATION_ACTIVE_STAGES = ['Deposit received', 'In production', 'Ready'];
+// Follow-up cadence: how often to touch a customer while sitting in each stage
+const CADENCE_DAYS = {'Lead':3,'Quoted':4,'Deposit received':30,'In production':45,'Ready':7};
+const CADENCE_LABEL = {'Lead':'New lead \u2014 make first contact','Quoted':'Quote out \u2014 follow up on the decision','Deposit received':'Send a production update','In production':'Production check-in','Ready':'Coordinate pickup / delivery'};
 
 // reservations is loaded from Supabase and kept in memory for the inventory tiles
 let reservations_data = [];
@@ -1155,19 +1159,71 @@ function initSB(){
 }
 
 document.getElementById('pw-input').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+/* ── USER ROLES (soft two-tier: full / field) ──────────────────────────────
+   Central permissions map — add/remove a capability here, every screen follows.
+   full  = Raffi + office admin (see everything, incl. dollars)
+   field = foreman (operations only: inventory, fulfillment, delivery/planting
+           coordination, tree-count reconciliation — all dollar amounts hidden) */
+const ROLE_PERMS = {
+  full:  { seeDollars:true,  quoteContract:true,  leadsInbox:true,  admin:true  },
+  field: { seeDollars:false, quoteContract:false, leadsInbox:false, admin:false }
+};
+let CURRENT_ROLE = 'full';
+function perm(k){ const p=ROLE_PERMS[CURRENT_ROLE]; return !!(p && p[k]); }
+const FIELD_HIDDEN_TABS = ['leads','cashflow','admin'];
+function roleFromPassword(v){ if(v===CFG.password) return 'full'; if(v===CFG.fieldPassword) return 'field'; return null; }
+function persistRole(r){ try{sessionStorage.setItem('mg_role',r);}catch(e){} try{localStorage.setItem('mg_role_fb',r);}catch(e){} }
+function restoreRole(){ let r=null; try{r=sessionStorage.getItem('mg_role');}catch(e){} if(!r){ try{r=localStorage.getItem('mg_role_fb');}catch(e){} } CURRENT_ROLE=(r==='field')?'field':'full'; return CURRENT_ROLE; }
+function clearRole(){ try{sessionStorage.removeItem('mg_role');}catch(e){} try{localStorage.removeItem('mg_role_fb');}catch(e){} CURRENT_ROLE='full'; }
+function setRoleBadge(field){
+  document.querySelectorAll('.role-badge').forEach(b=>{
+    b.textContent = field ? 'Field \u00b7 no pricing' : 'Full access';
+    b.style.background = field ? '#B45309' : '#2D6A4F';
+  });
+}
+function applyRolePermissions(){
+  restoreRole();
+  const field = (CURRENT_ROLE==='field');
+  try{ document.body.classList.toggle('role-field', field); }catch(e){}
+  FIELD_HIDDEN_TABS.forEach(t=>{ ['snav-'+t,'mnav-'+t,'dtab-'+t,'mtab-'+t].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=field?'none':''; }); });
+  setRoleBadge(field);
+  if(field && FIELD_HIDDEN_TABS.indexOf(currentTab)>=0){ switchTab('contacts'); }
+  if(field) startMoneyRedaction(); else stopMoneyRedaction();
+}
+/* Safety net: mask any "$1,234.56" text while in field role (covers dollars
+   baked into imported notes / log entries that no per-field gate would catch). */
+let _moneyObs=null;
+function _redactMoney(root){
+  if(!root) return;
+  const test=/\$\s?\d[\d,]*(\.\d+)?/; const reg=/\$\s?\d[\d,]*(\.\d+)?/g;
+  const w=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null); const hits=[];
+  while(w.nextNode()){ const v=w.currentNode.nodeValue; if(v && test.test(v)) hits.push(w.currentNode); }
+  hits.forEach(n=>{ n.nodeValue = n.nodeValue.replace(reg, function(){ return '$\u2022\u2022\u2022'; }); });
+}
+function startMoneyRedaction(){
+  const root=document.body; if(!root) return;
+  _redactMoney(root);
+  if(_moneyObs) return;
+  _moneyObs=new MutationObserver(function(){ _moneyObs.disconnect(); _redactMoney(root); _moneyObs.observe(root,{childList:true,subtree:true,characterData:true}); });
+  _moneyObs.observe(root,{childList:true,subtree:true,characterData:true});
+}
+function stopMoneyRedaction(){ if(_moneyObs){ _moneyObs.disconnect(); _moneyObs=null; } }
+
 function doLogin(){
   var val=document.getElementById('pw-input').value.trim();
   document.getElementById('login-err').textContent='';
-  if(val===CFG.password){
+  var role=roleFromPassword(val);
+  if(role){
+    CURRENT_ROLE=role; persistRole(role);
     try{sessionStorage.setItem('mg_auth','1');}catch(e){} try{localStorage.setItem('mg_auth_fb','1');}catch(e2){}
-    showMain();
+    showMain(); applyRolePermissions();
   }else{
     document.getElementById('login-err').textContent='Incorrect password.';
     document.getElementById('pw-input').value='';
     document.getElementById('pw-input').focus();
   }
 }
-function doLogout(){try{sessionStorage.removeItem('mg_auth'); try{localStorage.removeItem('mg_auth_fb');}catch(e){};}catch(e){}document.getElementById('screen-login').classList.remove('hidden');document.getElementById('screen-main').classList.remove('visible');document.getElementById('pw-input').value='';}
+function doLogout(){try{sessionStorage.removeItem('mg_auth'); try{localStorage.removeItem('mg_auth_fb');}catch(e){};}catch(e){}clearRole();stopMoneyRedaction();document.getElementById('screen-login').classList.remove('hidden');document.getElementById('screen-main').classList.remove('visible');document.getElementById('pw-input').value='';}
 function showMain(){
   var login=document.getElementById('screen-login');
   var main=document.getElementById('screen-main');
@@ -4448,18 +4504,38 @@ function saveReminder(){
 }
 
 function completeReminder(rid){
-  // Could be a standalone reminder or a contact follow-up
+  let msg='Marked as done ✓';
   if(rid.startsWith('fu-')){
     const cid = rid.replace('fu-','');
     const c = contacts.find(x=>x.id===cid);
-    if(c){ c.followup_done=true; saveLocal(); }
+    if(c){
+      const iv = (c.status!=='Fulfilled') ? CADENCE_DAYS[c.status] : undefined;
+      if(iv){
+        const nd = off(iv);
+        c.followup = nd; c.followup_done = false;
+        c.followup_note = 'Follow-up cadence \u2014 ' + (CADENCE_LABEL[c.status]||'');
+        (c.contact_log = c.contact_log || []).unshift({text:'Reached out (follow-up cadence). Next: '+nd, ts:new Date().toISOString(), by:'Isidro'});
+        saveLocal();
+        msg = 'Logged ✓ \u00b7 next follow-up ' + fmtDate(nd);
+      } else {
+        c.followup_done = true; saveLocal();
+      }
+    }
   } else {
     const r = reminders.find(x=>x.id===rid);
     if(r){ r.done=true; saveReminders(); }
   }
   renderReminders();
   renderAll();
-  toast('Marked as done ✓');
+  toast(msg);
+}
+function startCadence(id){
+  const c = contacts.find(x=>x.id===id); if(!c) return;
+  const iv = CADENCE_DAYS[c.status] || 7;
+  c.followup = off(iv); c.followup_done = false;
+  c.followup_note = 'Follow-up cadence \u2014 ' + (CADENCE_LABEL[c.status]||'');
+  saveLocal(); renderReminders(); renderAll();
+  toast('Follow-up scheduled for ' + fmtDate(c.followup) + ' ✓');
 }
 
 function deleteReminder(rid){
@@ -4554,7 +4630,7 @@ function renderReminders(){
           '</div>'+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
-          (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">&#10003; Done</button>':'') +
+          (!r.done?'<button data-rid="'+r.id+'" onclick="completeReminder(this.dataset.rid)" style="background:#F0FDF4;border:1px solid #BBF7D0;color:#1B4332;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">'+(r.type==='followup'?'&#10003; Reached out':'&#10003; Done')+'</button>':'') +
           (r.contactId?'<button data-cid="'+r.contactId+'" onclick="openDetail(this.dataset.cid)" style="background:var(--bg);border:1px solid var(--bd);color:var(--tx3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">View contact</button>':'')+
           '<button data-rid="'+r.id+'" onclick="deleteReminder(this.dataset.rid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px">&#x2715;</button>'+
         '</div>'+
@@ -4576,7 +4652,21 @@ function renderReminders(){
     ? '<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">&#10003; Completed ('+done.length+')</div>'+done.map(r=>mkCard(r,'rrow')).join('')+'</div>'
     : '';
 
-  const html = addBtn + overdueBanner + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
+  // Customers with no follow-up scheduled (off cadence)
+  const offCadence = contacts.filter(c=> c && c.status!=='Fulfilled' && CADENCE_DAYS[c.status] && (!c.followup || c.followup_done));
+  const cadenceSection = offCadence.length ? (
+    '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;margin-bottom:14px">'+
+    '<div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:8px">\u23F0 '+offCadence.length+' customer'+(offCadence.length!==1?'s':'')+' not on a follow-up cadence</div>'+
+    offCadence.slice(0,8).map(c=>
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #FEF3C7">'+
+        '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(c.name)+'</div>'+
+        '<div style="font-size:11px;color:#92400E">'+esc(c.status)+' \u00b7 '+(CADENCE_LABEL[c.status]||'')+'</div></div>'+
+        '<button data-cid="'+c.id+'" onclick="startCadence(this.dataset.cid)" style="flex-shrink:0;background:#D97706;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">Start follow-up</button>'+
+      '</div>').join('')+
+    (offCadence.length>8?'<div style="font-size:11px;color:#92400E;margin-top:6px">+ '+(offCadence.length-8)+' more</div>':'')+
+    '</div>'
+  ) : '';
+  const html = addBtn + overdueBanner + cadenceSection + (active.length?active.map(r=>mkCard(r,'rrow')).join(''):emptyState) + doneSection;
   const dr=document.getElementById('dv-reminders'), mr=document.getElementById('mv-reminders');
   const isD=window.innerWidth>=768;
   if(isD){ if(dr)dr.innerHTML=html; if(mr)mr.innerHTML=''; }
@@ -4788,6 +4878,7 @@ function renderDetOrder(c){
 
   let html = '<div style="padding:4px 0">';
 
+  if(perm('quoteContract')){
   // Quote status
   html += '<div style="margin-bottom:16px">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
@@ -4833,6 +4924,7 @@ function renderDetOrder(c){
   html += '<button onclick="emailContract(currentId)" style="flex:1;background:#7C3AED;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#9993; Email to Client</button>';
   html += '</div>';
   html += '</div></div>';
+  }
 
   // ── Final count reconciliation ──
   const _rd=_getDelivery(c);
@@ -5089,6 +5181,7 @@ function renderDetDelivery(c){
       :'')+
   '</div>';
 
+  if(perm('seeDollars')){
   // ── Payment status block ──
   const pct = grandTotal>0 ? Math.round(depositPaid/grandTotal*100) : 0;
   html+='<div style="background:var(--card,#fff);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px">'+
@@ -5129,6 +5222,7 @@ function renderDetDelivery(c){
         '<div style="display:flex;justify-content:space-between;font-size:12px;padding-top:8px;border-top:1px dashed var(--bd)"><span style="color:var(--tx2)">Scheduled '+_fmtMoney(schedTotal)+' · paid '+_fmtMoney(schedPaid)+'</span><span style="font-weight:700;color:'+((schedTotal-schedPaid)>0?'#B45309':'#2D6A4F')+'">'+_fmtMoney(Math.max(0,schedTotal-schedPaid))+' due</span></div>'
     )+
   '</div>';
+  }
 
   // ── Bin tracking block ──
   const ack = bins.acknowledgedBy && bins.acknowledgedAt;
@@ -6058,6 +6152,7 @@ function renderCashflow(){
 }
 
 function switchTab(tab){
+  if(CURRENT_ROLE==='field' && FIELD_HIDDEN_TABS.indexOf(tab)>=0) tab='contacts';
   currentTab=tab;
   const titles={contacts:'Contacts',deliveries:'Deliveries',reminders:'Reminders',tasks:'Tasks',admin:'Admin',cashflow:'Cash Flow'};
   const el=document.getElementById('d-tab-title');if(el)el.textContent=titles[tab]||tab;
@@ -6116,7 +6211,7 @@ document.addEventListener('DOMContentLoaded', function(){
   try{authed=sessionStorage.getItem('mg_auth')==='1';}catch(e){
     try{authed=localStorage.getItem('mg_auth_fb')==='1';}catch(e2){}
   }
-  if(authed)showMain();
+  if(authed){ restoreRole(); showMain(); applyRolePermissions(); }
   initNotifications();
 });
 
