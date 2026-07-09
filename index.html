@@ -6475,6 +6475,7 @@ function switchTab(tab){
   const dvCF=document.getElementById('dv-cashflow');if(dvCF)dvCF.style.display=tab==='cashflow'?'flex':'none';
   const mvCF=document.getElementById('mv-cashflow');if(mvCF)mvCF.style.display=tab==='cashflow'?'block':'none';
   if(tab==='tasks')renderTasks();
+  if(tab==='reminders')renderReminders();
   if(tab==='admin')renderAdmin();
   if(tab==='timeline')renderTimeline();
   if(tab==='inventory')renderInventory();
