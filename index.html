@@ -425,7 +425,7 @@ textarea.finput{height:70px;resize:none}
         <input id="d-search" placeholder="Search name or company..." oninput="renderAll()">
         <select id="d-listmode" onchange="setListMode(this.value)" style="min-width:120px"><option value="grouped">Grouped by client</option><option value="flat">All orders (flat)</option></select><select id="d-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option><option>Fulfilled</option></select>
         <select id="d-variety" onchange="renderAll()"><option value="">All varieties</option></select>
-        <select id="d-year" onchange="setContactYear(this.value)" style="min-width:100px"><option value="">All years</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select><select id="d-sort" onchange="setContactSort(this.value)" style="min-width:150px"><option value="">Sort: Default</option><option value="trees-desc">Trees: high \u2192 low</option><option value="trees-asc">Trees: low \u2192 high</option></select>
+        <select id="d-year" onchange="setContactYear(this.value)" style="min-width:100px"><option value="">All years</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select><select id="d-sort" onchange="setContactSort(this.value)" style="min-width:150px"><option value="">Sort: Default</option><option value="trees-desc">Trees: high → low</option><option value="trees-asc">Trees: low → high</option></select>
       </div>
       <div class="d-scroll">
         <table class="ctable">
@@ -483,7 +483,7 @@ textarea.finput{height:70px;resize:none}
       <input id="m-search" placeholder="Search..." oninput="renderAll()">
       <select id="m-listmode" onchange="setListMode(this.value)" style="min-width:100px;font-size:13px"><option value="grouped">Grouped</option><option value="flat">All orders</option></select><select id="m-stage" onchange="renderAll()"><option value="">All stages</option><option>Lead</option><option>Quoted</option><option>Deposit received</option><option>In production</option><option>Ready</option><option>Fulfilled</option></select>
       <select id="m-variety" onchange="renderAll()"><option value="">All varieties</option></select>
-      <select id="m-year" onchange="setContactYear(this.value)" style="min-width:90px;font-size:13px"><option value="">All years</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select><select id="m-sort" onchange="setContactSort(this.value)" style="min-width:130px;font-size:13px"><option value="">Sort: Default</option><option value="trees-desc">Trees: high \u2192 low</option><option value="trees-asc">Trees: low \u2192 high</option></select>
+      <select id="m-year" onchange="setContactYear(this.value)" style="min-width:90px;font-size:13px"><option value="">All years</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select><select id="m-sort" onchange="setContactSort(this.value)" style="min-width:130px;font-size:13px"><option value="">Sort: Default</option><option value="trees-desc">Trees: high → low</option><option value="trees-asc">Trees: low → high</option></select>
     </div>
     <div class="m-scroll" id="m-list"></div>
   </div>
@@ -1972,7 +1972,7 @@ function renderTasks(){
   const filter=currentTaskFilter||'all';
   const filtered=filter==='all'?tasks:filter==='done'?tasks.filter(t=>t.status==='done'):tasks.filter(t=>t.status!=='done'&&t.assignee===filter);
   const pending=tasks.filter(t=>t.status!=='done');
-  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks \u2192</div>':'';
+  const more=pending.length>3?'<div style="font-size:12px;color:var(--blue);text-align:center;padding-top:6px;cursor:pointer" onclick="goToTasks()">View all '+pending.length+' tasks →</div>':'';
   const mkBanner=(cls,closeId)=>
     '<div class="'+cls+'">' +
     '<div class="task-banner-hd">' +
