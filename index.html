@@ -6457,7 +6457,7 @@ function switchTab(tab){
   document.getElementById('dv-contacts').style.display=tab==='contacts'?'flex':'none';
   document.getElementById('dv-deliveries').style.display=(tab==='deliveries'&&window.innerWidth>=768)?'flex':'none';
   const mvDel2=document.getElementById('mv-deliveries');if(mvDel2)mvDel2.style.display=(tab==='deliveries'&&window.innerWidth<768)?'block':'none';
-  document.getElementById('dv-reminders').style.display=tab==='reminders'?'flex':'none';
+  document.getElementById('dv-reminders').style.display=tab==='reminders'?'block':'none';
   document.getElementById('dv-tasks').style.display=tab==='tasks'?'flex':'none';
   const dvAdmin=document.getElementById('dv-admin');if(dvAdmin)dvAdmin.style.display=tab==='admin'?'flex':'none';
   const dvTL=document.getElementById('dv-timeline');if(dvTL)dvTL.style.display=tab==='timeline'?'flex':'none';
