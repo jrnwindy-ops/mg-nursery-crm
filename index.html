@@ -6411,6 +6411,23 @@ function retryCloud(){
   });
 }
 
+// Cash actually received on an order. Mirrors the forecast's either/or model:
+// if a payment schedule exists, received = sum of PAID schedule lines; otherwise
+// received = the recorded deposit. (Avoids double-counting deposit + schedule.) #7
+function _receivedFor(c){
+  const d=_getDelivery(c);
+  const sched=Array.isArray(d.paySchedule)?d.paySchedule:[];
+  if(sched.length){ let r=0; sched.forEach(p=>{ if(p.paid) r+=parseFloat(p.amount)||0; }); return Math.round(r*100)/100; }
+  return Math.round((_depositPaid(c)||0)*100)/100;
+}
+// Balance still owed on an order (net of deposit / paid schedule). #7
+function _owedFor(c, grand){
+  const d=_getDelivery(c);
+  const sched=Array.isArray(d.paySchedule)?d.paySchedule:[];
+  if(sched.length){ let o=0; sched.forEach(p=>{ if(!p.paid) o+=parseFloat(p.amount)||0; }); return Math.round(o*100)/100; }
+  return Math.round(Math.max(0, (grand||0)-(_depositPaid(c)||0))*100)/100;
+}
+
 function renderCashflow(){
   const isMobile = window.innerWidth < 768;
   const target = document.getElementById(isMobile ? 'mv-cashflow' : 'dv-cashflow');
@@ -6418,13 +6435,18 @@ function renderCashflow(){
   if(other) other.innerHTML='';
   if(!target) return;
   const COMMITTED = ['Deposit received','In production','Ready'];
+  const OWED_STAGES = ['Deposit received','In production','Ready','Fulfilled'];
   const byMonth = {}; const noDate = {scheduled:0, implied:0};
+  let totReceived=0, totOwed=0, totValue=0;
   const mb = (m)=> m ? (byMonth[m]||(byMonth[m]={scheduled:0,implied:0})) : noDate;
   contacts.forEach(c=>{
     const d=_getDelivery(c);
     const trees=c.trees||0, price=c.price||12.5;
     const planting=!!d.planting, plantPrice=(typeof d.plantPrice==='number'&&d.plantPrice>=0)?d.plantPrice:2;
     const grand=_billTrees(c)*price+(planting?Math.round(trees*plantPrice*100)/100:0)+_haulTotalFor(d, trees);
+    // Received vs. owed (actuals) — #7
+    totReceived += _receivedFor(c);
+    if(OWED_STAGES.includes(c.status)){ totOwed += _owedFor(c, grand); totValue += grand; }
     const sched=Array.isArray(d.paySchedule)?d.paySchedule:[];
     if(sched.length){
       sched.forEach(p=>{ if(p.paid)return; const amt=parseFloat(p.amount)||0; if(amt<=0)return; mb((p.dueDate||'').slice(0,7)).scheduled+=amt; });
@@ -6442,6 +6464,22 @@ function renderCashflow(){
   let html='<div style="padding:18px 16px 100px;max-width:780px;margin:0 auto;width:100%;box-sizing:border-box">';
   html+='<div style="font-size:18px;font-weight:700;color:var(--tx);margin-bottom:2px">Cash Flow Forecast</div>';
   html+='<div style="font-size:12px;color:var(--tx2);margin-bottom:16px">Expected inflows by month · <b>Scheduled</b> = entered payment schedules · <b>Projected</b> = scheduled + implied balances on committed orders</div>';
+  // ── Received vs. Still Owed (actuals across committed orders) — #7 ──
+  {
+    const collectedPct = totValue>0 ? Math.round(totReceived/totValue*100) : 0;
+    html+='<div style="border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:18px;background:var(--card,#fff)">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Received vs. Still Owed &middot; committed orders</div>'+
+      '<div style="display:flex;gap:10px;margin-bottom:14px">'+
+        '<div style="flex:1"><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Received</div><div style="font-size:21px;font-weight:800;color:var(--g700,#2D6A4F)">'+fmt(totReceived)+'</div></div>'+
+        '<div style="flex:1"><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Still Owed</div><div style="font-size:21px;font-weight:800;color:#B45309">'+fmt(totOwed)+'</div></div>'+
+        '<div style="flex:1"><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Committed Value</div><div style="font-size:21px;font-weight:800;color:var(--tx)">'+fmt(totValue)+'</div></div>'+
+      '</div>'+
+      '<div style="height:10px;border-radius:5px;background:#FEF3C7;overflow:hidden;position:relative">'+
+        '<div style="position:absolute;left:0;top:0;height:100%;width:'+collectedPct+'%;background:#2D6A4F;border-radius:5px"></div>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--tx2)"><span>'+collectedPct+'% collected</span><span>'+(100-collectedPct)+'% outstanding</span></div>'+
+    '</div>';
+  }
   html+='<div style="display:flex;gap:10px;margin-bottom:18px">'+
     '<div style="flex:1;border:1px solid var(--bd);border-radius:10px;padding:12px 14px;background:var(--card,#fff)"><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Scheduled</div><div style="font-size:20px;font-weight:700;color:var(--tx)">'+fmt(totSched)+'</div></div>'+
     '<div style="flex:1;border:1px solid var(--bd);border-radius:10px;padding:12px 14px;background:var(--card,#fff)"><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Projected</div><div style="font-size:20px;font-weight:700;color:var(--g700,#2D6A4F)">'+fmt(totProj)+'</div></div>'+
