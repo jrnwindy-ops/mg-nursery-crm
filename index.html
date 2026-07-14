@@ -547,6 +547,7 @@ textarea.finput{height:70px;resize:none}
     </div>
     <div><label class="flabel">Total Trees <span style="font-weight:400;color:var(--tx3)">(auto-calculated from varieties, or enter manually)</span></label><input class="finput" id="f-trees" type="number" min="1" placeholder="500"></div>
     <div><label class="flabel">Price per tree ($)</label><input class="finput" id="f-price" type="number" step="0.01" min="0" placeholder="13.50"></div>
+    <div><label class="flabel">Deposit ($) <span style="font-weight:400;color:var(--tx3)">(total — blank = $5.50/tree)</span></label><input class="finput" id="f-deposit" type="number" step="0.01" min="0" placeholder="auto"></div>
     <div><label class="flabel">Pickup / delivery date</label><input class="finput" id="f-date" type="date"></div>
     <div><label class="flabel">Follow-up date</label><input class="finput" id="f-followup" type="date"></div>
     <div><label class="flabel">Contract # / Numero de Contrato</label><input class="finput" id="f-contract" placeholder="e.g. 1003, 26004"></div>
@@ -2212,20 +2213,8 @@ function generateQuote(contactId) {
   const trees = c.trees||0;
   const price = c.price||12.50;
   const total = trees*price;
-  // Deposit: default $5.50/tree, but let the user enter a custom amount.
-  // Raffi asked for "a space where you can just enter the amount."
-  const defaultDeposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
-  let deposit = defaultDeposit;
-  const entered = prompt(
-    'Deposit amount for this quote?\n\n' +
-    'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
-    'Default ($' + DEPOSIT_PER_TREE.toFixed(2) + '/tree): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
-    'Enter a dollar amount (or leave as-is for $5.50/tree):',
-    defaultDeposit.toFixed(2)
-  );
-  if (entered === null) return;  // user cancelled
-  const parsedDeposit = parseFloat(String(entered).replace(/[^0-9.]/g,''));
-  if (!isNaN(parsedDeposit) && parsedDeposit >= 0) deposit = Math.round(parsedDeposit*100)/100;
+  // Deposit: use the amount saved on the deal (Deposit field), else default $5.50/tree.
+  const deposit = _agreedDeposit(c);
   const depositPct = total > 0 ? Math.round(deposit/total*100) : 40;
   const balance = total-deposit;
   const deliveryDate = c.date ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : 'Spring 2026 — Exact date TBD';
@@ -2295,7 +2284,7 @@ function generateQuote(contactId) {
       '<div style="color:#fff;font-size:14px;font-weight:600">mgfarmsinc@gmail.com &nbsp;·&nbsp; (559) 397-1401</div>',
     '</div>',
     '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Quote #' + quoteNum + ' · ' + dateStr + ' · AgCommand CRM · Martinez Accounting Inc.',
+      'M&amp;G Nursery · Quote #' + quoteNum + ' · ' + dateStr,
     '</div>',
     '</div>',
     '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="'+dlName+'";a.click();};<\/script>',
@@ -2371,9 +2360,7 @@ function emailContract(contactId) {
     'Rafael Macias\n' +
     'M&G Nursery\n' +
     '39390 Rd 116, Cutler, CA 93615\n' +
-    '(559) 397-1401 · mgfarmsinc@gmail.com\n\n' +
-    '---\n' +
-    'Financial Management by Martinez Accounting Inc.';
+    '(559) 397-1401 · mgfarmsinc@gmail.com';
 
   if(c.email) {
     const mailto = 'mailto:' + encodeURIComponent(c.email) +
@@ -2392,7 +2379,7 @@ function emailContract(contactId) {
 
   // Log the action
   if(!c.contact_log) c.contact_log=[];
-  c.contact_log.unshift({text:'Contract emailed/sent to client. '+(c.email||'via WhatsApp'),ts:new Date().toISOString(),by:'Isidro'});
+  c.contact_log.unshift({text:'Contract emailed/sent to client. '+(c.email||'via WhatsApp'),ts:new Date().toISOString(),by:'Raffi'});
   saveLocal();
 }
 
@@ -2421,40 +2408,35 @@ function generateContract(contactId) {
   ).join('');
 
   const trees = c.trees || 0;
-  const price = c.price || 12.50;
+  const price = c.price || 13.50;
   const total = trees * price;
-  // Deposit: default $5.50/tree, but let the user enter the agreed amount (matches the quote flow)
-  const defaultDeposit = Math.round(trees*DEPOSIT_PER_TREE*100)/100;
-  let deposit = defaultDeposit;
-  const entered = prompt(
-    'Deposit amount for this contract?\n\n' +
-    'Order total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n' +
-    'Default ($' + DEPOSIT_PER_TREE.toFixed(2) + '/tree): $' + defaultDeposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '\n\n' +
-    'Enter the agreed deposit amount (or leave as-is for $5.50/tree):',
-    defaultDeposit.toFixed(2)
-  );
-  if (entered === null) return;  // cancelled
-  const parsedDeposit = parseFloat(String(entered).replace(/[^0-9.]/g,''));
-  if (!isNaN(parsedDeposit) && parsedDeposit >= 0) deposit = Math.round(parsedDeposit*100)/100;
-  const depositPct = total > 0 ? Math.round(deposit/total*100) : 40;
+  // Deposit: use the amount saved on the deal (Deposit field), else default $5.50/tree.
+  const deposit = _agreedDeposit(c);
+  const depositPerTree = trees > 0 ? Math.round(deposit/trees*100)/100 : 0;
   const balance = Math.round((total - deposit)*100)/100;
-  const deliveryDate = c.date
-    ? new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
-    : 'To be determined';
-  const buyerBlock = esc(c.name) +
-    (c.company && c.company !== c.name ? '<br>'+esc(c.company) : '') +
-    (c.phone ? '<br>'+esc(c.phone) : '') +
-    (c.email ? '<br>'+esc(c.email) : '');
+  const balancePerTree = trees > 0 ? Math.round(balance/trees*100)/100 : 0;
+  const fmt = n => '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Availability season, e.g. "Spring 2027", derived from the pickup/delivery date when set.
+  const availSeason = (() => {
+    if(!c.date) return 'To be determined';
+    const d = new Date(c.date+'T12:00:00'); const m = d.getMonth(); const y = d.getFullYear();
+    const season = m<=1||m===11 ? 'Winter' : m<=4 ? 'Spring' : m<=7 ? 'Summer' : 'Fall';
+    return season + ' ' + y;
+  })();
+  const varietyLine = varieties.map(v => (v.qty?v.qty.toLocaleString()+' ':'') + esc(v.variety||'') + (v.rootstock?' / '+esc(v.rootstock):'')).join('; ') || (trees.toLocaleString()+' trees');
+  const buyerName = esc(c.company || c.name);
+  const buyerContact = [c.company && c.company!==c.name ? esc(c.name) : '', c.phone?esc(c.phone):'', c.email?esc(c.email):''].filter(Boolean).join(' · ');
+  const logoSrc = (document.querySelector('.login-logo-img')||{}).src || '';
   const dlName = 'MG_Contract_' + contractNum + '_' + esc(c.name).replace(/[^a-z0-9]/gi,'_') + '.html';
 
-  const css = '* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; color: #111; background: #fff; font-size: 14px; line-height: 1.6; } .page { max-width: 760px; margin: 0 auto; padding: 48px; } @media print { .no-print { display: none !important; } @page { margin: 2cm; } } .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 3px double #1B4332; } .co-name { font-size: 22px; font-weight: 700; color: #1B4332; } .co-sub { font-size: 12px; color: #555; margin-top: 3px; } .cn { text-align: right; font-size: 12px; color: #555; } .cn-num { font-size: 15px; font-weight: 700; color: #1B4332; } h2 { font-size: 15px; font-weight: 700; color: #1B4332; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #D1FAE5; padding-bottom: 4px; } .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .fl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 2px; } .fv { font-size: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-bottom: 14px; min-height: 22px; } table { width: 100%; border-collapse: collapse; margin-bottom: 14px; } thead th { background: #1B4332; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; } .tr-tot td { background: #F0FDF4; font-weight: 700; } .tb { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-size: 13px; } .tb h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #1B4332; margin-bottom: 8px; } .tb li { margin-bottom: 5px; color: #374151; padding-left: 4px; } .tb ol { padding-left: 18px; } .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 28px; } .sl { border-bottom: 1px solid #111; height: 40px; margin-bottom: 4px; } .pbar { background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10; } .pbtn { background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif; } .dbtn { background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif; }';
+  const css = '*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,"Times New Roman",serif;color:#1a1a1a;background:#f3f4f6;font-size:13.5px;line-height:1.55}.page{max-width:800px;margin:0 auto;padding:52px 60px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}@media print{body{background:#fff}.no-print{display:none!important}.page{box-shadow:none;margin:0;max-width:100%;padding:0}@page{margin:1.6cm}}.hdr{text-align:center;margin-bottom:22px;padding-bottom:18px;border-bottom:2.5px solid #1B4332}.logo{width:96px;height:96px;object-fit:contain;margin:0 auto 8px;display:block}.co-name{font-size:23px;font-weight:700;color:#1B4332;letter-spacing:.02em}.co-sub{font-size:11.5px;color:#555;margin-top:2px}.doctitle{text-align:center;font-size:16px;font-weight:700;color:#1B4332;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 14px}.intro{margin-bottom:6px}.sec{margin-top:16px}.sec h2{font-size:13.5px;font-weight:700;color:#1B4332;margin-bottom:6px}.sec ul{list-style:none;padding-left:0}.sec li{position:relative;padding-left:16px;margin-bottom:5px;color:#222}.sec li:before{content:"\\2013";position:absolute;left:0;color:#1B4332}.sec p{margin-bottom:5px}b,strong{color:#111}.hl{background:#F0FDF4;padding:0 3px;font-weight:700;color:#1B4332}.fill{border-bottom:1px solid #333;display:inline-block;min-width:70px}.sg{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:26px}.sl{border-bottom:1px solid #111;height:34px;margin:14px 0 3px}.sglabel{font-size:11px;color:#555}.pbar{background:#1B4332;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}.pbtn{background:#52B788;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px;font-family:sans-serif}.dbtn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:sans-serif}';
 
   const parts = [
     '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-    '<title>Purchase Agreement — ' + esc(c.name) + '</title>',
+    '<title>Sales Agreement — ' + esc(c.name) + '</title>',
     '<style>' + css + '</style></head><body>',
     '<div class="no-print pbar">',
-      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Contract #' + contractNum + ' — ' + esc(c.name) + '</span>',
+      '<span style="color:#fff;font-size:13px;font-family:sans-serif;font-weight:600">&#128196; Agreement #' + contractNum + ' — ' + esc(c.name) + '</span>',
       '<div>',
         '<button class="dbtn" onclick="window.print()">&#128424; Print / PDF</button>',
         '<button class="pbtn" id="dlbtn">&#8595; Download</button>',
@@ -2463,77 +2445,104 @@ function generateContract(contactId) {
     '</div>',
     '<div class="page">',
     '<div class="hdr">',
-      '<div>',
-        '<div class="co-name">M&amp;G Nursery</div>',
-        '<div class="co-sub">39390 Rd 116 · Cutler, CA 93615</div>',
-        '<div class="co-sub">mgfarmsinc@gmail.com · (559) 397-1401</div>',
-        '<div class="co-sub" style="font-style:italic;margin-top:3px">CDFA Licensed Nursery</div>',
-      '</div>',
-      '<div class="cn">',
-        '<div class="cn-num">CONTRACT #' + contractNum + '</div>',
-        '<div style="margin-top:4px">Date: ' + dateStr + '</div>',
-        '<div style="font-weight:700;color:#1B4332;margin-top:2px">NURSERY PURCHASE AGREEMENT</div>',
-      '</div>',
+      (logoSrc ? '<img class="logo" src="' + logoSrc + '" alt="M&amp;G Nursery">' : ''),
+      '<div class="co-name">M &amp; G Nursery</div>',
+      '<div class="co-sub">39390 Road 116, Cutler, CA 93615</div>',
+      '<div class="co-sub">(559) 397-1401 &nbsp;&bull;&nbsp; mgfarmsinc@gmail.com</div>',
     '</div>',
-    '<h2>Parties</h2>',
-    '<div class="two">',
-      '<div><div class="fl">Seller</div><div class="fv"><strong>M&amp;G Nursery</strong><br>Rafael Macias<br>39390 Rd 116, Cutler CA 93615</div></div>',
-      '<div><div class="fl">Buyer</div><div class="fv"><strong>' + buyerBlock + '</strong></div></div>',
+    '<div class="doctitle">Sales Agreement for Citrus Nursery Stock</div>',
+    '<p class="intro">This is a formal sale agreement between <strong>M &amp; G Nursery</strong> ("Seller") and <strong>' + buyerName + '</strong> ("Buyer"), regarding the sale of citrus trees.' + (buyerContact ? ' <span style="color:#555;font-size:12px">(' + buyerContact + ')</span>' : '') + '</p>',
+
+    '<div class="sec"><h2>1. Sale Details</h2>',
+      '<p>This sale includes a total of <strong class="hl">' + trees.toLocaleString() + '</strong> trees: <em>' + varietyLine + '</em>.</p>',
     '</div>',
-    '<h2>Order Details</h2>',
-    '<table><thead><tr><th>Variety (Scion)</th><th>Rootstock</th></tr></thead><tbody>' + varietyRows + '</tbody></table>',
-    '<div class="two">',
-      '<div><div class="fl">Total Trees</div><div class="fv"><strong>' + trees.toLocaleString() + ' trees</strong></div></div>',
-      '<div><div class="fl">Estimated Delivery</div><div class="fv"><strong>' + deliveryDate + '</strong></div></div>',
+
+    '<div class="sec"><h2>2. Pricing and Payment Terms</h2><ul>',
+      '<li>The <strong>total cost per tree is ' + fmt(price) + '</strong>.</li>',
+      '<li>A <strong>' + fmt(depositPerTree) + ' deposit per tree</strong> must be paid when the order is placed (<strong class="hl">' + fmt(deposit) + '</strong>).</li>',
+      '<li>The <strong>remaining balance of ' + fmt(balancePerTree) + ' per tree</strong> shall be due and payable at the time the nursery stock is made available to the buyer (<strong class="hl">' + fmt(balance) + '</strong>), approximately <strong>' + availSeason + '</strong>.</li>',
+      '<li>If the buyer fails to pick up and pay for the nursery stock within <strong>30 days</strong> of notice of availability, the seller may dispose of the unclaimed nursery stock and retain the buyer\'s deposit as liquidated damages.</li>',
+      '<li><strong>Late Payment Penalty:</strong> Any unpaid balances beyond <strong>30 days</strong> from due date will incur a late charge of <strong>1.5% per month</strong> until paid in full.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>3. Agreement Identification</h2><ul>',
+      '<li>Agreement Number: <strong>' + esc(contractNum) + '</strong></li>',
+      '<li>New Agreement: Yes <span class="fill" style="min-width:34px"></span> No <span class="fill" style="min-width:34px"></span></li>',
+      '<li>Replacement for Agreement Number: <span class="fill" style="min-width:120px"></span></li>',
+      '<li style="font-style:italic;color:#555;padding-left:16px">(If this section is filled out, this agreement shall supersede and replace all terms and conditions set forth in the original agreement number listed above.)</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>4. Title, Risk of Loss, and Buyer Pickup Responsibilities</h2><ul>',
+      '<li>The prices set forth in this contract are for the nursery stock F.O.B. (Freight on Board) seller\'s nursery yard.</li>',
+      '<li>For trees that are picked up on time, title and responsibility for the trees pass to the buyer upon commencement of loading onto the buyer\'s chosen transportation method.</li>',
+      '<li>For trees not picked up within 30 days of notification, the seller retains the right to charge storage fees as outlined in Section 8. The seller is not liable for any deterioration or loss of trees left uncollected beyond the designated pickup period.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>5. Warranties and Establishment Support</h2><ul>',
+      '<li>The seller warrants that, to the best of their knowledge, the nursery stock sold to the buyer will be of the varieties described in this contract and produced in compliance with applicable agricultural regulations.</li>',
+      '<li>The seller will conduct a follow-up review with the buyer approximately 30 days after planting or delivery to discuss tree establishment and field performance.</li>',
+      '<li>As part of M&amp;G Nursery\'s customer support program, the seller may, at its sole discretion, provide replacement trees for qualifying establishment losses reported during the initial establishment period.</li>',
+      '<li>Replacement consideration is intended to support normal orchard establishment and does not constitute a guarantee against losses caused by improper planting, irrigation issues, salinity, weather events, pests, disease, chemical exposure, mechanical damage, neglect, acts of nature, or other conditions outside the seller\'s control.</li>',
+      '<li>The buyer must notify the seller of any concerns regarding tree condition or losses within 45 days of planting or receipt of nursery stock.</li>',
+      '<li>The seller reserves the right to inspect the planting and determine eligibility for replacement assistance.</li>',
+      '<li>Replacement trees, if approved, shall constitute the buyer\'s exclusive remedy, and the seller shall not be liable for consequential damages, lost profits, production losses, or field-development costs.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>6. Compliance with Agricultural Regulations</h2><ul>',
+      '<li>The buyer must have a Grower "ACP Compliance Agreement" and ensure that trees are covered or enclosed during transportation to comply with pest and disease control regulations.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>7. Cancellation and Liquidated Damages</h2><ul>',
+      '<li>If the buyer cancels the order prior to pickup, the seller shall retain the deposit as liquidated damages.</li>',
+      '<li>If the seller cannot provide the agreed nursery stock within 90 days of the estimated delivery date, the buyer may elect to cancel the agreement and receive a full refund of the deposit, with no further liability on either side.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>8. Failure to Pick Up Trees</h2><ul>',
+      '<li>The buyer must pick up the trees within 30 days of notice of availability.</li>',
+      '<li>If trees remain uncollected after 30 days, the buyer will be charged storage fees equal to the actual cost of care plus 20% overhead for each day the trees remain at the seller\'s nursery.</li>',
+      '<li>If the buyer fails to pick up the trees within 30 days past the due pickup date (total of 60 days from notification), the seller reserves the right to retain the deposit and resell the trees.</li>',
+      '<li>The seller assumes no liability for the condition of trees left uncollected beyond the designated pickup period.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>9. Force Majeure</h2>',
+      '<p>Neither party shall be held liable for delays caused by acts of God, war, civil insurrection, natural disasters, pandemics, government regulations, or quarantine restrictions, including but not limited to Asian Citrus Psyllid and Huanglongbing disease restrictions.</p>',
     '</div>',
-    '<h2>Pricing &amp; Payment</h2>',
-    '<table><thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">' + trees.toLocaleString() + ' trees &times; $' + price.toFixed(2) + '/tree</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + total.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB">Deposit Required ($' + (trees>0?(deposit/trees).toFixed(2):'0.00') + '/tree)</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;text-align:right">$' + deposit.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-      '<tr class="tr-tot"><td style="padding:8px 12px">Balance Due at Delivery</td><td style="padding:8px 12px;text-align:right">$' + balance.toLocaleString('en-US',{minimumFractionDigits:2}) + '</td></tr>',
-    '</tbody></table>',
-    '<h2>Terms &amp; Conditions</h2>',
-    '<div class="tb"><h3>1. Payment Terms</h3><ol>',
-      '<li>A non-refundable deposit of <strong>$' + (trees>0?(deposit/trees).toFixed(2):'0.00') + ' per tree</strong> is due within 14 days of contract execution to secure the order.</li>',
-      '<li>The remaining balance is due in full <strong>prior to or at the time of delivery</strong>. Trees will not be released until full payment is received.</li>',
-      '<li>Accepted payment methods: check payable to M&amp;G Nursery, bank wire transfer, or cash.</li>',
-      '<li>Accounts more than 30 days past due will accrue interest at 1.5% per month.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>2. Production &amp; Delivery</h3><ol>',
-      '<li>Delivery date is estimated. M&amp;G Nursery will provide minimum <strong>14 days advance notice</strong> of confirmed delivery date.</li>',
-      '<li>Trees will meet or exceed CDFA nursery certification standards at time of delivery.</li>',
-      '<li>Buyer is responsible for transportation unless otherwise agreed in writing.</li>',
-      '<li>Risk of loss transfers to Buyer upon delivery or pickup from nursery premises.</li>',
-      '<li>Final tree count may vary up to <strong>&plusmn;5%</strong> due to natural production variation.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>3. Cancellation Policy</h3><ol>',
-      '<li><strong>More than 90 days</strong> before delivery: deposit refundable less 10% restocking fee.</li>',
-      '<li><strong>31&ndash;90 days</strong> before delivery: 50% of deposit is forfeited.</li>',
-      '<li><strong>30 days or fewer</strong> before delivery: full deposit is forfeited.</li>',
-      '<li>M&amp;G Nursery may cancel due to crop failure, disease, or force majeure — all deposits refunded in full.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>4. Plant Warranty</h3><ol>',
-      '<li>M&amp;G Nursery warrants trees are grown from certified budwood and free from known diseases per CDFA regulations.</li>',
-      '<li>No warranty is made as to performance after delivery.</li>',
-      '<li>Quality claims must be made within <strong>48 hours of delivery</strong>.</li>',
-    '</ol></div>',
-    '<div class="tb"><h3>5. General</h3><ol>',
-      '<li>This agreement constitutes the entire understanding between parties.</li>',
-      '<li>Governed by California law. Disputes resolved in Tulare County, California.</li>',
-    '</ol></div>',
-    '<h2>Signatures</h2>',
-    '<p style="font-size:13px;color:#555;margin-bottom:18px">By signing below, both parties agree to the terms of this Nursery Purchase Agreement.</p>',
+
+    '<div class="sec"><h2>10. Legal and Dispute Resolution</h2><ul>',
+      '<li>This agreement shall be governed by the laws of the State of California.</li>',
+      '<li>Any disputes shall be resolved in the Superior Court of Tulare County, California.</li>',
+      '<li>The prevailing party in any dispute shall be entitled to recover reasonable attorney fees and costs.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>11. Assignment and Modification</h2><ul>',
+      '<li>The buyer may not assign or transfer this agreement without the seller\'s prior written consent.</li>',
+      '<li>All amendments to this contract must be in writing and signed by both parties.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>12. Signature and Receipt of Initial Deposit</h2><ul>',
+      '<li>Until signed by the authorized agent of the seller, this agreement is considered an offer to purchase, not a binding contract.</li>',
+      '<li>The buyer must remit both a signed copy of this agreement and the initial deposit within 15 days of receipt.</li>',
+      '<li>If the buyer fails to do so, the offer to purchase shall be null and void unless the seller chooses to accept the late remittance.</li>',
+    '</ul></div>',
+
+    '<div class="sec"><h2>13. Authority to Enter Agreement</h2><ul>',
+      '<li>Each signatory represents that they have full authority to enter into this agreement and bind their respective party.</li>',
+      '<li>This agreement is legally binding upon receipt of the fully signed document and the initial deposit by the seller.</li>',
+    '</ul></div>',
+
+    '<p style="margin-top:20px">The signatures below confirm that both parties have read and accepted the terms and conditions of this agreement on <span class="fill" style="min-width:150px"></span>.</p>',
+
     '<div class="sg">',
-      '<div><div class="fl">Seller — M&amp;G Nursery</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">Rafael Macias, Owner</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
-      '<div><div class="fl">Buyer</div><div class="sl"></div><div style="font-size:11px;color:#6B7280">' + esc(c.name) + '</div>',
-      '<div style="margin-top:14px"><div class="fl">Date</div><div class="sl"></div></div></div>',
+      '<div><div style="font-weight:700;color:#1B4332">SELLER</div><div style="font-size:12px;color:#333">M &amp; G Nursery<br>39390 Road 116, Cutler, CA 93615</div>',
+        '<div class="sl"></div><div class="sglabel">By (authorized agent)</div>',
+        '<div class="sl"></div><div class="sglabel">Date</div></div>',
+      '<div><div style="font-weight:700;color:#1B4332">BUYER</div><div style="font-size:12px;color:#333">' + buyerName + (c.company && c.company!==c.name ? '' : '') + '<br>&nbsp;</div>',
+        '<div class="sl"></div><div class="sglabel">By</div>',
+        '<div class="sl"></div><div class="sglabel">Date</div></div>',
     '</div>',
-    '<div style="margin-top:18px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:12px;color:#1B4332">',
-      '<strong>CFO Services:</strong> Martinez Accounting Inc. · Isidro Martinez',
-    '</div>',
-    '<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB">',
-      'M&amp;G Nursery · Contract #' + contractNum + ' · ' + dateStr + ' · AgCommand CRM',
+
+    '<div style="text-align:center;color:#9CA3AF;font-size:10.5px;margin-top:24px;padding-top:12px;border-top:1px solid #E5E7EB">',
+      'M &amp; G Nursery &nbsp;&bull;&nbsp; Agreement #' + esc(contractNum) + ' &nbsp;&bull;&nbsp; ' + dateStr,
     '</div>',
     '</div>',
     '<script>document.getElementById("dlbtn").onclick=function(){var b=new Blob([document.documentElement.outerHTML],{type:"text/html"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="' + dlName + '";a.click();};<\/script>',
@@ -2589,13 +2598,12 @@ function buildCRMReportHTML(title, period, stats, sections) {
       '<h1 style="font-size:22px;font-weight:800;color:#1B4332;margin-bottom:2px">' + title + '</h1>' +
       '<div style="font-size:13px;color:#6B7280">' + period + '</div></div>' +
       '<div style="text-align:right"><div style="font-size:10px;color:#9CA3AF">Generated</div>' +
-      '<div style="font-size:12px;font-weight:600;color:#374151">' + generated + '</div>' +
-      '<div style="font-size:10px;color:#9CA3AF;margin-top:2px">Martinez Accounting Inc.</div></div>' +
+      '<div style="font-size:12px;font-weight:600;color:#374151">' + generated + '</div></div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">' + statsHtml + '</div>' +
     sHtml +
     '<div style="border-top:1px solid #E5E7EB;padding-top:12px;margin-top:8px;display:flex;justify-content:space-between">' +
-      '<div style="font-size:10px;color:#9CA3AF">M&G Nursery · Martinez Accounting Inc. CFO Services</div>' +
+      '<div style="font-size:10px;color:#9CA3AF">M&G Nursery</div>' +
       '<div style="font-size:10px;color:#9CA3AF">Powered by AgCommand</div>' +
     '</div></div></body></html>';
 }
@@ -2801,7 +2809,7 @@ function buildTimelineHTML(){
         ts: entry.ts,
         type: 'log',
         icon: '&#128222;',
-        label: entry.by||'Isidro',
+        label: entry.by||'Raffi',
         title: entry.text,
         subtitle: c.name,
         contactId: c.id,
@@ -4562,7 +4570,7 @@ function completeReminder(rid){
         const nd = off(iv);
         c.followup = nd; c.followup_done = false;
         c.followup_note = 'Follow-up cadence \u2014 ' + (CADENCE_LABEL[c.status]||'');
-        (c.contact_log = c.contact_log || []).unshift({text:'Reached out (follow-up cadence). Next: '+nd, ts:new Date().toISOString(), by:'Isidro'});
+        (c.contact_log = c.contact_log || []).unshift({text:'Reached out (follow-up cadence). Next: '+nd, ts:new Date().toISOString(), by:'Raffi'});
         saveLocal();
         msg = 'Logged ✓ \u00b7 next follow-up ' + fmtDate(nd);
       } else {
@@ -5122,7 +5130,7 @@ function _setDelivery(c, patch){
   c.contact_log=c.contact_log||[];
   let e=c.contact_log.find(x=>x && x._delivery);
   if(!e){
-    e={_delivery:true, ts:new Date().toISOString(), by:'Isidro'};
+    e={_delivery:true, ts:new Date().toISOString(), by:'Raffi'};
     c.contact_log.push(e);
   }
   Object.assign(e, patch);
@@ -5143,6 +5151,18 @@ function _depositPaid(c){
 // Shape: { _bins:true, out, returned, acknowledgedBy, acknowledgedAt, ts, by }
 const BIN_VALUE = 250;
 const DEPOSIT_PER_TREE = 5.50;
+// Agreed/required deposit for a deal. Stored as a tagged contact_log entry
+// {_deposit:true, amount} (cloud-safe via the contact_log JSON column — no schema change).
+// Falls back to trees × $5.50 when no explicit amount has been set.
+function _agreedDeposit(c){
+  const log = (c && c.contact_log) || [];
+  for(let i=0;i<log.length;i++){ const e=log[i]; if(e && e._deposit && typeof e.amount==='number' && e.amount>=0) return Math.round(e.amount*100)/100; }
+  return Math.round(((c&&c.trees)||0)*DEPOSIT_PER_TREE*100)/100;
+}
+function _hasExplicitDeposit(c){
+  const log=(c && c.contact_log)||[];
+  return log.some(e=>e && e._deposit && typeof e.amount==='number' && e.amount>=0);
+}
 function _getBins(c){
   const log=c.contact_log||[];
   const e=log.find(x=>x && x._bins);
@@ -5151,7 +5171,7 @@ function _getBins(c){
 function _setBins(c, patch){
   c.contact_log=c.contact_log||[];
   let e=c.contact_log.find(x=>x && x._bins);
-  if(!e){ e={_bins:true, out:0, returned:0, ts:new Date().toISOString(), by:'Isidro'}; c.contact_log.push(e); }
+  if(!e){ e={_bins:true, out:0, returned:0, ts:new Date().toISOString(), by:'Raffi'}; c.contact_log.push(e); }
   Object.assign(e, patch);
   e.ts=new Date().toISOString();
 }
@@ -6093,7 +6113,7 @@ function renderContactLog(log){
     const t=new Date(e.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     return '<div style="padding:8px 0;border-bottom:1px solid var(--border)">' +
       '<div style="display:flex;justify-content:space-between;margin-bottom:3px">' +
-        '<span style="font-size:11px;font-weight:700;color:var(--green)">'+(e.by||'Isidro')+'</span>' +
+        '<span style="font-size:11px;font-weight:700;color:var(--green)">'+(e.by||'Raffi')+'</span>' +
         '<span style="font-size:11px;color:var(--muted)">'+d+' · '+t+'</span>' +
       '</div>' +
       '<div style="font-size:13px;color:var(--text);line-height:1.5">'+e.text+'</div>' +
@@ -6103,7 +6123,7 @@ function renderContactLog(log){
 function addLogEntry(){
   const inp=document.getElementById('f-new-log-entry');
   if(!inp||!inp.value.trim())return;
-  const entry={text:inp.value.trim(),ts:now(),by:'Isidro'};
+  const entry={text:inp.value.trim(),ts:now(),by:'Raffi'};
   // Add to display immediately
   const logEl=document.getElementById('f-contact-log');
   if(logEl){
@@ -6124,6 +6144,11 @@ function openEdit(id){
   {const tEl=document.getElementById('f-trusted');if(tEl)tEl.checked=!!c.trusted;}
   document.getElementById('f-trees').value=c.trees||'';
   document.getElementById('f-price').value=c.price||'';
+  {const dEl=document.getElementById('f-deposit');if(dEl){
+    dEl.value = _hasExplicitDeposit(c) ? _agreedDeposit(c) : '';
+    const t=c.trees||0; const def=Math.round(t*DEPOSIT_PER_TREE*100)/100;
+    dEl.placeholder = t ? ('auto $'+def.toLocaleString('en-US',{minimumFractionDigits:2})) : 'auto';
+  }}
   document.getElementById('f-date').value=c.date||'';
   document.getElementById('f-followup').value=c.followup||'';
   document.getElementById('f-source').value=c.source||'';
@@ -6190,8 +6215,17 @@ async function saveContact(){
   let contactLog=[];
   if(editingId){const c=contacts.find(x=>x.id===editingId);if(c)contactLog=c.contact_log||[];}
   if(newLogEntry.trim()){
-    contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Isidro'},...contactLog];
+    contactLog=[{text:newLogEntry.trim(),ts:now(),by:'Raffi'},...contactLog];
   }
+  // Agreed deposit: persist the entered amount as a tagged log entry (blank = revert to default).
+  {const depEl=document.getElementById('f-deposit');
+   if(depEl){
+     const raw=String(depEl.value||'').replace(/[^0-9.]/g,'');
+     contactLog=contactLog.filter(e=>!(e&&e._deposit));
+     if(raw!==''){const amt=parseFloat(raw);
+       if(!isNaN(amt)&&amt>=0) contactLog=[{_deposit:true,amount:Math.round(amt*100)/100,ts:now(),by:'Raffi'},...contactLog];
+     }
+   }}
   // removed - replaced with INLINE logs above
   const _builtVariety = varieties.length?varieties.map(v=>v.variety+(v.rootstock?' / '+v.rootstock:'')).join(', '):null;
   const _builtRootstock = varieties.length&&varieties[0].rootstock?varieties[0].rootstock:null;
