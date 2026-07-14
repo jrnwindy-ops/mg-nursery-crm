@@ -2995,7 +2995,7 @@ let NURSERY_SECTIONS_RAW = null; // raw nursery_sections_v2 rows retained for al
 async function loadNurseryInventory(){
   if(!cloudOk || !sb) return;
   try {
-    const { data, error } = await sb.from('nursery_sections_v2').select('section_id, entries, take_rate');
+    const { data, error } = await sb.from('nursery_sections_v2').select('section_id, house, subhouse, section_type, entries, take_rate');
     if(error){ console.warn('Nursery inventory load error:', error); return; }
     if(!data || data.length === 0){
       console.log('[inv] nursery_sections_v2 is empty — using INV_MASTER fallback');
@@ -4876,6 +4876,7 @@ function renderDetPull(c){
       '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Row</label><input id="pull-row" placeholder="e.g. 4" style="width:100%;'+fld+'"></div>'+
       '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Qty</label><input id="pull-qty" type="number" min="1" placeholder="250" style="width:100%;'+fld+'"></div>'+
     '</div>'+
+    '<div style="margin-bottom:8px"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Log to Tracker house history (optional)</label><select id="pull-tracker-section" style="width:100%;'+fld+'">'+_trackerSectionOptions()+'</select></div>'+
     '<div style="display:flex;gap:8px;align-items:flex-end">'+
       '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Batch (optional)</label><input id="pull-batch" placeholder="lot/batch" style="width:100%;'+fld+'"></div>'+
       '<div style="flex:1"><label style="display:block;font-size:12px;color:var(--tx3);margin-bottom:4px">Pulled by</label><input id="pull-by" value="Abraham" style="width:100%;'+fld+'"></div>'+
@@ -4916,6 +4917,34 @@ function renderDetPull(c){
   html+='<div style="margin-top:10px;font-size:11px;color:var(--tx3);font-style:italic">Pulls record the actual source for fulfillment. Physical nursery counts are reconciled in the tracker.</div>';
   pane.innerHTML=html;
 }
+// ── #4 · Bridge: log CRM nursery work into the Tracker's house history ──────
+// Both apps share the same Supabase project + nursery_tasks table. Writing a
+// COMPLETED nursery_tasks row keyed to a section_id makes the pull appear in that
+// house's History panel in the Nursery Tracker (its existing loadSectionHistory).
+function _trackerSectionOptions(selectedId){
+  const rows = NURSERY_SECTIONS_RAW || [];
+  if(!rows.length) return '<option value="">— Tracker inventory not loaded —</option>';
+  const sorted = rows.slice().sort((a,b)=>String(a.house||'').localeCompare(String(b.house||''))||String(a.subhouse||'').localeCompare(String(b.subhouse||'')));
+  return '<option value="">— Don\'t log to a house —</option>' + sorted.map(s=>{
+    const label = [s.house, s.subhouse].filter(Boolean).join(' · ') + (s.section_type ? ' ('+s.section_type+')' : '') || s.section_id;
+    return '<option value="'+esc(s.section_id)+'"'+(s.section_id===selectedId?' selected':'')+'>'+esc(label)+'</option>';
+  }).join('');
+}
+async function logToTrackerHistory(sectionId, taskText, by){
+  if(!sectionId) return false;
+  if(!cloudOk || !sb){ console.warn('[tracker-bridge] cloud not ready'); return false; }
+  try{
+    const nowIso = new Date().toISOString();
+    const { error } = await sb.from('nursery_tasks').insert({
+      section_id: sectionId, task: taskText,
+      scheduled_date: nowIso.slice(0,10), assignee: by || null,
+      status: 'completed', created_at: nowIso, completed_at: nowIso,
+    });
+    if(error){ console.warn('[tracker-bridge] insert error:', error); return false; }
+    return true;
+  }catch(e){ console.warn('[tracker-bridge] exception:', e); return false; }
+}
+
 function savePull(){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
   const li=parseInt((document.getElementById('pull-line')||{}).value);
@@ -4925,12 +4954,23 @@ function savePull(){
   if(qty<=0){toast('Enter a quantity');return;}
   if(!house){toast('Enter a house');return;}
   const v=(c.varieties||[])[li]||{};
+  const row=((document.getElementById('pull-row')||{}).value||'').trim()||null;
+  const batch=((document.getElementById('pull-batch')||{}).value||'').trim()||null;
+  const by=((document.getElementById('pull-by')||{}).value||'').trim()||null;
+  const trackerSection=((document.getElementById('pull-tracker-section')||{}).value||'').trim();
   c.pulls=c.pulls||[];
   c.pulls.push({id:uid(),li:li,variety:v.variety||null,rootstock:v.rootstock||null,
-    house:house,row:((document.getElementById('pull-row')||{}).value||'').trim()||null,
-    batch:((document.getElementById('pull-batch')||{}).value||'').trim()||null,
-    qty:qty,by:((document.getElementById('pull-by')||{}).value||'').trim()||null,ts:now()});
-  saveLocal();detTab('pull');toast('Pull recorded \u2713');
+    house:house,row:row,batch:batch,qty:qty,by:by,trackerSection:trackerSection||null,ts:now()});
+  saveLocal();detTab('pull');
+  // #4 — mirror the pull into the Tracker's house history (shared nursery_tasks table)
+  if(trackerSection){
+    const vlabel=(v.variety||'—')+(v.rootstock?' / '+v.rootstock:'');
+    const task='Pulled '+qty.toLocaleString()+' \u00d7 '+vlabel+' for '+(c.company||c.name)+
+      (batch?' \u00b7 Lot '+batch:'')+(row?' \u00b7 Row '+row:'');
+    logToTrackerHistory(trackerSection, task, by).then(ok=>{ toast(ok?'Pull recorded \u2713 \u00b7 logged to Tracker':'Pull recorded \u2713'); });
+  } else {
+    toast('Pull recorded \u2713');
+  }
 }
 function removePull(pid){
   const c=contacts.find(x=>x.id===currentId);if(!c)return;
